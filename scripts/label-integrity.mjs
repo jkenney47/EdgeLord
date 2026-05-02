@@ -9,7 +9,7 @@ const writeReport = process.argv.includes("--write");
 const priceTolerance = 0.0001;
 
 function timestampSlug(date = new Date()) {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return date.toISOString().replace(/[-:.]/g, "");
 }
 
 async function fetchJson(route) {

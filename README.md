@@ -103,9 +103,9 @@ pnpm labels:integrity
 
 `export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, and a manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 
-`data:coverage` writes a SOXL/SOXS `1D`/`4H`/`2H` coverage report into `reports/` so you can tell whether you are still on sample data or have enough history for research.
+`data:coverage` writes SOXL/SOXS `1D`/`4H`/`2H` coverage reports into `reports/` so you can tell whether you are still on sample data or have enough history for research. It writes both markdown and JSON; the JSON includes a readiness code such as `sample_only`, `too_short`, or `ready`.
 
-`data:status` runs coverage, label integrity, export backup, and the dataset readiness report as one post-import health check. Run it after importing real adjusted data and periodically while labeling.
+`data:status` runs coverage, label integrity, export backup, and the dataset readiness report as one post-import health check. Run it after importing real adjusted data and periodically while labeling. It writes `reports/<timestamp>-data-status.json` with command results and pointers to the latest coverage, integrity, and research summary artifacts.
 
 `validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values. Add `--research-ready` to fail when duplicate rows exist or either ticker starts after the target start date / has too little history. Defaults: `--target-start 2011-01-01 --min-years 10`.
 

@@ -15,7 +15,7 @@ const exportFiles = [
 ];
 
 function timestampSlug(date = new Date()) {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return date.toISOString().replace(/[-:.]/g, "");
 }
 
 async function download(route, target) {

@@ -7,6 +7,24 @@ from pathlib import Path
 from typing import Any
 
 
+PINE_FEATURE_EXPRESSIONS: dict[str, str] = {
+    "feature_close": "close",
+    "feature_ema25": "ta.ema(close, 25)",
+    "feature_sma100": "ta.sma(close, 100)",
+    "feature_atr14": "ta.atr(14)",
+    "feature_close_above_ema25": "close > ta.ema(close, 25)",
+    "feature_close_above_sma100": "close > ta.sma(close, 100)",
+    "feature_distance_to_ema25_pct": "((close - ta.ema(close, 25)) / ta.ema(close, 25)) * 100",
+    "feature_distance_to_sma100_pct": "((close - ta.sma(close, 100)) / ta.sma(close, 100)) * 100",
+    "feature_recent_5_return_pct": "((close - close[5]) / close[5]) * 100",
+    "feature_recent_10_return_pct": "((close - close[10]) / close[10]) * 100",
+    "feature_recent_20_return_pct": "((close - close[20]) / close[20]) * 100",
+    "feature_recent_20_high": "ta.highest(high, 20)",
+    "feature_recent_20_low": "ta.lowest(low, 20)",
+    "feature_close_rank_recent_20": "((close - ta.lowest(low, 20)) / math.max(ta.highest(high, 20) - ta.lowest(low, 20), syminfo.mintick))",
+}
+
+
 def read_rules(path: Path) -> dict[str, Any]:
     with path.open() as handle:
         payload = json.load(handle)
@@ -23,6 +41,36 @@ def top_candidate(payload: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(first, dict):
         return None
     return first
+
+
+def pine_feature_support(candidate: dict[str, Any] | None) -> dict[str, Any]:
+    if not candidate:
+        return {
+            "feature": None,
+            "supported": False,
+            "pineExpression": None,
+            "warnings": ["No candidate rule is available yet."],
+        }
+
+    feature = str(candidate.get("feature", ""))
+    expression = PINE_FEATURE_EXPRESSIONS.get(feature)
+    if expression:
+        return {
+            "feature": feature,
+            "supported": True,
+            "pineExpression": expression,
+            "warnings": [],
+        }
+
+    return {
+        "feature": feature,
+        "supported": False,
+        "pineExpression": None,
+        "warnings": [
+            f"Feature `{feature}` is not mapped to Pine yet.",
+            "Review the exported feature definition before implementing this rule in TradingView.",
+        ],
+    }
 
 
 def strategy_rules_payload(
@@ -46,36 +94,26 @@ def strategy_rules_payload(
         "humanMimicTopRule": human_candidate,
         "returnOptimizedTopRule": return_candidate,
         "topRule": human_candidate,
+        "pineSupport": {
+            "humanMimicTopRule": pine_feature_support(human_candidate),
+            "returnOptimizedTopRule": pine_feature_support(return_candidate),
+        },
+        "promotionChecklist": [
+            "Confirm the rule was generated from replay-safe training rows only.",
+            "Confirm the feature is mapped to the same calculation in Pine.",
+            "Inspect human-vs-rule disagreements before trusting the signal.",
+            "Run walk-forward split evaluation after enough labels exist.",
+            "Add explicit exit logic before treating the Pine scaffold as a strategy.",
+            "Compare TradingView results against EdgeLord exported trades.",
+        ],
         "warnings": warnings,
     }
 
 
 def pine_expression(feature: str) -> tuple[str, list[str]]:
     comments: list[str] = []
-    mapping = {
-        "feature_close": ("close", []),
-        "feature_close_above_ema25": ("close > ta.ema(close, 25)", []),
-        "feature_close_above_sma100": ("close > ta.sma(close, 100)", []),
-        "feature_distance_to_ema25_pct": (
-            "((close - ta.ema(close, 25)) / ta.ema(close, 25)) * 100",
-            [],
-        ),
-        "feature_distance_to_sma100_pct": (
-            "((close - ta.sma(close, 100)) / ta.sma(close, 100)) * 100",
-            [],
-        ),
-        "feature_recent_5_return_pct": ("((close - close[5]) / close[5]) * 100", []),
-        "feature_recent_10_return_pct": ("((close - close[10]) / close[10]) * 100", []),
-        "feature_recent_20_return_pct": ("((close - close[20]) / close[20]) * 100", []),
-        "feature_recent_20_high": ("ta.highest(high, 20)", []),
-        "feature_recent_20_low": ("ta.lowest(low, 20)", []),
-        "feature_close_rank_recent_20": (
-            "((close - ta.lowest(low, 20)) / math.max(ta.highest(high, 20) - ta.lowest(low, 20), syminfo.mintick))",
-            [],
-        ),
-    }
-    if feature in mapping:
-        return mapping[feature]
+    if feature in PINE_FEATURE_EXPRESSIONS:
+        return PINE_FEATURE_EXPRESSIONS[feature], []
     comments.append(f"TODO: map EdgeLord export feature `{feature}` to a Pine expression.")
     return ("na", comments)
 

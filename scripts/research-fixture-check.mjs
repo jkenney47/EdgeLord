@@ -146,8 +146,11 @@ try {
     "--rules-output", path.join(tempDir, "strategy-rules.v1.json"),
     "--pine-output", path.join(tempDir, "strategy-soxl-soxs.pine")
   ]);
-  assert(readFile("strategy-rules.v1.json").includes('"humanMimicTopRule"'), "strategy rules JSON should include the human rule");
-  assert(readFile("strategy-rules.v1.json").includes('"returnOptimizedTopRule"'), "strategy rules JSON should include the return rule");
+  const strategyRules = JSON.parse(readFile("strategy-rules.v1.json"));
+  assert(strategyRules.humanMimicTopRule, "strategy rules JSON should include the human rule");
+  assert(strategyRules.returnOptimizedTopRule, "strategy rules JSON should include the return rule");
+  assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
+  assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   writeResearchSummaryFixture();

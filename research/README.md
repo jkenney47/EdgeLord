@@ -39,7 +39,7 @@ It writes:
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 - `reports/<timestamp>-research-summary.json`
 
-`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact and includes the top human-mimic and return-optimized rules when available.
+`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact and includes the top human-mimic and return-optimized rules when available. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, Pine feature support status, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
 
 Or export CSV files manually and run:
 
@@ -74,7 +74,7 @@ python3 research/compare_rule.py \
   --csv-output /path/to/human-vs-rule.csv
 ```
 
-The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips.
+The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips. The markdown report also includes feature context for disagreements and simple feature-delta clusters so rule differences are inspectable without opening the CSV first.
 
 To create only chronological train/validate/test split assignments:
 
@@ -136,4 +136,4 @@ python3 research/generate_pine_stub.py \
   --pine-output /path/to/strategy-soxl-soxs.pine
 ```
 
-The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. It maps only a small set of simple exported features to Pine expressions and leaves unsupported features as TODO comments.
+The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. `strategy-rules.v1.json` records whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.

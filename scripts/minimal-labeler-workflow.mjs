@@ -484,6 +484,9 @@ async function runAcceptance() {
     assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
     assert(manifest.tradeCandidates.closedTrades === 1, "export manifest should only require candidates for training-eligible closed trades");
     assert(manifest.tradeCandidates.closedTradesWithCandidates === 1, "export manifest should count closed trades with candidates");
+    assert(Array.isArray(manifest.tradeCandidates.missingClosedTradeCandidateIds) && manifest.tradeCandidates.missingClosedTradeCandidateIds.length === 0, "export manifest should expose missing trade candidate ids");
+    assert(Array.isArray(manifest.tradeCandidates.extraCandidateTradeIds) && manifest.tradeCandidates.extraCandidateTradeIds.length === 0, "export manifest should expose extra trade candidate ids");
+    assert(Array.isArray(manifest.tradeCandidates.duplicateCandidateIds) && manifest.tradeCandidates.duplicateCandidateIds.length === 0, "export manifest should expose duplicate candidate ids");
     assert(manifest.trainingPolicy.stateMachine.includes("SKIP is a flat-state negative example only"), "export manifest should document flat-state SKIP semantics");
     console.log("ok /export/manifest.json");
 

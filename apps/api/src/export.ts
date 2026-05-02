@@ -221,6 +221,11 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
   const labelById = new Map(activeLabels.map((label) => [label.id, label]));
   const trainingEligibleLabels = activeLabels.filter((label) => label.training_eligible === 1);
   const tradeCandidateRows = buildTradeCandidateRows(activeLabels, trades);
+  const tradeCandidateIds = tradeCandidateRows.map((row) => String(row.candidate_id ?? "")).filter(Boolean);
+  const tradeCandidateIdCounts = tradeCandidateIds.reduce<Record<string, number>>((counts, id) => {
+    counts[id] = (counts[id] ?? 0) + 1;
+    return counts;
+  }, {});
   const tradeCandidateTradeIds = new Set(tradeCandidateRows.map((row) => String(row.trade_id ?? "")).filter(Boolean));
   const closedTrainingEligibleTradeIds = new Set(trades.filter((trade) => {
     if (trade.status !== "closed" || !trade.exit_label_id) return false;
@@ -264,7 +269,10 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
       rows: tradeCandidateRows.length,
       byAction: countBy(tradeCandidateRows, "action"),
       closedTrades: closedTrainingEligibleTradeIds.size,
-      closedTradesWithCandidates: [...closedTrainingEligibleTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length
+      closedTradesWithCandidates: [...closedTrainingEligibleTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length,
+      missingClosedTradeCandidateIds: [...closedTrainingEligibleTradeIds].filter((tradeId) => !tradeCandidateTradeIds.has(tradeId)).sort(),
+      extraCandidateTradeIds: [...tradeCandidateTradeIds].filter((tradeId) => !closedTrainingEligibleTradeIds.has(tradeId)).sort(),
+      duplicateCandidateIds: Object.entries(tradeCandidateIdCounts).filter(([, count]) => count > 1).map(([id]) => id).sort()
     },
     trainingPolicy: exportTrainingPolicy
   };

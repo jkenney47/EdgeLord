@@ -29,7 +29,29 @@ describe("exportManifest", () => {
     expect(manifest.tradeCandidates).toMatchObject({
       rows: 0,
       closedTrades: 0,
-      closedTradesWithCandidates: 0
+      closedTradesWithCandidates: 0,
+      missingClosedTradeCandidateIds: [],
+      extraCandidateTradeIds: [],
+      duplicateCandidateIds: []
+    });
+  });
+
+  it("reports training-eligible closed trades that do not have candidate rows", () => {
+    const labels = [
+      label("ENTRY", { id: "entry", action: "ENTRY", trade_id: "trade" }),
+      label("EXIT", { id: "exit", action: "EXIT", trade_id: "trade", parent_entry_label_id: "entry" })
+    ];
+    const trades = [trade()];
+
+    const manifest = exportManifest(labels, trades);
+
+    expect(manifest.tradeCandidates).toMatchObject({
+      rows: 0,
+      closedTrades: 1,
+      closedTradesWithCandidates: 0,
+      missingClosedTradeCandidateIds: ["trade"],
+      extraCandidateTradeIds: [],
+      duplicateCandidateIds: []
     });
   });
 });

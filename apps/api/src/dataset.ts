@@ -9,6 +9,7 @@ const targets = {
 } as const;
 
 const priceTolerance = 0.0001;
+const targetStart = "2011-01-01T00:00:00.000Z";
 
 export type DatasetPulse = ReturnType<typeof buildDatasetPulse>;
 
@@ -37,7 +38,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
     { key: "closedTrades", label: "Closed", current: trainingEligibleClosedTrades.length, target: targets.closedTrades }
   ].map((item) => ({ ...item, complete: item.current >= item.target }));
   const nextTarget = nextLabelingTarget({
-    dataReady: dataReadiness.code === "ready",
+    dataReady: dataReadiness.code === "ready" || dataReadiness.code === "alpaca_era_ready",
     integrityIssueCount: integrity.issueCount,
     openTrade,
     decisions: trainingLabels.length,
@@ -86,6 +87,10 @@ function summarizeDataReadiness(barSummary: BarSummaryRow[]) {
     .filter((row) => row.first && row.last)
     .map((row) => (new Date(row.last as string).getTime() - new Date(row.first as string).getTime()) / 86_400_000);
   const shortestSpanDays = spans.length ? Math.min(...spans) : 0;
+  const earliestChartTimestamp = chartRows
+    .map((row) => row.first)
+    .filter(Boolean)
+    .sort()[0] ?? "";
 
   if (chartCombos.size < 6) return readiness("missing_bars", "warn", "Data incomplete", shortestSpanDays);
   if (rawSources.size === 1 && rawSources.has("sample")) return readiness("sample_only", "warn", "Sample data only", shortestSpanDays);
@@ -93,6 +98,7 @@ function summarizeDataReadiness(barSummary: BarSummaryRow[]) {
   if (rawSources.size === 0) return readiness("aggregate_only", "warn", "Chart cache only", shortestSpanDays);
   if (shortestSpanDays < 365) return readiness("too_short", "warn", `Short data ${shortestSpanDays.toFixed(0)}d`, shortestSpanDays);
   if (shortestSpanDays < 365 * 5) return readiness("early", "warn", `Early data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays);
+  if (earliestChartTimestamp > targetStart) return readiness("alpaca_era_ready", "good", `Alpaca-era ${earliestChartTimestamp.slice(0, 4)}+`, shortestSpanDays);
   return readiness("ready", "good", `Data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays);
 }
 

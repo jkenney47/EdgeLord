@@ -26,7 +26,8 @@ describe("buildDatasetPulse", () => {
 
     const pulse = buildDatasetPulse(barSummary, labels, trades);
 
-    expect(pulse.dataReadiness.code).toBe("ready");
+    expect(pulse.dataReadiness.code).toBe("alpaca_era_ready");
+    expect(pulse.dataReadiness.text).toBe("Alpaca-era 2016+");
     expect(pulse.labels.total).toBe(3);
     expect(pulse.labels.trainingEligible).toBe(2);
     expect(pulse.labels.excluded).toBe(1);

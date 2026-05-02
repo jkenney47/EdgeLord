@@ -72,7 +72,7 @@ export function CapturePanel({
     : null;
   const actionBlockReasons = (["ENTRY", "EXIT", "SKIP", "INVALID"] as LabelAction[]).map((action) => ({
     action,
-    reason: getCaptureBlockReason(action, selected, ticker, openTrade)
+    reason: getCaptureBlockReason(action, selected, ticker, openTrade, selectedLabels, labelSource)
   }));
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);

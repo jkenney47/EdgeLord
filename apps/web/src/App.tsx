@@ -196,7 +196,7 @@ export function App() {
   }, [bars]);
 
   const capture = useCallback(async (action: LabelAction) => {
-    const blockReason = getCaptureBlockReason(action, selected, ticker, openTrade);
+    const blockReason = getCaptureBlockReason(action, selected, ticker, openTrade, selectedLabels, labelSource);
     if (blockReason) {
       setError(blockReason);
       return;
@@ -236,7 +236,7 @@ export function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [autoAdvance, bars, executionPrice, index, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
+  }, [autoAdvance, bars, executionPrice, index, labelSource, mode, move, openTrade, refreshState, selected, selectedLabels, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     setError(null);

@@ -14,7 +14,10 @@ import { getOpenTrade, getTrades } from "./trades";
 
 dotenv.config({ path: path.join(repoRoot, ".env") });
 
-const app = Fastify({ logger: true });
+const app = Fastify({
+  logger: true,
+  bodyLimit: 200 * 1024 * 1024
+});
 await app.register(cors, { origin: true });
 app.addContentTypeParser(["text/csv", "text/plain"], { parseAs: "string" }, (_request, body, done) => {
   done(null, body);

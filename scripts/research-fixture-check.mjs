@@ -84,6 +84,7 @@ try {
   run(["research/dataset_report.py", "--labels", labelsCsv, "--training", trainingCsv, "--trades", tradesCsv, "--output", path.join(tempDir, "dataset-report.md")]);
   assert(readFile("dataset-report.md").includes("entry labels are still early:"), "dataset report should include readiness guidance");
   assert(readFile("dataset-report.md").includes("Training Label Sources"), "dataset report should include training source counts");
+  assert(readFile("dataset-report.md").includes("State Machine Sequence Issues"), "dataset report should include state-machine sequence diagnostics");
 
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));

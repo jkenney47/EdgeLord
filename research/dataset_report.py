@@ -117,12 +117,65 @@ def format_feature_contrasts(training: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def sequence_issues(labels: list[dict[str, str]]) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    open_label: dict[str, str] | None = None
+    for label in sorted(labels, key=lambda row: row.get("created_at") or row.get("timestamp") or ""):
+        action = label.get("action", "")
+        if action == "ENTRY":
+            if open_label:
+                issues.append({
+                    "label_id": label.get("id", ""),
+                    "action": action,
+                    "ticker": label.get("ticker", ""),
+                    "timestamp": label.get("timestamp", ""),
+                    "reason": f"ENTRY while {open_label.get('ticker', '')} trade {open_label.get('id', '')} is still open",
+                    "open_label_id": open_label.get("id", ""),
+                })
+            else:
+                open_label = label
+        elif action == "EXIT":
+            if not open_label:
+                issues.append({
+                    "label_id": label.get("id", ""),
+                    "action": action,
+                    "ticker": label.get("ticker", ""),
+                    "timestamp": label.get("timestamp", ""),
+                    "reason": "EXIT with no open trade",
+                    "open_label_id": "",
+                })
+            elif open_label.get("ticker") != label.get("ticker"):
+                issues.append({
+                    "label_id": label.get("id", ""),
+                    "action": action,
+                    "ticker": label.get("ticker", ""),
+                    "timestamp": label.get("timestamp", ""),
+                    "reason": f"EXIT {label.get('ticker', '')} while open trade is {open_label.get('ticker', '')}",
+                    "open_label_id": open_label.get("id", ""),
+                })
+            else:
+                open_label = None
+    return issues
+
+
+def format_sequence_issues(issues: list[dict[str, str]]) -> list[str]:
+    lines = ["\nState Machine Sequence Issues"]
+    if not issues:
+        return [*lines, "  none"]
+    for issue in issues[:25]:
+        lines.append(
+            f"  {issue['label_id']} {issue['action']} {issue['ticker']} {issue['timestamp']}: {issue['reason']}"
+        )
+    return lines
+
+
 def next_label_recommendations(
     labels: list[dict[str, str]],
     training: list[dict[str, str]],
     trades: list[dict[str, str]],
     orphan_exits: list[dict[str, str]],
     entries_without_trade: list[dict[str, str]],
+    state_sequence_issues: list[dict[str, str]],
 ) -> list[str]:
     training_actions = count_by(training, "action")
     training_tickers = count_by(training, "ticker")
@@ -134,8 +187,8 @@ def next_label_recommendations(
     excluded = len([label for label in labels if label.get("training_eligible") != "1"])
 
     lines = ["\nWhat To Label Next"]
-    if orphan_exits or entries_without_trade:
-        lines.append("  1. Fix orphan trade links before adding modeling labels.")
+    if orphan_exits or entries_without_trade or state_sequence_issues:
+        lines.append("  1. Fix state-machine or orphan trade-link issues before adding modeling labels.")
         return lines
     if entries == 0:
         lines.append("  1. Start with replay-safe ENTRY labels on SOXL/SOXS 4H setups.")
@@ -183,6 +236,7 @@ def main() -> None:
         label for label in labels
         if label.get("action") == "ENTRY" and not label.get("trade_id")
     ]
+    state_sequence_issues = sequence_issues(labels)
 
     lines = [
         "EdgeLord Dataset Report",
@@ -194,6 +248,7 @@ def main() -> None:
         f"trades: {len(trades)}",
         f"orphan_exits: {len(orphan_exits)}",
         f"entries_without_trade: {len(entries_without_trade)}",
+        f"sequence_issues: {len(state_sequence_issues)}",
     ]
 
     lines.extend(format_counts("Actions", count_by(labels, "action")))
@@ -205,6 +260,7 @@ def main() -> None:
     lines.extend(format_counts("Timeframes", count_by(labels, "timeframe")))
     lines.extend(format_counts("Trade Status", count_by(trades, "status")))
     lines.extend(format_return_summary(trades))
+    lines.extend(format_sequence_issues(state_sequence_issues))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
 
@@ -222,12 +278,12 @@ def main() -> None:
         lines.append(f"  skip coverage is at least entry-sized: {skip_count} skips vs {entry_count} entries")
     if exit_count < entry_count:
         lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
-    if orphan_exits or entries_without_trade:
-        lines.append("  fix orphan trade links before modeling")
+    if orphan_exits or entries_without_trade or state_sequence_issues:
+        lines.append("  fix state-machine/orphan trade-link issues before modeling")
     if excluded_labels:
         lines.append("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
 
-    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade))
+    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues))
 
     report = "\n".join(lines) + "\n"
     print(report, end="")

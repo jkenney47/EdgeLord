@@ -39,6 +39,13 @@ function requireBarIndex(input: { ticker: Label["ticker"]; timeframe: Label["tim
   return barIndex;
 }
 
+function hasPatchKey<K extends keyof z.infer<typeof patchLabelSchema>>(
+  patch: z.infer<typeof patchLabelSchema>,
+  key: K
+): boolean {
+  return Object.prototype.hasOwnProperty.call(patch, key);
+}
+
 export function getLabels(): Label[] {
   return db.prepare("select * from labels where deleted_at is null order by created_at asc").all() as Label[];
 }
@@ -130,14 +137,14 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
     timeframe: patch.timeframe ?? existing.timeframe,
     timestamp: patch.timestamp ?? existing.timestamp,
     chart_price: patch.chartPrice ?? existing.chart_price,
-    execution_price: patch.executionPrice ?? existing.execution_price,
+    execution_price: hasPatchKey(patch, "executionPrice") ? patch.executionPrice ?? null : existing.execution_price,
     capture_mode: patch.captureMode ?? existing.capture_mode,
     visible_until_timestamp: patch.visibleUntilTimestamp ?? existing.visible_until_timestamp,
     potential_visual_leakage: (patch.potentialVisualLeakage ?? Boolean(existing.potential_visual_leakage)) ? 1 : 0,
-    confidence: patch.confidence ?? existing.confidence,
-    setup_quality: patch.setupQuality ?? existing.setup_quality,
+    confidence: hasPatchKey(patch, "confidence") ? patch.confidence ?? null : existing.confidence,
+    setup_quality: hasPatchKey(patch, "setupQuality") ? patch.setupQuality ?? null : existing.setup_quality,
     reason_codes_json: patch.reasonCodes ? JSON.stringify(patch.reasonCodes) : existing.reason_codes_json,
-    notes: patch.notes ?? existing.notes,
+    notes: hasPatchKey(patch, "notes") ? patch.notes ?? null : existing.notes,
     updated_at: nowIso()
   };
   next.training_eligible = trainingEligible(next.label_source, next.capture_mode, Boolean(next.potential_visual_leakage)) ? 1 : 0;

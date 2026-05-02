@@ -62,6 +62,12 @@ function expectedTrainingEligible(label) {
 function inspectSequence(items) {
   let open = null;
   for (const label of [...items].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))) {
+    const isExcludedOrphanExit = label.action === "EXIT" &&
+      Number(label.training_eligible) === 0 &&
+      label.trade_id === null &&
+      label.parent_entry_label_id === null;
+    if (isExcludedOrphanExit) continue;
+
     if (label.action === "ENTRY") {
       if (open) {
         sequenceIssues.push({

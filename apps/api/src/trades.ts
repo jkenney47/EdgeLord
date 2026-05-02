@@ -92,6 +92,12 @@ export function validateLabelSequence(labels: Label[]): { ok: true } | { ok: fal
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   for (const label of sorted) {
+    const isExcludedOrphanExit = label.action === "EXIT" &&
+      label.training_eligible === 0 &&
+      label.trade_id === null &&
+      label.parent_entry_label_id === null;
+    if (isExcludedOrphanExit) continue;
+
     if (label.action === "ENTRY") {
       if (open) {
         return {

@@ -440,6 +440,20 @@ async function runAcceptance() {
     assert(Math.abs(actualTrade.return_pct - 10) < 0.0001, "Actual trade return should use execution prices");
     console.log("ok actual trade execution prices drive returns");
 
+    const clearedActualExit = await patchLabel(baseUrl, actualExit.label.id, { executionPrice: null, confidence: null, notes: null });
+    assert(clearedActualExit.label.execution_price === null, "PATCH should clear nullable execution price");
+    assert(clearedActualExit.label.confidence === null, "PATCH should clear nullable confidence");
+    assert(clearedActualExit.label.notes === null, "PATCH should clear nullable notes");
+    const clearedActualTrades = await fetchJson(baseUrl, "/trades").then(({ response, body }) => {
+      assert(response.ok, `/trades returned ${response.status}`);
+      return body.trades;
+    });
+    const clearedActualTrade = clearedActualTrades.find((trade) => trade.entry_label_id === actualEntry.label.id);
+    const expectedClearedReturn = ((soxsBars[1].close - 100) / 100) * 100;
+    assert(clearedActualTrade?.exit_price === soxsBars[1].close, "Cleared execution exit should fall back to chart price");
+    assert(Math.abs(clearedActualTrade.return_pct - expectedClearedReturn) < 0.0001, "Cleared execution exit should recalculate return");
+    console.log("ok patch clears nullable label fields");
+
     const csv = fs.readFileSync(path.join(root, "data", "sample-bars.csv"), "utf8");
     const guardedImport = await importCsv(baseUrl, { csv, replaceBars: true }, 409);
     assert(guardedImport.activeLabels > 0, "Replace-bars guard should report active labels");

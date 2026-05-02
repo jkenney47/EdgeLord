@@ -2,8 +2,10 @@ node_modules/
 dist/
 .env
 .DS_Store
-data/
-**/data/
+data/*
+!data/.gitkeep
+!data/sample-bars.csv
+apps/*/data/
 coverage/
 playwright-report/
 test-results/

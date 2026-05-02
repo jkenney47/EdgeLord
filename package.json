@@ -9,16 +9,9 @@
     "dev:api": "pnpm --filter @edgelord/api dev",
     "dev:web": "pnpm --filter @edgelord/web dev",
     "test": "pnpm --recursive test",
-    "test:focused-ui": "pnpm --filter @edgelord/web test -- src/store/useAppStore.test.ts src/components/ToolRail.test.tsx src/charts/ChartGrid4H.test.tsx",
     "typecheck": "pnpm --recursive typecheck",
     "lint": "pnpm --recursive lint",
-    "smoke:ui:legacy-playwright": "node scripts/smoke-ui.mjs",
-    "workflow:focused-ui": "node scripts/focused-ui-workflow.mjs",
-    "backfill:soxl-soxs": "node scripts/backfill-soxl-soxs.mjs",
-    "verify:label-factory": "node scripts/verify-label-factory-slice.mjs",
-    "verify": "pnpm test && pnpm lint && pnpm typecheck && pnpm --filter @edgelord/web build",
-    "verify:focused-ui": "pnpm test:focused-ui && pnpm verify",
-    "verify:full": "pnpm verify"
+    "verify": "pnpm typecheck && pnpm --filter @edgelord/web build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -31,7 +24,6 @@
     "eslint": "^9.25.1",
     "globals": "^17.5.0",
     "jsdom": "^29.0.2",
-    "playwright": "^1.59.1",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.59.0",

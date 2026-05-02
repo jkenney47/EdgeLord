@@ -1,0 +1,122 @@
+import type { Bar, CaptureMode, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
+
+type Props = {
+  selected: Bar | null;
+  ticker: Ticker;
+  mode: CaptureMode;
+  labelSource: LabelSource;
+  labels: Label[];
+  openTrade: Trade | null;
+  error: string | null;
+  onLabelSource: (source: LabelSource) => void;
+  onCapture: (action: LabelAction) => void;
+  onUndo: () => void;
+};
+
+function canCapture(action: LabelAction, selected: Bar | null, ticker: Ticker, openTrade: Trade | null): boolean {
+  if (!selected) return false;
+  if (action === "ENTRY") return !openTrade;
+  if (action === "EXIT") return Boolean(openTrade && openTrade.ticker === ticker);
+  return true;
+}
+
+const actionKeys: Record<LabelAction, string> = {
+  ENTRY: "E",
+  EXIT: "X",
+  SKIP: "S",
+  INVALID: "I"
+};
+
+export function CapturePanel({
+  selected,
+  ticker,
+  mode,
+  labelSource,
+  labels,
+  openTrade,
+  error,
+  onLabelSource,
+  onCapture,
+  onUndo
+}: Props) {
+  const lastLabels = labels.slice(-10).reverse();
+  return (
+    <aside className="capture-panel">
+      <section className="panel-section">
+        <span className="eyebrow">Selected candle</span>
+        {selected ? (
+          <div className="selected-card">
+            <strong>{selected.ticker} {selected.timeframe}</strong>
+            <span>{new Date(selected.timestamp).toLocaleString()}</span>
+            <div className="ohlc">
+              <span>O {selected.open.toFixed(2)}</span>
+              <span>H {selected.high.toFixed(2)}</span>
+              <span>L {selected.low.toFixed(2)}</span>
+              <span>C {selected.close.toFixed(2)}</span>
+            </div>
+          </div>
+        ) : (
+          <p>Select a candle to label.</p>
+        )}
+      </section>
+
+      <section className="panel-section">
+        <label className="field">
+          <span>Label source</span>
+          <select value={labelSource} onChange={(event) => onLabelSource(event.target.value as LabelSource)}>
+            <option value="actual_trade">Actual trade</option>
+            <option value="retrospective_replay">Retrospective replay</option>
+            <option value="retrospective_hindsight">Retrospective hindsight</option>
+          </select>
+        </label>
+        <span className={mode === "replay" && labelSource !== "retrospective_hindsight" ? "badge good" : "badge warn"}>
+          {labelSource === "actual_trade" || (mode === "replay" && labelSource === "retrospective_replay")
+            ? "Training eligible"
+            : "Excluded by default"}
+        </span>
+      </section>
+
+      <section className="panel-section">
+        <div className="action-grid">
+          {(["ENTRY", "EXIT", "SKIP", "INVALID"] as LabelAction[]).map((action) => (
+            <button key={action} disabled={!canCapture(action, selected, ticker, openTrade)} onClick={() => onCapture(action)}>
+              {action}
+              <kbd>{actionKeys[action]}</kbd>
+            </button>
+          ))}
+        </div>
+        <button className="secondary" disabled={labels.length === 0} onClick={onUndo}>Undo last label <kbd>U</kbd></button>
+        {error ? <p className="error">{error}</p> : null}
+      </section>
+
+      <section className="panel-section">
+        <span className="eyebrow">Current open trade</span>
+        {openTrade ? (
+          <div className="trade-card">
+            <strong>Long {openTrade.ticker}</strong>
+            <span>{openTrade.entry_timestamp.slice(0, 10)} @ {openTrade.entry_price.toFixed(2)}</span>
+          </div>
+        ) : (
+          <p>Flat</p>
+        )}
+      </section>
+
+      <section className="panel-section">
+        <span className="eyebrow">Last 10 labels</span>
+        {lastLabels.length === 0 ? (
+          <p>No labels yet.</p>
+        ) : (
+          <ol className="label-list">
+            {lastLabels.map((label) => (
+              <li key={label.id}>
+                <strong>{label.action}</strong>
+                <span>{label.ticker} {label.timeframe}</span>
+                <span>{label.timestamp.slice(0, 10)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </aside>
+  );
+}

@@ -1,102 +1,86 @@
-import Fastify from "fastify";
 import cors from "@fastify/cors";
+import dotenv from "dotenv";
+import Fastify from "fastify";
+import path from "node:path";
+import { z } from "zod";
 
-import { loadEnv } from "./config/env.js";
-import { openDatabase } from "./db/database.js";
-import { runMigrations } from "./db/migrate.js";
-import { AlpacaProvider } from "./market-data/alpacaProvider.js";
-import { registerChartRoutes } from "./routes/chartRoutes.js";
-import { registerDrawingRoutes } from "./routes/drawingRoutes.js";
-import { registerExportRoutes } from "./routes/exportRoutes.js";
-import { registerImportRoutes } from "./routes/importRoutes.js";
-import { registerLabelRoutes } from "./routes/labelRoutes.js";
-import { registerReviewRoutes } from "./routes/reviewRoutes.js";
-import { registerSessionRoutes } from "./routes/sessionRoutes.js";
-import type { SqliteDatabase } from "./db/database.js";
-import type { MarketDataProvider } from "./market-data/types.js";
+import { getBars, hasChartBars, importRawBars } from "./bars";
+import { parseBarsCsv, readCsvFile } from "./csvImport";
+import { repoRoot } from "./db";
+import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
+import { createLabel, createLabelSchema, deleteLabel, getLabels, patchLabel, patchLabelSchema } from "./labels";
+import type { ChartTimeframe, Ticker } from "./schema";
+import { getOpenTrade, getTrades } from "./trades";
 
-type ServerDependencies = {
-  db?: SqliteDatabase;
-  marketDataProvider?: MarketDataProvider;
-  marketDataProviderName?: string;
-};
+dotenv.config({ path: path.join(repoRoot, ".env") });
 
-export function buildServer(dependencies: ServerDependencies = {}) {
-  const server = Fastify({
-    logger: false
-  });
+const app = Fastify({ logger: true });
+await app.register(cors, { origin: true });
+app.addContentTypeParser(["text/csv", "text/plain"], { parseAs: "string" }, (_request, body, done) => {
+  done(null, body);
+});
 
-  void server.register(cors, {
-    origin: [
-      "http://127.0.0.1:5173",
-      "http://localhost:5173",
-      process.env.WEB_ORIGIN
-    ].filter((origin): origin is string => Boolean(origin)),
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
-  });
+function seedSampleData() {
+  if (hasChartBars()) return;
+  const samplePath = path.join(repoRoot, "data", "sample-bars.csv");
+  const csv = readCsvFile(samplePath);
+  importRawBars(parseBarsCsv(csv, "sample"));
+}
 
-  server.get("/health", async () => {
-    return { ok: true };
-  });
+seedSampleData();
 
-  if (dependencies.db && dependencies.marketDataProvider) {
-    void registerChartRoutes(server, {
-      db: dependencies.db
-    });
-    void registerSessionRoutes(server, {
-      db: dependencies.db
-    });
-    void registerLabelRoutes(server, {
-      db: dependencies.db
-    });
-    void registerDrawingRoutes(server, {
-      db: dependencies.db
-    });
-    void registerExportRoutes(server, {
-      db: dependencies.db
-    });
-    void registerReviewRoutes(server, {
-      db: dependencies.db
-    });
-    void registerImportRoutes(server, {
-      db: dependencies.db,
-      marketDataProvider: dependencies.marketDataProvider,
-      marketDataProviderName: dependencies.marketDataProviderName ?? "alpaca"
-    });
+app.get("/health", async () => ({ ok: true }));
+
+app.post("/import/csv", async (request, reply) => {
+  const bodySchema = z.union([
+    z.string(),
+    z.object({ csv: z.string().optional(), path: z.string().optional() })
+  ]);
+  const body = bodySchema.parse(request.body);
+  const csv = typeof body === "string"
+    ? body
+    : body.csv ?? (body.path ? readCsvFile(path.resolve(repoRoot, body.path)) : "");
+  const result = importRawBars(parseBarsCsv(csv, "csv"));
+  return reply.send(result);
+});
+
+app.get("/bars", async (request) => {
+  const query = z.object({
+    ticker: z.enum(["SOXL", "SOXS"]),
+    timeframe: z.enum(["1D", "4H", "2H"])
+  }).parse(request.query);
+  return { bars: getBars(query.ticker as Ticker, query.timeframe as ChartTimeframe) };
+});
+
+app.get("/labels", async () => ({ labels: getLabels() }));
+app.post("/labels", async (request, reply) => {
+  try {
+    return createLabel(createLabelSchema.parse(request.body));
+  } catch (error) {
+    return reply.status(400).send({ error: error instanceof Error ? error.message : "Could not create label" });
   }
+});
+app.patch("/labels/:id", async (request, reply) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  try {
+    return { label: patchLabel(params.id, patchLabelSchema.parse(request.body)) };
+  } catch (error) {
+    return reply.status(404).send({ error: error instanceof Error ? error.message : "Could not patch label" });
+  }
+});
+app.delete("/labels/:id", async (request) => {
+  const params = z.object({ id: z.string() }).parse(request.params);
+  deleteLabel(params.id);
+  return { ok: true };
+});
 
-  return server;
-}
+app.get("/trades", async () => ({ trades: getTrades() }));
+app.get("/state/open-trade", async () => ({ openTrade: getOpenTrade() }));
 
-async function main() {
-  const env = loadEnv();
-  const db = openDatabase(env.DATABASE_PATH);
-  runMigrations(db);
-  const server = buildServer({
-    db,
-    marketDataProvider: new AlpacaProvider({
-      apiKeyId: env.ALPACA_API_KEY_ID,
-      apiSecretKey: env.ALPACA_API_SECRET_KEY,
-      feed: env.ALPACA_DATA_FEED
-    }),
-    marketDataProviderName: "alpaca"
-  });
+app.get("/export/labels.csv", async (_request, reply) => reply.type("text/csv").send(labelsCsv(getLabels())));
+app.get("/export/trades.csv", async (_request, reply) => reply.type("text/csv").send(tradesCsv(getTrades())));
+app.get("/export/training-features.csv", async (_request, reply) => reply.type("text/csv").send(trainingFeaturesCsv(getLabels())));
+app.get("/export/labels.jsonl", async (_request, reply) => reply.type("application/x-ndjson").send(labelsJsonl(getLabels())));
 
-  server.addHook("onClose", async () => {
-    db.close();
-  });
-
-  await server.listen({
-    host: "127.0.0.1",
-    port: env.API_PORT
-  });
-
-  console.log(`EdgeLord API listening on http://127.0.0.1:${env.API_PORT}`);
-}
-
-if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {
-  main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
-}
+const port = Number(process.env.API_PORT ?? 4317);
+await app.listen({ host: "127.0.0.1", port });

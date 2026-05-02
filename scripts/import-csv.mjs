@@ -8,7 +8,7 @@ const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 const replaceBars = process.argv.includes("--replace-bars");
 const forceReplaceBars = process.argv.includes("--force-replace-bars");
 const researchReady = process.argv.includes("--research-ready");
-const optionNamesWithValues = new Set(["--target-start", "--min-years"]);
+const optionNamesWithValues = new Set(["--target-start", "--min-years", "--min-paired-overlap-pct"]);
 let skipNext = false;
 const csvArg = process.argv.slice(2).find((arg) => {
   if (skipNext) {
@@ -23,12 +23,12 @@ const csvArg = process.argv.slice(2).find((arg) => {
 });
 
 if (!csvArg || csvArg === "--help" || csvArg === "-h") {
-  console.log("Usage: pnpm import:csv /path/to/adjusted-bars.csv [--replace-bars] [--force-replace-bars] [--research-ready] [--target-start YYYY-MM-DD] [--min-years N]");
+  console.log("Usage: pnpm import:csv /path/to/adjusted-bars.csv [--replace-bars] [--force-replace-bars] [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--min-paired-overlap-pct N]");
   console.log("");
   console.log("CSV columns: ticker,timestamp,open,high,low,close,volume");
   console.log("--replace-bars deletes existing cached bars before importing.");
   console.log("--force-replace-bars allows replacement when active labels exist. Run pnpm export:backup and pnpm labels:integrity first.");
-  console.log("--research-ready requires SOXL/SOXS coverage suitable for strategy research before importing.");
+  console.log("--research-ready requires SOXL/SOXS coverage and paired timestamp overlap suitable for strategy research before importing.");
   process.exit(process.argv.some((arg) => arg === "--help" || arg === "-h") ? 0 : 1);
 }
 

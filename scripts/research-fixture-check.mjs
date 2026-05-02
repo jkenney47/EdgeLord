@@ -263,6 +263,7 @@ try {
   assert(csvValidation.version === "edgelord.csv_validation.v1", "CSV validation JSON should carry the expected version");
   assert(csvValidation.importable === true, "sample CSV should be importable");
   assert(csvValidation.researchReady === false, "sample CSV should not be research-ready");
+  assert(csvValidation.pairedTimestampCoverage.overlapPct === 100, "sample CSV should have full paired timestamp overlap");
   const duplicateCsv = writeFile("duplicate-bars.csv", [
     "ticker,timestamp,open,high,low,close,volume",
     "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000",
@@ -280,6 +281,26 @@ try {
     throw new Error("sample bars should not pass research-ready validation");
   } catch (error) {
     assert(error.status === 1, "research-ready validation should fail with exit code 1 for sample bars");
+  }
+  const sparsePairedCsv = writeFile("sparse-paired-bars.csv", [
+    "ticker,timestamp,open,high,low,close,volume",
+    "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000",
+    "SOXS,2024-01-02T14:30:00.000Z,20,21,19,20.5,2000",
+    "SOXL,2024-01-02T14:31:00.000Z,10,11,9,10.5,1000",
+    "SOXL,2024-01-02T14:32:00.000Z,10,11,9,10.5,1000"
+  ].join("\n") + "\n");
+  try {
+    runNode([
+      "scripts/validate-csv.mjs",
+      sparsePairedCsv,
+      "--research-ready",
+      "--target-start", "2024-01-02",
+      "--min-years", "0",
+      "--min-paired-overlap-pct", "90"
+    ]);
+    throw new Error("sparse paired SOXL/SOXS timestamps should not pass research-ready validation");
+  } catch (error) {
+    assert(error.status === 1, "sparse paired timestamp coverage should fail with exit code 1");
   }
 
   console.log("ok research fixture check");

@@ -24,7 +24,11 @@ const minYears = Number(optionValue("--min-years", "10"));
 if (!Number.isFinite(minYears) || minYears < 0) {
   throw new Error("--min-years must be a non-negative number");
 }
-const optionNamesWithValues = new Set(["--target-start", "--min-years", "--json-output"]);
+const minPairedOverlapPct = Number(optionValue("--min-paired-overlap-pct", "85"));
+if (!Number.isFinite(minPairedOverlapPct) || minPairedOverlapPct < 0 || minPairedOverlapPct > 100) {
+  throw new Error("--min-paired-overlap-pct must be a number from 0 to 100");
+}
+const optionNamesWithValues = new Set(["--target-start", "--min-years", "--json-output", "--min-paired-overlap-pct"]);
 let skipNext = false;
 const csvArg = rawArgs.find((arg) => {
   if (skipNext) {
@@ -39,11 +43,11 @@ const csvArg = rawArgs.find((arg) => {
 });
 
 if (!csvArg || csvArg === "--help" || csvArg === "-h") {
-  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--json-output reports/import-check.json]");
+  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--min-paired-overlap-pct N] [--json-output reports/import-check.json]");
   console.log("");
   console.log(`Required columns: ${requiredColumns.join(",")}`);
   console.log("");
-  console.log("--research-ready fails the check when duplicate rows exist or SOXL/SOXS coverage is below the configured target.");
+  console.log("--research-ready fails the check when duplicate rows exist, SOXL/SOXS coverage is below target, or paired ticker timestamp overlap is too low.");
   process.exit(rawArgs.some((arg) => arg === "--help" || arg === "-h") ? 0 : 1);
 }
 
@@ -162,6 +166,37 @@ if (missingTickers.length > 0) {
   throw new Error(`CSV contains no rows for: ${missingTickers.join(", ")}`);
 }
 
+function timestampOnlyKeys(ticker) {
+  return new Set([...stats.get(ticker).timestamps].map((key) => key.split(":").slice(1).join(":")));
+}
+
+const pairedTimestampCoverage = (() => {
+  const [firstTicker, secondTicker] = expectedTickers;
+  const firstTimestamps = timestampOnlyKeys(firstTicker);
+  const secondTimestamps = timestampOnlyKeys(secondTicker);
+  const union = new Set([...firstTimestamps, ...secondTimestamps]);
+  let paired = 0;
+  let firstOnly = 0;
+  let secondOnly = 0;
+  for (const timestamp of union) {
+    const hasFirst = firstTimestamps.has(timestamp);
+    const hasSecond = secondTimestamps.has(timestamp);
+    if (hasFirst && hasSecond) paired += 1;
+    else if (hasFirst) firstOnly += 1;
+    else if (hasSecond) secondOnly += 1;
+  }
+  const overlapPct = union.size === 0 ? 0 : (paired / union.size) * 100;
+  return {
+    paired,
+    union: union.size,
+    firstTicker,
+    secondTicker,
+    firstOnly,
+    secondOnly,
+    overlapPct
+  };
+})();
+
 function spanYears(first, last) {
   if (!first || !last) return 0;
   return Math.max(0, (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 86_400_000));
@@ -185,6 +220,11 @@ for (const ticker of expectedTickers) {
     readinessWarnings.push(`${ticker} spans ${tickerSpanYears.toFixed(1)} years, below --min-years ${minYears}`);
   }
 }
+if (pairedTimestampCoverage.overlapPct < minPairedOverlapPct) {
+  readinessWarnings.push(
+    `SOXL/SOXS paired timestamp overlap is ${pairedTimestampCoverage.overlapPct.toFixed(1)}%, below --min-paired-overlap-pct ${minPairedOverlapPct}`
+  );
+}
 if (readinessWarnings.length > 0) {
   console.log("");
   console.log("Research readiness warnings");
@@ -202,6 +242,7 @@ const summary = {
   duplicateTickerTimestamps: duplicateRows,
   targetStart,
   minYears,
+  minPairedOverlapPct,
   researchReadyRequested: researchReady,
   tickers: Object.fromEntries(expectedTickers.map((ticker) => {
     const tickerStats = stats.get(ticker);
@@ -212,6 +253,7 @@ const summary = {
       spanYears: spanYears(tickerStats.first, tickerStats.last)
     }];
   })),
+  pairedTimestampCoverage,
   errors,
   warnings: readinessWarnings,
   importable: errors.length === 0 && missingTickers.length === 0,

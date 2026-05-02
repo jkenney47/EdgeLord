@@ -85,7 +85,7 @@ chart bars: 32,699 aggregate bars
 The account did not return 2011-2015 minute data for this workflow. Validate the Alpaca-minute backfill with the 2016 target:
 
 ```bash
-pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260401-rth.csv --research-ready --target-start 2016-01-04 --min-years 10
+pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260401-rth.csv --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 85
 ```
 
 If replacing bars with active labels:

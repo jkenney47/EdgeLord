@@ -357,8 +357,9 @@ kbd {
 
 .label-list li {
   display: grid;
-  grid-template-columns: 72px 1fr auto;
+  grid-template-columns: 72px minmax(0, 1fr) auto auto;
   gap: 6px;
+  align-items: center;
   border: 1px solid #2c3745;
   border-radius: 5px;
   padding: 7px;
@@ -369,6 +370,33 @@ kbd {
 
 .label-list strong {
   color: #e7edf6;
+}
+
+.label-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-eligible,
+.label-excluded {
+  border: 1px solid #3d4654;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 10px !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.label-eligible {
+  border-color: rgba(46, 211, 173, 0.45);
+  color: #9ff3df !important;
+}
+
+.label-excluded {
+  border-color: rgba(244, 211, 94, 0.45);
+  color: #f4d35e !important;
 }
 
 .statusbar {

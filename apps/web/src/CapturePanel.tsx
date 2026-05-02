@@ -21,6 +21,12 @@ const actionKeys: Record<LabelAction, string> = {
   INVALID: "I"
 };
 
+const labelSourceText: Record<LabelSource, string> = {
+  actual_trade: "Actual",
+  retrospective_replay: "Replay",
+  retrospective_hindsight: "Hindsight"
+};
+
 export function CapturePanel({
   selected,
   ticker,
@@ -116,7 +122,10 @@ export function CapturePanel({
             {lastLabels.map((label) => (
               <li key={label.id}>
                 <strong>{label.action}</strong>
-                <span>{label.ticker} {label.timeframe}</span>
+                <span>{label.ticker} {label.timeframe} · {labelSourceText[label.label_source]}</span>
+                <span className={label.training_eligible === 1 ? "label-eligible" : "label-excluded"}>
+                  {label.training_eligible === 1 ? "Eligible" : "Excluded"}
+                </span>
                 <span>{label.timestamp.slice(0, 10)}</span>
               </li>
             ))}

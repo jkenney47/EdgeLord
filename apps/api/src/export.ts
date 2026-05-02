@@ -233,6 +233,7 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
     const exit = labelById.get(trade.exit_label_id);
     return entry?.training_eligible === 1 && exit?.training_eligible === 1;
   }).map((trade) => trade.id));
+  const closedTradeIds = trades.filter((trade) => trade.status === "closed").map((trade) => trade.id);
   return {
     version: "edgelord.export_manifest.v1",
     createdAt: new Date().toISOString(),
@@ -257,6 +258,9 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
     trades: {
       total: trades.length,
       byStatus: countBy(trades, "status"),
+      closed: closedTradeIds.length,
+      trainingEligibleClosed: closedTrainingEligibleTradeIds.size,
+      ineligibleClosed: closedTradeIds.length - closedTrainingEligibleTradeIds.size,
       open: trades.filter((trade) => trade.status === "open").map((trade) => ({
         id: trade.id,
         ticker: trade.ticker,

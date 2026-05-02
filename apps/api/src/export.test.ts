@@ -26,6 +26,11 @@ describe("exportManifest", () => {
 
     const manifest = exportManifest(labels, trades);
 
+    expect(manifest.trades).toMatchObject({
+      closed: 1,
+      trainingEligibleClosed: 0,
+      ineligibleClosed: 1
+    });
     expect(manifest.tradeCandidates).toMatchObject({
       rows: 0,
       closedTrades: 0,
@@ -45,6 +50,11 @@ describe("exportManifest", () => {
 
     const manifest = exportManifest(labels, trades);
 
+    expect(manifest.trades).toMatchObject({
+      closed: 1,
+      trainingEligibleClosed: 1,
+      ineligibleClosed: 0
+    });
     expect(manifest.tradeCandidates).toMatchObject({
       rows: 0,
       closedTrades: 1,

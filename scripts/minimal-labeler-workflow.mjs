@@ -492,6 +492,9 @@ async function runAcceptance() {
     assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
     assert(manifest.labels.excluded === 3, "export manifest should count excluded labels");
     assert(manifest.trades.byStatus.closed === 2, "export manifest should count closed trades");
+    assert(manifest.trades.closed === 2, "export manifest should expose closed trade count");
+    assert(manifest.trades.trainingEligibleClosed === 1, "export manifest should expose training-eligible closed trade count");
+    assert(manifest.trades.ineligibleClosed === 1, "export manifest should expose ineligible closed trade count");
     assert(manifest.tradeCandidates.rows > 0, "export manifest should count trade candidate rows");
     assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
     assert(manifest.tradeCandidates.closedTrades === 1, "export manifest should only require candidates for training-eligible closed trades");

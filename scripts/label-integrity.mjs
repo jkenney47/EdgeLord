@@ -63,6 +63,7 @@ async function patchJson(route, body) {
 }
 
 const labels = (await fetchJson("/labels")).labels ?? [];
+const trades = (await fetchJson("/trades")).trades ?? [];
 const barsByKey = new Map();
 
 async function barsFor(ticker, timeframe) {
@@ -83,6 +84,7 @@ const eligibleOrphanExits = [];
 const sequenceIssues = [];
 const sameCandleDecisionConflicts = [];
 const featureSnapshotIssues = [];
+const tradeConsistencyIssues = [];
 
 function expectedTrainingEligible(label) {
   if (Number(label.potential_visual_leakage) === 1) return false;
@@ -174,6 +176,113 @@ function inspectSameCandleDecisionConflicts(items) {
 inspectSequence(labels);
 inspectSameCandleDecisionConflicts(labels);
 
+function decisionPrice(label) {
+  return label.execution_price ?? label.chart_price;
+}
+
+function isCloseEnough(left, right) {
+  return Math.abs(Number(left) - Number(right)) <= priceTolerance;
+}
+
+function inspectTradeConsistency(items, tradeRows) {
+  const labelsById = new Map(items.map((label) => [label.id, label]));
+  const tradesById = new Map(tradeRows.map((trade) => [trade.id, trade]));
+  const openTrades = tradeRows.filter((trade) => trade.status === "open");
+
+  if (openTrades.length > 1) {
+    tradeConsistencyIssues.push({
+      trade: null,
+      label: null,
+      reason: `More than one open trade exists: ${openTrades.map((trade) => trade.id).join(", ")}`
+    });
+  }
+
+  for (const label of items) {
+    if (label.action === "ENTRY" && !label.trade_id) {
+      tradeConsistencyIssues.push({ trade: null, label, reason: "ENTRY label is missing trade_id" });
+    }
+    if (label.action === "ENTRY" && label.trade_id && !tradesById.has(label.trade_id)) {
+      tradeConsistencyIssues.push({ trade: null, label, reason: `ENTRY label references missing trade ${label.trade_id}` });
+    }
+    if (label.action === "EXIT" && label.trade_id && !tradesById.has(label.trade_id)) {
+      tradeConsistencyIssues.push({ trade: null, label, reason: `EXIT label references missing trade ${label.trade_id}` });
+    }
+    if ((label.action === "SKIP" || label.action === "INVALID") && (label.trade_id || label.parent_entry_label_id)) {
+      tradeConsistencyIssues.push({ trade: null, label, reason: `${label.action} label should not have trade linkage` });
+    }
+  }
+
+  for (const trade of tradeRows) {
+    const entry = labelsById.get(trade.entry_label_id);
+    if (!entry) {
+      tradeConsistencyIssues.push({ trade, label: null, reason: `Trade entry label ${trade.entry_label_id} is missing` });
+      continue;
+    }
+    if (entry.action !== "ENTRY") {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Trade entry label ${entry.id} has action ${entry.action}` });
+    }
+    if (entry.trade_id !== trade.id) {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Entry label trade_id ${entry.trade_id} does not match trade ${trade.id}` });
+    }
+    if (entry.ticker !== trade.ticker) {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Trade ticker ${trade.ticker} does not match entry label ticker ${entry.ticker}` });
+    }
+    if (entry.timestamp !== trade.entry_timestamp) {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Trade entry timestamp ${trade.entry_timestamp} does not match entry label ${entry.timestamp}` });
+    }
+    if (!isCloseEnough(trade.entry_price, decisionPrice(entry))) {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Trade entry price ${trade.entry_price} does not match entry decision price ${decisionPrice(entry)}` });
+    }
+
+    if (trade.status === "open") {
+      if (trade.exit_label_id || trade.exit_timestamp || trade.exit_price !== null || trade.return_pct !== null) {
+        tradeConsistencyIssues.push({ trade, label: entry, reason: "Open trade has exit fields populated" });
+      }
+      continue;
+    }
+
+    if (trade.status !== "closed" && trade.status !== "invalid") {
+      tradeConsistencyIssues.push({ trade, label: entry, reason: `Trade has unknown status ${trade.status}` });
+    }
+
+    if (trade.status === "closed") {
+      if (!trade.exit_label_id) {
+        tradeConsistencyIssues.push({ trade, label: entry, reason: "Closed trade is missing exit_label_id" });
+        continue;
+      }
+      const exit = labelsById.get(trade.exit_label_id);
+      if (!exit) {
+        tradeConsistencyIssues.push({ trade, label: null, reason: `Trade exit label ${trade.exit_label_id} is missing` });
+        continue;
+      }
+      if (exit.action !== "EXIT") {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Trade exit label ${exit.id} has action ${exit.action}` });
+      }
+      if (exit.trade_id !== trade.id) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Exit label trade_id ${exit.trade_id} does not match trade ${trade.id}` });
+      }
+      if (exit.parent_entry_label_id !== entry.id) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Exit parent ${exit.parent_entry_label_id} does not match entry ${entry.id}` });
+      }
+      if (exit.ticker !== trade.ticker) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Trade ticker ${trade.ticker} does not match exit label ticker ${exit.ticker}` });
+      }
+      if (exit.timestamp !== trade.exit_timestamp) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Trade exit timestamp ${trade.exit_timestamp} does not match exit label ${exit.timestamp}` });
+      }
+      if (!isCloseEnough(trade.exit_price, decisionPrice(exit))) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Trade exit price ${trade.exit_price} does not match exit decision price ${decisionPrice(exit)}` });
+      }
+      const expectedReturn = ((Number(trade.exit_price) - Number(trade.entry_price)) / Number(trade.entry_price)) * 100;
+      if (!isCloseEnough(trade.return_pct, expectedReturn)) {
+        tradeConsistencyIssues.push({ trade, label: exit, reason: `Trade return_pct ${trade.return_pct} does not match expected ${expectedReturn}` });
+      }
+    }
+  }
+}
+
+inspectTradeConsistency(labels, trades);
+
 for (const label of labels) {
   const expectedEligible = expectedTrainingEligible(label);
   if (Number(label.training_eligible) !== (expectedEligible ? 1 : 0)) {
@@ -264,6 +373,7 @@ const lines = [
   `sequence_issues: ${sequenceIssues.length}`,
   `same_candle_decision_conflicts: ${sameCandleDecisionConflicts.length}`,
   `feature_snapshot_issues: ${featureSnapshotIssues.length}`,
+  `trade_consistency_issues: ${tradeConsistencyIssues.length}`,
   "",
   "Missing Bars"
 ];
@@ -347,6 +457,20 @@ if (featureSnapshotIssues.length === 0) {
   }
 }
 
+lines.push("", "Trade Consistency Issues");
+if (tradeConsistencyIssues.length === 0) {
+  lines.push("- none");
+} else {
+  for (const item of tradeConsistencyIssues.slice(0, 25)) {
+    const owner = item.trade
+      ? `trade ${item.trade.id}`
+      : item.label
+        ? `label ${item.label.id}`
+        : "dataset";
+    lines.push(`- ${owner}: ${item.reason}`);
+  }
+}
+
 lines.push("", "Readiness");
 if (
   missingBars.length ||
@@ -356,11 +480,12 @@ if (
   eligibleOrphanExits.length ||
   sequenceIssues.length ||
   sameCandleDecisionConflicts.length ||
-  featureSnapshotIssues.length
+  featureSnapshotIssues.length ||
+  tradeConsistencyIssues.length
 ) {
   lines.push("- Label integrity issues exist. Repair or re-label before modeling.");
 } else {
-  lines.push("- Labels match the current bar cache, training eligibility policy, and feature snapshot contract.");
+  lines.push("- Labels and trades match the current bar cache, training eligibility policy, and feature snapshot contract.");
 }
 
 const report = `${lines.join("\n")}\n`;
@@ -377,7 +502,8 @@ const summary = {
     eligibleOrphanExits: eligibleOrphanExits.length,
     sequenceIssues: sequenceIssues.length,
     sameCandleDecisionConflicts: sameCandleDecisionConflicts.length,
-    featureSnapshotIssues: featureSnapshotIssues.length
+    featureSnapshotIssues: featureSnapshotIssues.length,
+    tradeConsistencyIssues: tradeConsistencyIssues.length
   },
   readyForModeling:
     missingBars.length === 0 &&
@@ -387,7 +513,8 @@ const summary = {
     eligibleOrphanExits.length === 0 &&
     sequenceIssues.length === 0 &&
     sameCandleDecisionConflicts.length === 0 &&
-    featureSnapshotIssues.length === 0,
+    featureSnapshotIssues.length === 0 &&
+    tradeConsistencyIssues.length === 0,
   samples: {
     missingBars: missingBars.slice(0, 25).map((label) => ({
       id: label.id,
@@ -454,6 +581,11 @@ const summary = {
       timestamp: item.label.timestamp,
       reason: item.reason,
       missingKeys: item.missingKeys
+    })),
+    tradeConsistencyIssues: tradeConsistencyIssues.slice(0, 25).map((item) => ({
+      tradeId: item.trade?.id ?? null,
+      labelId: item.label?.id ?? null,
+      reason: item.reason
     }))
   }
 };

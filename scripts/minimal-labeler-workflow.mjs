@@ -597,6 +597,15 @@ async function runAcceptance() {
     assert(Math.abs(clearedActualTrade.return_pct - expectedClearedReturn) < 0.0001, "Cleared execution exit should recalculate return");
     console.log("ok patch clears nullable label fields");
 
+    const integrityOutput = execFileSync("node", ["scripts/label-integrity.mjs"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, API_BASE_URL: baseUrl }
+    });
+    assert(integrityOutput.includes("trade_consistency_issues: 0"), "Label integrity should verify trade consistency");
+    assert(integrityOutput.includes("Trade Consistency Issues\n- none"), "Label integrity should report clean trade links");
+    console.log("ok label integrity verifies trade consistency");
+
     const csv = fs.readFileSync(path.join(root, "data", "sample-bars.csv"), "utf8");
     const guardedImport = await importCsv(baseUrl, { csv, replaceBars: true }, 409);
     assert(guardedImport.activeLabels > 0, "Replace-bars guard should report active labels");

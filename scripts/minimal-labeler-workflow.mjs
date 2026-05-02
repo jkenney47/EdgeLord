@@ -203,10 +203,10 @@ async function runAcceptance() {
       action: "ENTRY",
       ticker: "SOXL",
       timeframe: "4H",
-      timestamp: soxlBars[0].timestamp,
-      chartPrice: soxlBars[0].close,
+      timestamp: soxlBars[1].timestamp,
+      chartPrice: soxlBars[1].close,
       captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[0].timestamp
+      visibleUntilTimestamp: soxlBars[1].timestamp
     });
     assert(entry.label.training_eligible === 1, "Replay entry should be training eligible");
     assert(entry.openTrade?.ticker === "SOXL", "SOXL entry should open a SOXL trade");
@@ -225,15 +225,28 @@ async function runAcceptance() {
     assert(/Exit open .* trade before entering/i.test(blockedEntry.error ?? ""), "Opposite ticker entry should be blocked by open trade");
     console.log("ok opposite entry blocked");
 
+    const blockedBackdatedExit = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "EXIT",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    }, 400);
+    assert(/before open SOXL entry/i.test(blockedBackdatedExit.error ?? ""), "Backdated exit should be blocked");
+    console.log("ok backdated exit blocked");
+
     const exit = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "EXIT",
       ticker: "SOXL",
       timeframe: "4H",
-      timestamp: soxlBars[1].timestamp,
-      chartPrice: soxlBars[1].close,
+      timestamp: soxlBars[2].timestamp,
+      chartPrice: soxlBars[2].close,
       captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[1].timestamp
+      visibleUntilTimestamp: soxlBars[2].timestamp
     });
     assert(exit.label.training_eligible === 1, "Replay exit should be training eligible");
     assert(exit.label.parent_entry_label_id === entry.label.id, "Exit should link to entry label");
@@ -245,10 +258,10 @@ async function runAcceptance() {
       action: "SKIP",
       ticker: "SOXL",
       timeframe: "4H",
-      timestamp: soxlBars[2].timestamp,
-      chartPrice: soxlBars[2].close,
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
       captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[2].timestamp
+      visibleUntilTimestamp: soxlBars[0].timestamp
     });
     assert(skip.label.training_eligible === 1, "Replay skip should be a training-eligible negative example");
     console.log("ok replay skip is eligible");
@@ -290,10 +303,10 @@ async function runAcceptance() {
       action: "EXIT",
       ticker: "SOXL",
       timeframe: "4H",
-      timestamp: soxlBars[1].timestamp,
-      chartPrice: soxlBars[1].close,
+      timestamp: soxlBars[2].timestamp,
+      chartPrice: soxlBars[2].close,
       captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[1].timestamp
+      visibleUntilTimestamp: soxlBars[2].timestamp
     });
     assert(secondExit.label.parent_entry_label_id === entry.label.id, "Second exit should relink to the entry label");
     console.log("ok exit can be recaptured after undo");

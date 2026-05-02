@@ -27,6 +27,11 @@ const openSoxlTrade: Trade = {
   status: "open"
 };
 
+const earlierSelected: Bar = {
+  ...selected,
+  timestamp: "2024-01-01T14:30:00.000Z"
+};
+
 describe("capture rules", () => {
   it("requires a selected candle", () => {
     expect(canCapture("ENTRY", null, "SOXL", null)).toBe(false);
@@ -49,6 +54,13 @@ describe("capture rules", () => {
       "Open trade is SOXL; select SOXL to exit."
     );
     expect(canCapture("EXIT", selected, "SOXL", openSoxlTrade)).toBe(true);
+  });
+
+  it("blocks exits before the open trade entry candle", () => {
+    expect(canCapture("EXIT", earlierSelected, "SOXL", openSoxlTrade)).toBe(false);
+    expect(getCaptureBlockReason("EXIT", earlierSelected, "SOXL", openSoxlTrade)).toBe(
+      "Exit candle is before open SOXL entry."
+    );
   });
 
   it("allows skip and invalid whenever a candle is selected", () => {

@@ -15,6 +15,9 @@ export function getCaptureBlockReason(
     if (openTrade.ticker !== ticker) {
       return `Open trade is ${openTrade.ticker}; select ${openTrade.ticker} to exit.`;
     }
+    if (selected.timestamp < openTrade.entry_timestamp) {
+      return `Exit candle is before open ${openTrade.ticker} entry.`;
+    }
   }
   return null;
 }

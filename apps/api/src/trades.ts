@@ -43,6 +43,9 @@ export function closeTrade(exit: Label, updatedAt = nowIso()): Trade {
   if (!openTrade || openTrade.ticker !== exit.ticker) {
     throw new Error(`No open ${exit.ticker} trade to exit`);
   }
+  if (exit.timestamp < openTrade.entry_timestamp) {
+    throw new Error(`Exit candle ${exit.timestamp} is before open ${openTrade.ticker} entry ${openTrade.entry_timestamp}.`);
+  }
 
   const returnPct = ((exit.chart_price - openTrade.entry_price) / openTrade.entry_price) * 100;
   db.prepare(`
@@ -105,6 +108,12 @@ export function validateLabelSequence(labels: Label[]): { ok: true } | { ok: fal
           reason: `Label ${label.id} would exit ${label.ticker}, but the open trade is ${open.ticker}.`
         };
       }
+      if (label.timestamp < open.timestamp) {
+        return {
+          ok: false,
+          reason: `Label ${label.id} would exit ${label.ticker} before entry label ${open.id}.`
+        };
+      }
       open = null;
     }
   }
@@ -118,9 +127,12 @@ export function canEnter(ticker: Ticker): { ok: true } | { ok: false; reason: st
   return { ok: false, reason: `Exit open ${open.ticker} trade before entering ${ticker}.` };
 }
 
-export function canExit(ticker: Ticker): { ok: true } | { ok: false; reason: string } {
+export function canExit(ticker: Ticker, timestamp?: string): { ok: true } | { ok: false; reason: string } {
   const open = getOpenTrade();
   if (!open) return { ok: false, reason: "No open trade to exit." };
   if (open.ticker !== ticker) return { ok: false, reason: `Open trade is ${open.ticker}; select ${open.ticker} to exit.` };
+  if (timestamp && timestamp < open.entry_timestamp) {
+    return { ok: false, reason: `Exit candle ${timestamp} is before open ${open.ticker} entry ${open.entry_timestamp}.` };
+  }
   return { ok: true };
 }

@@ -59,7 +59,7 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
   }
 
   if (input.action === "EXIT") {
-    const allowed = canExit(input.ticker);
+    const allowed = canExit(input.ticker, input.timestamp);
     if (!allowed.ok) throw new Error(allowed.reason);
   }
 

@@ -17,12 +17,18 @@ export type LabelTargetProgress = {
 
 export function labelTargetProgress(labels: Label[], trades: Trade[]): LabelTargetProgress[] {
   const trainingLabels = labels.filter((label) => label.training_eligible === 1);
+  const labelById = new Map(labels.map((label) => [label.id, label]));
   const closedTrades = trades.filter((trade) => trade.status === "closed");
+  const trainingEligibleClosedTrades = closedTrades.filter((trade) => {
+    const entry = labelById.get(trade.entry_label_id);
+    const exit = trade.exit_label_id ? labelById.get(trade.exit_label_id) : null;
+    return entry?.training_eligible === 1 && exit?.training_eligible === 1;
+  });
   const counts = {
     decisions: trainingLabels.length,
     entries: trainingLabels.filter((label) => label.action === "ENTRY").length,
     skips: trainingLabels.filter((label) => label.action === "SKIP").length,
-    closedTrades: closedTrades.length
+    closedTrades: trainingEligibleClosedTrades.length
   };
 
   const items: Array<Omit<LabelTargetProgress, "complete">> = [

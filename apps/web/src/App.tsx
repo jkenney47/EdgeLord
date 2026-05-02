@@ -68,6 +68,7 @@ export function App() {
     skips: datasetPulse?.labels.actions.SKIP ?? labels.filter((label) => label.action === "SKIP").length
   }), [datasetPulse, labels]);
   const closedTrades = datasetPulse?.trades.closed ?? trades.filter((trade) => trade.status === "closed").length;
+  const trainingEligibleClosedTrades = datasetPulse?.trades.trainingEligibleClosed ?? closedTrades;
   const targets = datasetPulse?.targets ?? [];
   const dataReadiness = datasetPulse?.dataReadiness ?? { tone: "warn" as const, text: "Checking data" };
   const integrity = datasetPulse?.integrity ?? null;
@@ -419,7 +420,8 @@ export function App() {
         />
       </div>
       <footer className="statusbar">
-        <span>Closed {closedTrades}</span>
+        <span>Eligible closed {trainingEligibleClosedTrades}</span>
+        {closedTrades !== trainingEligibleClosedTrades ? <span>Closed total {closedTrades}</span> : null}
         <span>{openTrade ? `Open ${openTrade.ticker}` : "Flat"}</span>
         <span>Eligible {labelStats.eligible}</span>
         <span>Entries {labelStats.entries}</span>

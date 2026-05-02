@@ -4,6 +4,7 @@ import type { Bar, Ticker } from "./schema";
 
 type CsvRow = Record<string, string>;
 const requiredColumns = ["ticker", "timestamp", "open", "high", "low", "close", "volume"] as const;
+const adjustedTrueValues = new Set(["", "1", "true", "yes", "y", "adjusted"]);
 
 export class CsvImportValidationError extends Error {
   readonly issues: string[];
@@ -66,6 +67,7 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
     const low = Number(row.low);
     const close = Number(row.close);
     const volume = Number(row.volume);
+    const adjusted = row.adjusted === undefined ? 1 : adjustedTrueValues.has(row.adjusted.trim().toLowerCase()) ? 1 : 0;
 
     if (ticker !== "SOXL" && ticker !== "SOXS") {
       issues.push(`row ${rowNumber}: unsupported ticker ${row.ticker || "(blank)"}`);
@@ -87,6 +89,10 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
       issues.push(`row ${rowNumber}: OHLC values are internally inconsistent`);
       continue;
     }
+    if (adjusted !== 1) {
+      issues.push(`row ${rowNumber}: unadjusted OHLCV rows are not allowed; import split/dividend-adjusted data only`);
+      continue;
+    }
 
     const isoTimestamp = timestamp.toISOString();
     const key = `${ticker}:${isoTimestamp}`;
@@ -106,7 +112,7 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
       close,
       volume,
       source,
-      adjusted: 1
+      adjusted
     });
   }
 

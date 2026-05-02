@@ -282,6 +282,17 @@ try {
   } catch (error) {
     assert(error.status === 1, "duplicate ticker timestamps should fail with exit code 1");
   }
+  const unadjustedCsv = writeFile("unadjusted-bars.csv", [
+    "ticker,timestamp,open,high,low,close,volume,adjusted",
+    "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000,0",
+    "SOXS,2024-01-02T14:30:00.000Z,20,21,19,20.5,2000,1"
+  ].join("\n") + "\n");
+  try {
+    runNode(["scripts/validate-csv.mjs", unadjustedCsv]);
+    throw new Error("explicitly unadjusted bars should not pass CSV validation");
+  } catch (error) {
+    assert(error.status === 1, "explicitly unadjusted bars should fail with exit code 1");
+  }
   try {
     runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--research-ready"]);
     throw new Error("sample bars should not pass research-ready validation");

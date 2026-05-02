@@ -7,6 +7,7 @@ const rawArgs = process.argv.slice(2);
 const requiredColumns = ["ticker", "timestamp", "open", "high", "low", "close", "volume"];
 const expectedTickers = ["SOXL", "SOXS"];
 const researchReady = rawArgs.includes("--research-ready");
+const adjustedTrueValues = new Set(["", "1", "true", "yes", "y", "adjusted"]);
 
 function optionValue(name, fallback) {
   const equalsArg = rawArgs.find((arg) => arg.startsWith(`${name}=`));
@@ -105,6 +106,7 @@ for (const [lineIndex, line] of lines.slice(1).entries()) {
   const low = Number(row.low);
   const close = Number(row.close);
   const volume = Number(row.volume);
+  const adjusted = row.adjusted === undefined ? true : adjustedTrueValues.has(row.adjusted.trim().toLowerCase());
 
   if (!expectedTickers.includes(ticker)) {
     errors.push(`row ${rowNumber}: unsupported ticker ${ticker || "(blank)"}`);
@@ -124,6 +126,10 @@ for (const [lineIndex, line] of lines.slice(1).entries()) {
   }
   if (high < Math.max(open, close) || low > Math.min(open, close) || high < low) {
     errors.push(`row ${rowNumber}: OHLC values are internally inconsistent`);
+    continue;
+  }
+  if (!adjusted) {
+    errors.push(`row ${rowNumber}: unadjusted OHLCV rows are not allowed; import split/dividend-adjusted data only`);
     continue;
   }
 

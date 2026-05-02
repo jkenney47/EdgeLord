@@ -47,4 +47,13 @@ describe("parseBarsCsv", () => {
 
     expect(() => parseBarsCsv(csv)).toThrow(CsvImportValidationError);
   });
+
+  it("rejects explicitly unadjusted rows", () => {
+    const csv = [
+      "ticker,timestamp,open,high,low,close,volume,adjusted",
+      "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000,0"
+    ].join("\n");
+
+    expect(() => parseBarsCsv(csv)).toThrow(/unadjusted OHLCV rows are not allowed/);
+  });
 });

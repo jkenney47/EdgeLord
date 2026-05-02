@@ -374,11 +374,16 @@ kbd {
 .statusbar {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
   border-top: 1px solid #252f3d;
   padding: 6px 10px;
   background: #101720;
   color: #8d98a8;
   font-size: 12px;
+}
+
+.statusbar span {
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {

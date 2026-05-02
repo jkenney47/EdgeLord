@@ -38,6 +38,14 @@ export function App() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
+  const labelStats = useMemo(() => ({
+    eligible: labels.filter((label) => label.training_eligible === 1).length,
+    ineligible: labels.filter((label) => label.training_eligible !== 1).length,
+    entries: labels.filter((label) => label.action === "ENTRY").length,
+    exits: labels.filter((label) => label.action === "EXIT").length,
+    skips: labels.filter((label) => label.action === "SKIP").length
+  }), [labels]);
+  const closedTrades = useMemo(() => trades.filter((trade) => trade.status === "closed").length, [trades]);
 
   const refreshState = useCallback(async () => {
     const [nextLabels, nextTrades, nextOpenTrade] = await Promise.all([fetchLabels(), fetchTrades(), fetchOpenTrade()]);
@@ -214,8 +222,13 @@ export function App() {
         />
       </div>
       <footer className="statusbar">
-        <span>{trades.length} trades</span>
-        <span>{labels.filter((label) => label.training_eligible).length} training labels</span>
+        <span>Closed {closedTrades}</span>
+        <span>{openTrade ? `Open ${openTrade.ticker}` : "Flat"}</span>
+        <span>Eligible {labelStats.eligible}</span>
+        <span>Entries {labelStats.entries}</span>
+        <span>Exits {labelStats.exits}</span>
+        <span>Skips {labelStats.skips}</span>
+        <span>Excluded {labelStats.ineligible}</span>
       </footer>
     </main>
   );

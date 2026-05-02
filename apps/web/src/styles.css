@@ -414,6 +414,24 @@ kbd {
   white-space: nowrap;
 }
 
+.data-readiness {
+  margin-left: auto;
+  border: 1px solid #3d4654;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-weight: 800;
+}
+
+.data-readiness.good {
+  border-color: rgba(46, 211, 173, 0.45);
+  color: #9ff3df;
+}
+
+.data-readiness.warn {
+  border-color: rgba(244, 211, 94, 0.45);
+  color: #f4d35e;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     height: auto;
@@ -435,6 +453,10 @@ kbd {
   }
 
   .progress {
+    margin-left: 0;
+  }
+
+  .data-readiness {
     margin-left: 0;
   }
 }

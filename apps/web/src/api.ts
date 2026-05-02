@@ -17,6 +17,15 @@ export type Bar = {
   volume: number;
 };
 
+export type BarSummaryRow = {
+  ticker: Ticker;
+  timeframe: "RAW" | Timeframe;
+  source: string;
+  bars: number;
+  first: string | null;
+  last: string | null;
+};
+
 export type Label = {
   id: string;
   label_source: LabelSource;
@@ -67,6 +76,10 @@ export async function fetchBars(ticker: Ticker, timeframe: Timeframe): Promise<B
   const params = new URLSearchParams({ ticker, timeframe });
   const data = await request<{ bars: Bar[] }>(`/bars?${params.toString()}`);
   return data.bars;
+}
+
+export async function fetchBarsSummary(): Promise<BarSummaryRow[]> {
+  return (await request<{ rows: BarSummaryRow[] }>("/bars/summary")).rows;
 }
 
 export async function importCsv(csv: string): Promise<{ rawInserted: number; aggregateInserted: number }> {

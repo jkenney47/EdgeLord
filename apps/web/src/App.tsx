@@ -4,11 +4,13 @@ import {
   createLabel,
   deleteLabel,
   fetchBars,
+  fetchBarsSummary,
   fetchLabels,
   fetchOpenTrade,
   fetchTrades,
   importCsv,
   type Bar,
+  type BarSummaryRow,
   type CaptureMode,
   type Label,
   type LabelAction,
@@ -36,6 +38,7 @@ export function App() {
   const [openTrade, setOpenTrade] = useState<Trade | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [barSummary, setBarSummary] = useState<BarSummaryRow[]>([]);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
   const labelStats = useMemo(() => ({
@@ -46,6 +49,24 @@ export function App() {
     skips: labels.filter((label) => label.action === "SKIP").length
   }), [labels]);
   const closedTrades = useMemo(() => trades.filter((trade) => trade.status === "closed").length, [trades]);
+  const dataReadiness = useMemo(() => {
+    const rawRows = barSummary.filter((row) => row.timeframe === "RAW");
+    const chartRows = barSummary.filter((row) => row.timeframe !== "RAW");
+    const rawSources = new Set(rawRows.map((row) => row.source));
+    const chartCombos = new Set(chartRows.map((row) => `${row.ticker}:${row.timeframe}`));
+    const spans = chartRows
+      .filter((row) => row.first && row.last)
+      .map((row) => (new Date(row.last as string).getTime() - new Date(row.first as string).getTime()) / 86_400_000);
+    const shortestSpan = spans.length ? Math.min(...spans) : 0;
+
+    if (chartCombos.size < 6) return { tone: "warn", text: "Data incomplete" };
+    if (rawSources.size === 1 && rawSources.has("sample")) return { tone: "warn", text: "Sample data only" };
+    if (rawSources.has("sample") && rawSources.has("csv")) return { tone: "warn", text: "Mixed sample/csv data" };
+    if (rawSources.size === 0) return { tone: "warn", text: "Chart cache only" };
+    if (shortestSpan < 365) return { tone: "warn", text: `Short data ${shortestSpan.toFixed(0)}d` };
+    if (shortestSpan < 365 * 5) return { tone: "warn", text: `Early data ${Math.floor(shortestSpan / 365)}y` };
+    return { tone: "good", text: `Data ${Math.floor(shortestSpan / 365)}y` };
+  }, [barSummary]);
 
   const refreshState = useCallback(async () => {
     const [nextLabels, nextTrades, nextOpenTrade] = await Promise.all([fetchLabels(), fetchTrades(), fetchOpenTrade()]);
@@ -67,9 +88,21 @@ export function App() {
     }
   }, [mode, ticker, timeframe]);
 
+  const refreshBarSummary = useCallback(async () => {
+    try {
+      setBarSummary(await fetchBarsSummary());
+    } catch {
+      setBarSummary([]);
+    }
+  }, []);
+
   useEffect(() => {
     void loadBars();
   }, [loadBars]);
+
+  useEffect(() => {
+    void refreshBarSummary();
+  }, [refreshBarSummary]);
 
   useEffect(() => {
     void refreshState();
@@ -147,13 +180,14 @@ export function App() {
       const result = await importCsv(csv);
       setImportStatus(`Imported ${result.rawInserted} raw / ${result.aggregateInserted} chart bars`);
       await loadBars();
+      await refreshBarSummary();
       await refreshState();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not import CSV";
       setError(message);
       setImportStatus("Import failed");
     }
-  }, [loadBars, refreshState]);
+  }, [loadBars, refreshBarSummary, refreshState]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -229,6 +263,7 @@ export function App() {
         <span>Exits {labelStats.exits}</span>
         <span>Skips {labelStats.skips}</span>
         <span>Excluded {labelStats.ineligible}</span>
+        <span className={`data-readiness ${dataReadiness.tone}`}>{dataReadiness.text}</span>
       </footer>
     </main>
   );

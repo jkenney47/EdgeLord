@@ -432,6 +432,9 @@ async function runAcceptance() {
     assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
     assert(manifest.labels.excluded === 1, "export manifest should count excluded labels");
     assert(manifest.trades.byStatus.closed === 1, "export manifest should count closed trades");
+    assert(manifest.tradeCandidates.rows > 0, "export manifest should count trade candidate rows");
+    assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
+    assert(manifest.tradeCandidates.closedTradesWithCandidates === 1, "export manifest should count closed trades with candidates");
     console.log("ok /export/manifest.json");
 
     const schema = await fetchJson(baseUrl, "/export/schema.json").then(({ response, body }) => {

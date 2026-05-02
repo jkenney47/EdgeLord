@@ -134,7 +134,7 @@ export function trainingFeaturesCsv(labels: Label[]): string {
   return toCsv(rows, trainingFeaturesCsvColumns);
 }
 
-export function tradeCandidatesCsv(labels: Label[], trades: Trade[]): string {
+function buildTradeCandidateRows(labels: Label[], trades: Trade[]): Array<Record<string, unknown>> {
   const labelById = new Map(labels.filter((label) => label.deleted_at === null).map((label) => [label.id, label]));
   const rows: Array<Record<string, unknown>> = [];
 
@@ -179,6 +179,11 @@ export function tradeCandidatesCsv(labels: Label[], trades: Trade[]): string {
     }
   }
 
+  return rows;
+}
+
+export function tradeCandidatesCsv(labels: Label[], trades: Trade[]): string {
+  const rows = buildTradeCandidateRows(labels, trades);
   return toCsv(rows, tradeCandidatesCsvColumns);
 }
 
@@ -193,6 +198,9 @@ export function labelsJsonl(labels: Label[]): string {
 export function exportManifest(labels: Label[], trades: Trade[]): Record<string, unknown> {
   const activeLabels = labels.filter((label) => label.deleted_at === null);
   const trainingEligibleLabels = activeLabels.filter((label) => label.training_eligible === 1);
+  const tradeCandidateRows = buildTradeCandidateRows(activeLabels, trades);
+  const tradeCandidateTradeIds = new Set(tradeCandidateRows.map((row) => String(row.trade_id ?? "")).filter(Boolean));
+  const closedTradeIds = new Set(trades.filter((trade) => trade.status === "closed").map((trade) => trade.id));
   return {
     version: "edgelord.export_manifest.v1",
     createdAt: new Date().toISOString(),
@@ -224,6 +232,12 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
         entryTimestamp: trade.entry_timestamp,
         entryPrice: trade.entry_price
       }))
+    },
+    tradeCandidates: {
+      rows: tradeCandidateRows.length,
+      byAction: countBy(tradeCandidateRows, "action"),
+      closedTrades: closedTradeIds.size,
+      closedTradesWithCandidates: [...closedTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length
     },
     trainingPolicy: {
       eligibleWhen: [

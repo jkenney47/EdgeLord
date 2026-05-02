@@ -234,7 +234,7 @@ def strategy_rules_payload(
             "Confirm the feature is mapped to the same calculation in Pine.",
             "Inspect human-vs-rule disagreements before trusting the signal.",
             "Run walk-forward split evaluation after enough labels exist.",
-            "Replace rough EXIT-vs-non-EXIT exit logic with an in-trade HOLD-vs-EXIT model before treating the Pine scaffold as a strategy.",
+            "Confirm exit rules were generated from trade-candidates.csv HOLD-vs-EXIT rows before treating the Pine scaffold as a strategy.",
             "Compare TradingView results against EdgeLord exported trades.",
         ],
         "warnings": warnings,
@@ -428,7 +428,7 @@ def pine_stub(
 
     if exit_candidate and pine_feature_support(exit_candidate)["supported"]:
         exit_lines, exit_signal_variable = pine_condition_lines("exitCandidate", exit_candidate)
-        lines.extend(["", "// Rough EXIT-vs-non-EXIT scaffold. Replace with in-trade HOLD-vs-EXIT logic before promotion."])
+        lines.extend(["", "// Rough HOLD-vs-EXIT scaffold from in-trade candidate rows. Validate heavily before promotion."])
         lines.extend(exit_lines)
         lines.append(f"exitCandidateSignal = {exit_signal_variable}")
     else:
@@ -448,7 +448,7 @@ def pine_stub(
         '    strategy.close("Candidate Long")',
         "",
         "// Exit logic is intentionally rough.",
-        "// EdgeLord needs explicit in-trade candidate rows or stronger exported exit logic before this becomes a complete strategy.",
+        "// EdgeLord needs many closed trades across regimes before this becomes a complete strategy.",
     ])
     return "\n".join(lines) + "\n"
 

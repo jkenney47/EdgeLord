@@ -241,6 +241,7 @@ try {
   assert(strategyRules.pineSupport?.humanMimicTopPairRule, "strategy rules JSON should include Pine feature support for the human pair rule");
   assert(strategyRules.pineSupport?.exitTopRule, "strategy rules JSON should include Pine feature support for the exit rule");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
+  assert(strategyRules.promotionChecklist.some((item) => item.includes("trade-candidates.csv HOLD-vs-EXIT")), "strategy rules checklist should mention HOLD-vs-EXIT candidates");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset exit-rule readiness: ready"), "Pine scaffold should include exit-rule readiness");
@@ -248,6 +249,7 @@ try {
   assert(readFile("strategy-soxl-soxs.pine").includes("Human-mimic pair candidate"), "Pine scaffold should mention the human pair candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Rough exit candidate"), "Pine scaffold should mention the exit candidate");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Rough HOLD-vs-EXIT scaffold"), "Pine scaffold should describe the exit model accurately");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy.close(\"Candidate Long\")"), "Pine scaffold should include rough close logic");
   writeResearchSummaryFixture();
   const summary = JSON.parse(readFile("research-summary.json"));

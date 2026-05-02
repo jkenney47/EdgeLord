@@ -1,12 +1,10 @@
 # Pine Strategy Stub
 
-The app does not generate Pine Script yet.
+The app now writes a first TradingView-facing scaffold when `pnpm research:report` runs:
 
-Later output should include:
+- `reports/<timestamp>-strategy-rules.v1.json`
+- `reports/<timestamp>-strategy-soxl-soxs.pine`
 
-- `strategy_rules.v1.json`
-- `strategy_soxl_soxs.pine`
-- `evaluation_report.md`
-- `human_vs_model_diff.csv`
+This is intentionally not a complete trading strategy. It is generated from the top one-feature candidate rule, includes safety comments, and only maps simple exported features to Pine expressions.
 
-Research should happen in Python or TypeScript first, then a tested rule candidate can be translated into Pine Script.
+Research still happens in Python first. A Pine output should be promoted only after the rule has enough labels, split behavior, exit logic, and human-vs-model review to justify TradingView testing.

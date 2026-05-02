@@ -31,6 +31,8 @@ It writes:
 - `reports/<timestamp>-time-splits.csv`
 - `reports/<timestamp>-split-rule-eval.md`
 - `reports/<timestamp>-split-rule-eval.csv`
+- `reports/<timestamp>-strategy-rules.v1.json`
+- `reports/<timestamp>-strategy-soxl-soxs.pine`
 
 Or export CSV files manually and run:
 
@@ -92,3 +94,14 @@ python3 research/split_rule_eval.py \
 ```
 
 Use validate/test split behavior as an early warning before promoting a candidate rule.
+
+To generate only the TradingView-facing scaffold from candidate rules:
+
+```bash
+python3 research/generate_pine_stub.py \
+  --rules-json /path/to/candidate-rules.json \
+  --rules-output /path/to/strategy-rules.v1.json \
+  --pine-output /path/to/strategy-soxl-soxs.pine
+```
+
+The Pine file is a research scaffold. It maps only a small set of simple exported features to Pine expressions and leaves unsupported features as TODO comments.

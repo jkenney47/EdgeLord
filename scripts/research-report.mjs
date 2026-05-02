@@ -42,6 +42,8 @@ const timeSplitsPath = path.join(reportsDir, `${slug}-time-splits.md`);
 const timeSplitsCsvPath = path.join(reportsDir, `${slug}-time-splits.csv`);
 const splitRuleEvalPath = path.join(reportsDir, `${slug}-split-rule-eval.md`);
 const splitRuleEvalCsvPath = path.join(reportsDir, `${slug}-split-rule-eval.csv`);
+const strategyRulesPath = path.join(reportsDir, `${slug}-strategy-rules.v1.json`);
+const pineStrategyPath = path.join(reportsDir, `${slug}-strategy-soxl-soxs.pine`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -63,7 +65,9 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   timeSplits: path.relative(root, timeSplitsPath),
   timeSplitsCsv: path.relative(root, timeSplitsCsvPath),
   splitRuleEval: path.relative(root, splitRuleEvalPath),
-  splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath)
+  splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath),
+  strategyRules: path.relative(root, strategyRulesPath),
+  pineStrategy: path.relative(root, pineStrategyPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -152,9 +156,21 @@ if (topRule) {
   console.log(report);
 }
 
+execFileSync("python3", [
+  "research/generate_pine_stub.py",
+  "--rules-json", rulesJsonPath,
+  "--rules-output", strategyRulesPath,
+  "--pine-output", pineStrategyPath
+], {
+  cwd: root,
+  stdio: "inherit"
+});
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
 console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
 console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);
 console.log(`split_rule_eval: ${path.relative(root, splitRuleEvalPath)}`);
+console.log(`strategy_rules: ${path.relative(root, strategyRulesPath)}`);
+console.log(`pine_strategy: ${path.relative(root, pineStrategyPath)}`);

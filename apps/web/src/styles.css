@@ -389,23 +389,37 @@ kbd {
 }
 
 .label-list li {
+  display: block;
+}
+
+.label-row-button {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto auto;
   gap: 6px;
   align-items: center;
+  width: 100%;
+  min-height: 0;
   border: 1px solid #2c3745;
   border-radius: 5px;
   padding: 7px;
   background: #151c26;
   color: #a8b3c2;
   font-size: 12px;
+  text-align: left;
 }
 
-.label-list strong {
+.label-row-button:hover {
+  border-color: #3d4654;
+  background: #182231;
+}
+
+.label-list strong,
+.label-row-button strong {
   color: #e7edf6;
 }
 
-.label-list span {
+.label-list span,
+.label-row-button span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

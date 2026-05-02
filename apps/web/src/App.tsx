@@ -30,6 +30,7 @@ type PendingSelection = {
   ticker: Ticker;
   timeframe: Timeframe;
   timestamp: string;
+  status: string;
 };
 
 export function App() {
@@ -134,7 +135,7 @@ export function App() {
     if (nextIndex >= 0) {
       setIndex(nextIndex);
       setSelected(bars[nextIndex]);
-      setCaptureStatus(`Selected open trade entry ${pendingSelection.timestamp.slice(0, 10)}.`);
+      setCaptureStatus(pendingSelection.status);
       setPendingSelection(null);
     }
   }, [bars, pendingSelection, ticker, timeframe]);
@@ -255,12 +256,26 @@ export function App() {
     setPendingSelection({
       ticker: entryLabel.ticker,
       timeframe: entryLabel.timeframe,
-      timestamp: entryLabel.timestamp
+      timestamp: entryLabel.timestamp,
+      status: `Selected open trade entry ${entryLabel.timestamp.slice(0, 10)}.`
     });
     setMode("replay");
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
   }, [labels, openTrade]);
+
+  const goToLabel = useCallback((label: Label) => {
+    setError(null);
+    setPendingSelection({
+      ticker: label.ticker,
+      timeframe: label.timeframe,
+      timestamp: label.timestamp,
+      status: `Selected ${label.action} label ${label.timestamp.slice(0, 10)}.`
+    });
+    setMode("replay");
+    setTicker(label.ticker);
+    setTimeframe(label.timeframe);
+  }, []);
 
   const handleImportCsv = useCallback(async (file: File) => {
     setError(null);
@@ -357,6 +372,7 @@ export function App() {
           onCapture={capture}
           onUndo={undo}
           onGoToOpenTradeEntry={goToOpenTradeEntry}
+          onGoToLabel={goToLabel}
         />
       </div>
       <footer className="statusbar">

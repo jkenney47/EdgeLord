@@ -17,6 +17,7 @@ type Props = {
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
   onGoToOpenTradeEntry: () => void;
+  onGoToLabel: (label: Label) => void;
 };
 
 const actionKeys: Record<LabelAction, string> = {
@@ -47,7 +48,8 @@ export function CapturePanel({
   onAutoAdvance,
   onCapture,
   onUndo,
-  onGoToOpenTradeEntry
+  onGoToOpenTradeEntry,
+  onGoToLabel
 }: Props) {
   const lastLabels = labels.slice(-10).reverse();
   const openTradeEntryLabel = openTrade
@@ -154,12 +156,14 @@ export function CapturePanel({
           <ol className="label-list">
             {lastLabels.map((label) => (
               <li key={label.id}>
-                <strong>{label.action}</strong>
-                <span>{label.ticker} {label.timeframe} · {labelSourceText[label.label_source]}</span>
-                <span className={label.training_eligible === 1 ? "label-eligible" : "label-excluded"}>
-                  {label.training_eligible === 1 ? "Eligible" : "Excluded"}
-                </span>
-                <span>{label.timestamp.slice(0, 10)}</span>
+                <button className="label-row-button" onClick={() => onGoToLabel(label)}>
+                  <strong>{label.action}</strong>
+                  <span>{label.ticker} {label.timeframe} · {labelSourceText[label.label_source]}</span>
+                  <span className={label.training_eligible === 1 ? "label-eligible" : "label-excluded"}>
+                    {label.training_eligible === 1 ? "Eligible" : "Excluded"}
+                  </span>
+                  <span>{label.timestamp.slice(0, 10)}</span>
+                </button>
               </li>
             ))}
           </ol>

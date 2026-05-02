@@ -26,6 +26,12 @@ export function saveBars(bars: Bar[]): number {
   return bars.length;
 }
 
+export function clearBars(): number {
+  const row = db.prepare("select count(*) as count from bars").get() as { count: number };
+  db.prepare("delete from bars").run();
+  return row.count;
+}
+
 export function importRawBars(rawBars: Bar[]): { rawInserted: number; aggregateInserted: number } {
   const rawInserted = saveBars(rawBars);
   const aggregateInserted = (["2H", "4H", "1D"] as ChartTimeframe[]).reduce((count, timeframe) => {

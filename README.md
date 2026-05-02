@@ -89,6 +89,7 @@ pnpm export:backup
 pnpm data:coverage
 pnpm validate:csv /path/to/adjusted-bars.csv
 pnpm import:csv /path/to/adjusted-bars.csv
+pnpm import:csv /path/to/adjusted-bars.csv --replace-bars
 ```
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
@@ -99,7 +100,7 @@ pnpm import:csv /path/to/adjusted-bars.csv
 
 `validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values.
 
-`import:csv` imports a local adjusted OHLCV CSV into the running API, then writes a fresh coverage report.
+`import:csv` imports a local adjusted OHLCV CSV into the running API, then writes a fresh coverage report. Use `--replace-bars` when importing a full historical dataset so old sample/cache bars do not remain mixed into the chart cache. It deletes bars only; labels/trades are not deleted.
 
 `--acceptance` starts a temporary API with a temporary SQLite database, seeds the sample bars, creates entry/exit/skip/hindsight labels, verifies the no-reversal state machine, and checks the export endpoints. It does not touch your real local labeling database.
 

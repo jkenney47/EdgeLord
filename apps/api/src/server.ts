@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import path from "node:path";
 import { z } from "zod";
 
-import { getBars, hasChartBars, importRawBars } from "./bars";
+import { clearBars, getBars, hasChartBars, importRawBars } from "./bars";
 import { parseBarsCsv, readCsvFile } from "./csvImport";
 import { repoRoot } from "./db";
 import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
@@ -34,14 +34,15 @@ app.get("/health", async () => ({ ok: true }));
 app.post("/import/csv", async (request, reply) => {
   const bodySchema = z.union([
     z.string(),
-    z.object({ csv: z.string().optional(), path: z.string().optional() })
+    z.object({ csv: z.string().optional(), path: z.string().optional(), replaceBars: z.boolean().optional() })
   ]);
   const body = bodySchema.parse(request.body);
+  const replacedBars = typeof body === "string" ? 0 : body.replaceBars ? clearBars() : 0;
   const csv = typeof body === "string"
     ? body
     : body.csv ?? (body.path ? readCsvFile(path.resolve(repoRoot, body.path)) : "");
   const result = importRawBars(parseBarsCsv(csv, "csv"));
-  return reply.send(result);
+  return reply.send({ ...result, replacedBars });
 });
 
 app.get("/bars", async (request) => {

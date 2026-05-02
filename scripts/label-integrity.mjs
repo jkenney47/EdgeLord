@@ -81,6 +81,7 @@ const staleIndexes = [];
 const trainingEligibilityMismatches = [];
 const eligibleOrphanExits = [];
 const sequenceIssues = [];
+const sameCandleDecisionConflicts = [];
 const featureSnapshotIssues = [];
 
 function expectedTrainingEligible(label) {
@@ -135,7 +136,31 @@ function parseFeatureSnapshot(label) {
   }
 }
 
+function inspectSameCandleDecisionConflicts(items) {
+  const byDecisionKey = new Map();
+  for (const label of items) {
+    const key = [
+      label.label_source,
+      label.ticker,
+      label.timeframe,
+      label.timestamp
+    ].join("|");
+    const group = byDecisionKey.get(key) ?? [];
+    group.push(label);
+    byDecisionKey.set(key, group);
+  }
+
+  for (const group of byDecisionKey.values()) {
+    if (group.length <= 1) continue;
+    sameCandleDecisionConflicts.push({
+      labels: group,
+      actions: Array.from(new Set(group.map((label) => label.action))).sort()
+    });
+  }
+}
+
 inspectSequence(labels);
+inspectSameCandleDecisionConflicts(labels);
 
 for (const label of labels) {
   const expectedEligible = expectedTrainingEligible(label);
@@ -225,6 +250,7 @@ const lines = [
   `training_eligibility_mismatches: ${trainingEligibilityMismatches.length}`,
   `eligible_orphan_exits: ${eligibleOrphanExits.length}`,
   `sequence_issues: ${sequenceIssues.length}`,
+  `same_candle_decision_conflicts: ${sameCandleDecisionConflicts.length}`,
   `feature_snapshot_issues: ${featureSnapshotIssues.length}`,
   "",
   "Missing Bars"
@@ -286,6 +312,19 @@ if (sequenceIssues.length === 0) {
   }
 }
 
+lines.push("", "Same-Candle Decision Conflicts");
+if (sameCandleDecisionConflicts.length === 0) {
+  lines.push("- none");
+} else {
+  for (const item of sameCandleDecisionConflicts.slice(0, 25)) {
+    const first = item.labels[0];
+    lines.push(
+      `- ${first.label_source} ${first.ticker} ${first.timeframe} ${first.timestamp}: ` +
+      `${item.labels.length} labels actions=${item.actions.join("|")} ids=${item.labels.map((label) => label.id).join("|")}`
+    );
+  }
+}
+
 lines.push("", "Feature Snapshot Issues");
 if (featureSnapshotIssues.length === 0) {
   lines.push("- none");
@@ -304,6 +343,7 @@ if (
   trainingEligibilityMismatches.length ||
   eligibleOrphanExits.length ||
   sequenceIssues.length ||
+  sameCandleDecisionConflicts.length ||
   featureSnapshotIssues.length
 ) {
   lines.push("- Label integrity issues exist. Repair or re-label before modeling.");
@@ -324,6 +364,7 @@ const summary = {
     trainingEligibilityMismatches: trainingEligibilityMismatches.length,
     eligibleOrphanExits: eligibleOrphanExits.length,
     sequenceIssues: sequenceIssues.length,
+    sameCandleDecisionConflicts: sameCandleDecisionConflicts.length,
     featureSnapshotIssues: featureSnapshotIssues.length
   },
   readyForModeling:
@@ -333,6 +374,7 @@ const summary = {
     trainingEligibilityMismatches.length === 0 &&
     eligibleOrphanExits.length === 0 &&
     sequenceIssues.length === 0 &&
+    sameCandleDecisionConflicts.length === 0 &&
     featureSnapshotIssues.length === 0,
   samples: {
     missingBars: missingBars.slice(0, 25).map((label) => ({
@@ -383,6 +425,14 @@ const summary = {
       reason: item.reason,
       openLabelId: item.openLabel?.id ?? null,
       openTicker: item.openLabel?.ticker ?? null
+    })),
+    sameCandleDecisionConflicts: sameCandleDecisionConflicts.slice(0, 25).map((item) => ({
+      labelSource: item.labels[0]?.label_source ?? null,
+      ticker: item.labels[0]?.ticker ?? null,
+      timeframe: item.labels[0]?.timeframe ?? null,
+      timestamp: item.labels[0]?.timestamp ?? null,
+      actions: item.actions,
+      labelIds: item.labels.map((label) => label.id)
     })),
     featureSnapshotIssues: featureSnapshotIssues.slice(0, 25).map((item) => ({
       id: item.label.id,

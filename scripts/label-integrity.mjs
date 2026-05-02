@@ -8,6 +8,34 @@ const reportsDir = path.join(root, "reports");
 const writeReport = process.argv.includes("--write");
 const repairLabels = process.argv.includes("--repair");
 const priceTolerance = 0.0001;
+const requiredTrainingFeatureKeys = [
+  "close",
+  "volume",
+  "ema25",
+  "sma100",
+  "atr14",
+  "stochRsiK",
+  "stochRsiD",
+  "closeAboveEma25",
+  "closeAboveSma100",
+  "distanceToEma25Pct",
+  "distanceToSma100Pct",
+  "recent5ReturnPct",
+  "recent10ReturnPct",
+  "recent20ReturnPct",
+  "recent20High",
+  "recent20Low",
+  "closeRankRecent20",
+  "pairedTicker",
+  "pairedClose",
+  "pairRatioClose",
+  "d1Close",
+  "d1CloseAboveEma25",
+  "h4Close",
+  "h4CloseAboveEma25",
+  "h2Close",
+  "h2CloseAboveEma25"
+];
 
 function timestampSlug(date = new Date()) {
   return date.toISOString().replace(/[-:.]/g, "");
@@ -53,6 +81,7 @@ const staleIndexes = [];
 const trainingEligibilityMismatches = [];
 const eligibleOrphanExits = [];
 const sequenceIssues = [];
+const featureSnapshotIssues = [];
 
 function expectedTrainingEligible(label) {
   if (Number(label.potential_visual_leakage) === 1) return false;
@@ -94,6 +123,18 @@ function inspectSequence(items) {
   }
 }
 
+function parseFeatureSnapshot(label) {
+  try {
+    const parsed = JSON.parse(label.features_json || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { ok: false, features: null, reason: "features_json is not an object" };
+    }
+    return { ok: true, features: parsed, reason: null };
+  } catch (error) {
+    return { ok: false, features: null, reason: `features_json is invalid JSON: ${error.message}` };
+  }
+}
+
 inspectSequence(labels);
 
 for (const label of labels) {
@@ -107,6 +148,20 @@ for (const label of labels) {
     (!label.trade_id || !label.parent_entry_label_id)
   ) {
     eligibleOrphanExits.push(label);
+  }
+
+  const featureSnapshot = parseFeatureSnapshot(label);
+  if (!featureSnapshot.ok) {
+    featureSnapshotIssues.push({ label, reason: featureSnapshot.reason, missingKeys: [] });
+  } else if (Number(label.training_eligible) === 1) {
+    const missingKeys = requiredTrainingFeatureKeys.filter((featureKey) => !Object.prototype.hasOwnProperty.call(featureSnapshot.features, featureKey));
+    if (missingKeys.length > 0) {
+      featureSnapshotIssues.push({
+        label,
+        reason: "training-eligible label is missing required feature snapshot keys",
+        missingKeys
+      });
+    }
   }
 
   const bars = await barsFor(label.ticker, label.timeframe);
@@ -139,6 +194,12 @@ if (repairLabels) {
       repairable.set(item.label.id, { label: item.label, bar: bars.get(item.label.timestamp) });
     }
   }
+  for (const item of featureSnapshotIssues) {
+    if (!repairable.has(item.label.id)) {
+      const bars = await barsFor(item.label.ticker, item.label.timeframe);
+      repairable.set(item.label.id, { label: item.label, bar: bars.get(item.label.timestamp) });
+    }
+  }
 
   for (const item of repairable.values()) {
     if (!item.bar) continue;
@@ -164,6 +225,7 @@ const lines = [
   `training_eligibility_mismatches: ${trainingEligibilityMismatches.length}`,
   `eligible_orphan_exits: ${eligibleOrphanExits.length}`,
   `sequence_issues: ${sequenceIssues.length}`,
+  `feature_snapshot_issues: ${featureSnapshotIssues.length}`,
   "",
   "Missing Bars"
 ];
@@ -224,6 +286,16 @@ if (sequenceIssues.length === 0) {
   }
 }
 
+lines.push("", "Feature Snapshot Issues");
+if (featureSnapshotIssues.length === 0) {
+  lines.push("- none");
+} else {
+  for (const item of featureSnapshotIssues.slice(0, 25)) {
+    const missing = item.missingKeys.length > 0 ? ` missing=${item.missingKeys.join("|")}` : "";
+    lines.push(`- ${item.label.id} ${item.label.action} ${item.label.ticker} ${item.label.timeframe} ${item.label.timestamp}: ${item.reason}${missing}`);
+  }
+}
+
 lines.push("", "Readiness");
 if (
   missingBars.length ||
@@ -231,11 +303,12 @@ if (
   staleIndexes.length ||
   trainingEligibilityMismatches.length ||
   eligibleOrphanExits.length ||
-  sequenceIssues.length
+  sequenceIssues.length ||
+  featureSnapshotIssues.length
 ) {
   lines.push("- Label integrity issues exist. Repair or re-label before modeling.");
 } else {
-  lines.push("- Labels match the current bar cache and training eligibility policy.");
+  lines.push("- Labels match the current bar cache, training eligibility policy, and feature snapshot contract.");
 }
 
 const report = `${lines.join("\n")}\n`;
@@ -250,7 +323,8 @@ const summary = {
     staleBarIndexes: staleIndexes.length,
     trainingEligibilityMismatches: trainingEligibilityMismatches.length,
     eligibleOrphanExits: eligibleOrphanExits.length,
-    sequenceIssues: sequenceIssues.length
+    sequenceIssues: sequenceIssues.length,
+    featureSnapshotIssues: featureSnapshotIssues.length
   },
   readyForModeling:
     missingBars.length === 0 &&
@@ -258,7 +332,8 @@ const summary = {
     staleIndexes.length === 0 &&
     trainingEligibilityMismatches.length === 0 &&
     eligibleOrphanExits.length === 0 &&
-    sequenceIssues.length === 0,
+    sequenceIssues.length === 0 &&
+    featureSnapshotIssues.length === 0,
   samples: {
     missingBars: missingBars.slice(0, 25).map((label) => ({
       id: label.id,
@@ -308,6 +383,15 @@ const summary = {
       reason: item.reason,
       openLabelId: item.openLabel?.id ?? null,
       openTicker: item.openLabel?.ticker ?? null
+    })),
+    featureSnapshotIssues: featureSnapshotIssues.slice(0, 25).map((item) => ({
+      id: item.label.id,
+      action: item.label.action,
+      ticker: item.label.ticker,
+      timeframe: item.label.timeframe,
+      timestamp: item.label.timestamp,
+      reason: item.reason,
+      missingKeys: item.missingKeys
     }))
   }
 };

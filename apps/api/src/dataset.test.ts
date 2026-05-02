@@ -67,6 +67,49 @@ describe("buildDatasetPulse", () => {
     expect(pulse.nextActions[0]).toContain("SKIP labels");
   });
 
+  it("does not count ineligible closed trades toward closed-trade target progress", () => {
+    const labels = [
+      label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
+      label("EXIT", {
+        id: "exit",
+        trade_id: "trade",
+        parent_entry_label_id: "entry",
+        training_eligible: 1,
+        timestamp: "2024-01-03T14:30:00.000Z"
+      }),
+      label("ENTRY", {
+        id: "hindsight-entry",
+        label_source: "retrospective_hindsight",
+        trade_id: "hindsight-trade",
+        training_eligible: 0,
+        timestamp: "2024-01-04T14:30:00.000Z"
+      }),
+      label("EXIT", {
+        id: "hindsight-exit",
+        label_source: "retrospective_hindsight",
+        trade_id: "hindsight-trade",
+        parent_entry_label_id: "hindsight-entry",
+        training_eligible: 0,
+        timestamp: "2024-01-05T14:30:00.000Z"
+      })
+    ];
+    const trades = [
+      trade("closed"),
+      {
+        ...trade("closed"),
+        id: "hindsight-trade",
+        entry_label_id: "hindsight-entry",
+        exit_label_id: "hindsight-exit"
+      }
+    ];
+
+    const pulse = buildDatasetPulse(barSummary, labels, trades);
+
+    expect(pulse.trades.closed).toBe(2);
+    expect(pulse.trades.trainingEligibleClosed).toBe(1);
+    expect(pulse.targets.find((target) => target.key === "closedTrades")?.current).toBe(1);
+  });
+
   it("keeps skip focus balanced with entries while preserving rough skip target", () => {
     const labels = [
       label("ENTRY", { id: "entry-1", trade_id: "trade-1", training_eligible: 1 }),

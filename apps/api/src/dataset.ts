@@ -12,9 +12,15 @@ export type DatasetPulse = ReturnType<typeof buildDatasetPulse>;
 
 export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], trades: Trade[]) {
   const activeLabels = labels.filter((label) => label.deleted_at === null);
+  const labelById = new Map(activeLabels.map((label) => [label.id, label]));
   const trainingLabels = activeLabels.filter((label) => label.training_eligible === 1);
   const openTrade = trades.find((trade) => trade.status === "open") ?? null;
   const closedTrades = trades.filter((trade) => trade.status === "closed");
+  const trainingEligibleClosedTrades = closedTrades.filter((trade) => {
+    const entry = labelById.get(trade.entry_label_id);
+    const exit = trade.exit_label_id ? labelById.get(trade.exit_label_id) : null;
+    return entry?.training_eligible === 1 && exit?.training_eligible === 1;
+  });
   const trainingEntries = trainingLabels.filter((label) => label.action === "ENTRY").length;
   const trainingExits = trainingLabels.filter((label) => label.action === "EXIT").length;
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
@@ -26,7 +32,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
     { key: "entries", label: "Entries", current: trainingEntries, target: targets.entries },
     { key: "exits", label: "Exits", current: trainingExits, target: exitTarget },
     { key: "skips", label: "Skips", current: trainingSkips, target: targets.skips },
-    { key: "closedTrades", label: "Closed", current: closedTrades.length, target: targets.closedTrades }
+    { key: "closedTrades", label: "Closed", current: trainingEligibleClosedTrades.length, target: targets.closedTrades }
   ].map((item) => ({ ...item, complete: item.current >= item.target }));
   const nextTarget = nextLabelingTarget({
     dataReady: dataReadiness.code === "ready",
@@ -36,7 +42,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
     entries: trainingEntries,
     exits: trainingExits,
     skips: trainingSkips,
-    closedTrades: closedTrades.length
+    closedTrades: trainingEligibleClosedTrades.length
   });
 
   return {
@@ -54,6 +60,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
       total: trades.length,
       open: openTrade ? 1 : 0,
       closed: closedTrades.length,
+      trainingEligibleClosed: trainingEligibleClosedTrades.length,
       status: countBy(trades, "status"),
       openTrade: openTrade ? {
         id: openTrade.id,

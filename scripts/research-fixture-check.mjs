@@ -277,6 +277,7 @@ try {
   ]);
   assert(readFile("entry-outcomes.md").includes("EdgeLord Entry Outcome Analysis"), "entry outcome report should be written");
   assert(readFile("entry-outcomes.csv").includes("l1,SOXL,4H"), "entry outcome CSV should include the closed entry row");
+  assert(!readFile("entry-outcomes.csv").includes("l7,SOXL,4H"), "entry outcome CSV should exclude hindsight-only closed trades");
 
   run([
     "research/optimize_entry_rules.py",
@@ -286,6 +287,7 @@ try {
     "--json-output", path.join(tempDir, "return-rules.json")
   ]);
   assert(readFile("return-rules.md").includes("EdgeLord Return-Optimized Entry Rules"), "return rules report should be written");
+  assert(readFile("return-rules.md").includes("closed_entry_rows: 2"), "return rules should count only training-eligible closed trades");
   assert(JSON.parse(readFile("return-rules.json")).candidates.length > 0, "return rules JSON should include candidates");
 
   run([

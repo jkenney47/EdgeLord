@@ -693,7 +693,7 @@ def next_label_recommendations(
     entries = training_actions.get("ENTRY", 0)
     exits = training_actions.get("EXIT", 0)
     skips = training_actions.get("SKIP", 0)
-    closed = count_by(trades, "status").get("closed", 0)
+    closed = len(training_eligible_closed_trades(labels, trades))
     excluded = len([label for label in labels if label.get("training_eligible") != "1"])
 
     lines = ["\nWhat To Label Next"]

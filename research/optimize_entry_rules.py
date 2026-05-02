@@ -40,13 +40,18 @@ def closed_entry_rows(training: list[dict[str, str]], trades: list[dict[str, str
         for row in training
         if row.get("action") == "ENTRY" and row.get("label_id")
     }
+    eligible_exit_ids = {
+        row.get("label_id", "")
+        for row in training
+        if row.get("action") == "EXIT" and row.get("label_id")
+    }
     rows: list[dict[str, str]] = []
     for trade in trades:
         if trade.get("status") != "closed":
             continue
         entry = entries_by_id.get(trade.get("entry_label_id", ""))
         return_pct = numeric_value(trade, "return_pct")
-        if not entry or return_pct is None:
+        if not entry or trade.get("exit_label_id", "") not in eligible_exit_ids or return_pct is None:
             continue
         rows.append({
             **entry,
@@ -123,13 +128,14 @@ def format_report(rows: list[dict[str, str]], candidates: list[dict[str, Any]]) 
         "",
         "Notes",
         "- These are one-feature filters over closed labeled entries.",
+        "- A trade is included only when both entry and exit labels are training rows.",
         "- They optimize labeled trade returns, not full-history backtest returns.",
         "- Treat this as a ranking prompt for later walk-forward testing.",
         "",
         "Top Candidates",
     ]
     if not rows:
-        lines.append("- Need closed trades with training-eligible ENTRY labels.")
+        lines.append("- Need closed trades with training-eligible ENTRY and EXIT labels.")
     elif len(rows) < 5:
         lines.append("- Dataset is very small; rankings are unstable.")
     if not candidates:

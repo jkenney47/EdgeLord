@@ -27,12 +27,17 @@ def joined_closed_entries(training: list[dict[str, str]], trades: list[dict[str,
         for row in training
         if row.get("action") == "ENTRY" and row.get("label_id")
     }
+    eligible_exit_ids = {
+        row.get("label_id", "")
+        for row in training
+        if row.get("action") == "EXIT" and row.get("label_id")
+    }
     joined: list[dict[str, str]] = []
     for trade in trades:
         if trade.get("status") != "closed":
             continue
         entry = entries_by_id.get(trade.get("entry_label_id", ""))
-        if not entry:
+        if not entry or trade.get("exit_label_id", "") not in eligible_exit_ids:
             continue
         return_pct = numeric_value(trade, "return_pct")
         if return_pct is None:
@@ -93,13 +98,14 @@ def format_report(rows: list[dict[str, str]], contrasts: list[dict[str, str]]) -
         "",
         "Notes",
         "- This compares entry-time features on closed trades only.",
+        "- A trade is included only when both entry and exit labels are training rows.",
         "- It is an optimizer scaffold, not a complete backtest.",
         "- Use it to see what differs between winning and losing labeled entries.",
         "",
         "Top Winner vs Loser Entry Feature Differences",
     ])
     if not rows:
-        lines.append("- Need closed trades with training-eligible ENTRY labels.")
+        lines.append("- Need closed trades with training-eligible ENTRY and EXIT labels.")
     elif not winners or not losers:
         lines.append("- Need at least one winning and one losing closed trade for contrasts.")
     elif not contrasts:

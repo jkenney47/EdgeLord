@@ -82,11 +82,14 @@ export async function fetchBarsSummary(): Promise<BarSummaryRow[]> {
   return (await request<{ rows: BarSummaryRow[] }>("/bars/summary")).rows;
 }
 
-export async function importCsv(csv: string): Promise<{ rawInserted: number; aggregateInserted: number }> {
+export async function importCsv(csv: string, options: { replaceBars?: boolean } = {}): Promise<{
+  rawInserted: number;
+  aggregateInserted: number;
+  replacedBars: number;
+}> {
   return request("/import/csv", {
     method: "POST",
-    headers: { "content-type": "text/csv" },
-    body: csv
+    body: JSON.stringify({ csv, replaceBars: options.replaceBars ?? false })
   });
 }
 

@@ -177,8 +177,9 @@ export function App() {
     setImportStatus(`Importing ${file.name}`);
     try {
       const csv = await file.text();
-      const result = await importCsv(csv);
-      setImportStatus(`Imported ${result.rawInserted} raw / ${result.aggregateInserted} chart bars`);
+      const result = await importCsv(csv, { replaceBars: true });
+      const replaced = result.replacedBars ? `, replaced ${result.replacedBars}` : "";
+      setImportStatus(`Imported ${result.rawInserted} raw / ${result.aggregateInserted} chart bars${replaced}`);
       await loadBars();
       await refreshBarSummary();
       await refreshState();

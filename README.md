@@ -29,7 +29,9 @@ If no imported data exists, the API seeds a tiny adjusted SOXL/SOXS sample fixtu
 
 ## CSV Import
 
-Use `Import CSV` in the app top bar, or call the API directly. `POST /import/csv` accepts either raw CSV text or JSON:
+Use `Import CSV` in the app top bar, or call the API directly. The app import replaces the cached sample/chart bars so a real historical CSV does not silently mix with fixture data. Replacement is blocked if active labels already exist.
+
+`POST /import/csv` accepts either raw CSV text or JSON:
 
 ```json
 { "path": "data/my-adjusted-bars.csv" }

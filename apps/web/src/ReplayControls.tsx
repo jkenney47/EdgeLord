@@ -89,6 +89,8 @@ export function ReplayControls({
           <a href={exportUrl("training-features.csv")}>Training CSV</a>
           <a href={exportUrl("trade-candidates.csv")}>Trade Candidates CSV</a>
           <a href={exportUrl("labels.jsonl")}>Labels JSONL</a>
+          <a href={exportUrl("manifest.json")}>Manifest JSON</a>
+          <a href={exportUrl("schema.json")}>Schema JSON</a>
         </div>
       </details>
       {importStatus ? <span className="import-status">{importStatus}</span> : null}

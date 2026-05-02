@@ -385,6 +385,7 @@ run("pnpm", ["verify"]);
 
 if (shouldRunAcceptance) {
   await runAcceptance();
+  run("pnpm", ["research:fixture-check"]);
 }
 
 if (shouldRunApiSmoke) {

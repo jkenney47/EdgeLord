@@ -97,6 +97,7 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 
 Training features include only training-eligible labels by default and carry label source / capture mode metadata, explicit `target_entry` / `target_exit` / `target_skip` / `target_invalid` columns, and both chart/execution decision prices so research can segment actual trades from replay labels without joining back to the label export.
 Trade candidates include HOLD/EXIT rows between training-eligible entry/exit pairs so exit-rule research can compare in-trade bars instead of only labeled decision rows.
+The export manifest summarizes label counts, trade status, and trade-candidate coverage so downstream research can quickly tell whether exit-rule rows are available.
 The export schema describes each exported file, target column, feature column, training policy, and whether the feature currently has a Pine mapping.
 
 ## Verify

@@ -72,7 +72,9 @@ const labelsCsv = writeFile("labels.csv", [
   "l3,retrospective_replay,1,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,2,9,,,,replay,2024-01-04T14:30:00.000Z,0,,,,2024-01-04T14:30:00.000Z",
   "l4,retrospective_hindsight,0,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z",
   "l5,retrospective_replay,1,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,4,20,,t2,,replay,2024-01-06T14:30:00.000Z,0,,,,2024-01-06T14:30:00.000Z",
-  "l6,retrospective_replay,1,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,5,18,,t2,l5,replay,2024-01-07T14:30:00.000Z,0,,,,2024-01-07T14:30:00.000Z"
+  "l6,retrospective_replay,1,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,5,18,,t2,l5,replay,2024-01-07T14:30:00.000Z,0,,,,2024-01-07T14:30:00.000Z",
+  "l7,retrospective_hindsight,0,ENTRY,SOXL,4H,2024-01-08T14:30:00.000Z,6,12,,t3,,regular,2024-01-08T14:30:00.000Z,1,,,,,2024-01-08T14:30:00.000Z",
+  "l8,retrospective_hindsight,0,EXIT,SOXL,4H,2024-01-09T14:30:00.000Z,7,13,,t3,l7,regular,2024-01-09T14:30:00.000Z,1,,,,,2024-01-09T14:30:00.000Z"
 ].join("\n") + "\n");
 
 const trainingCsv = writeFile("training-features.csv", [
@@ -87,7 +89,8 @@ const trainingCsv = writeFile("training-features.csv", [
 const tradesCsv = writeFile("trades.csv", [
   "trade_id,ticker,status,entry_label_id,exit_label_id,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct",
   "t1,SOXL,closed,l1,l2,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10",
-  "t2,SOXS,closed,l5,l6,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10"
+  "t2,SOXS,closed,l5,l6,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10",
+  "t3,SOXL,closed,l7,l8,2024-01-08T14:30:00.000Z,2024-01-09T14:30:00.000Z,12,13,8.3333"
 ].join("\n") + "\n");
 
 const tradeCandidatesCsv = writeFile("trade-candidates.csv", [
@@ -122,6 +125,7 @@ try {
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
+  assert(datasetReport.counts.trades === 3, "dataset report should count all trades");
   assert(datasetReport.counts.sequenceIssues === 0, "dataset report JSON should count sequence issues");
   assert(datasetReport.counts.sameCandleDecisionConflicts === 0, "dataset report JSON should count same-candle decision conflicts");
   assert(datasetReport.counts.missingEligibleTrainingRows === 0, "dataset report should count missing eligible training rows");
@@ -131,11 +135,13 @@ try {
   assert(datasetReport.counts.tradeCandidateRows === 4, "dataset report should count trade candidate rows");
   assert(datasetReport.counts.tradeCandidateExitRows === 2, "dataset report should count trade candidate exit rows");
   assert(datasetReport.counts.tradeCandidateHoldRows === 2, "dataset report should count trade candidate hold rows");
+  assert(datasetReport.counts.closedTradesWithCandidates === 2, "dataset report should count covered training-eligible closed trades");
   assert(datasetReport.counts.missingClosedTradeCandidates === 0, "dataset report should count missing trade candidates");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(Array.isArray(datasetReport.issues.sameCandleDecisionConflicts), "dataset report should expose same-candle decision conflicts");
   assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");
   assert(Array.isArray(datasetReport.issues.tradeCandidates.missingClosedTradeCandidateIds), "dataset report should expose trade candidate issues");
+  assert(datasetReport.issues.tradeCandidates.missingClosedTradeCandidateIds.length === 0, "ineligible closed trades should not require trade candidates");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
   assert(datasetReport.readiness.readyForExitRuleMining === true, "fixture dataset should be ready for basic exit rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");

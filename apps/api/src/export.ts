@@ -218,10 +218,16 @@ export function labelsJsonl(labels: Label[]): string {
 
 export function exportManifest(labels: Label[], trades: Trade[]): Record<string, unknown> {
   const activeLabels = labels.filter((label) => label.deleted_at === null);
+  const labelById = new Map(activeLabels.map((label) => [label.id, label]));
   const trainingEligibleLabels = activeLabels.filter((label) => label.training_eligible === 1);
   const tradeCandidateRows = buildTradeCandidateRows(activeLabels, trades);
   const tradeCandidateTradeIds = new Set(tradeCandidateRows.map((row) => String(row.trade_id ?? "")).filter(Boolean));
-  const closedTradeIds = new Set(trades.filter((trade) => trade.status === "closed").map((trade) => trade.id));
+  const closedTrainingEligibleTradeIds = new Set(trades.filter((trade) => {
+    if (trade.status !== "closed" || !trade.exit_label_id) return false;
+    const entry = labelById.get(trade.entry_label_id);
+    const exit = labelById.get(trade.exit_label_id);
+    return entry?.training_eligible === 1 && exit?.training_eligible === 1;
+  }).map((trade) => trade.id));
   return {
     version: "edgelord.export_manifest.v1",
     createdAt: new Date().toISOString(),
@@ -257,8 +263,8 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
     tradeCandidates: {
       rows: tradeCandidateRows.length,
       byAction: countBy(tradeCandidateRows, "action"),
-      closedTrades: closedTradeIds.size,
-      closedTradesWithCandidates: [...closedTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length
+      closedTrades: closedTrainingEligibleTradeIds.size,
+      closedTradesWithCandidates: [...closedTrainingEligibleTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length
     },
     trainingPolicy: exportTrainingPolicy
   };

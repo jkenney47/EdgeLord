@@ -458,8 +458,16 @@ def format_training_row_issues(issues: dict[str, list[str]]) -> list[str]:
     return lines
 
 
-def trade_candidate_summary(trades: list[dict[str, str]], candidates: list[dict[str, str]]) -> dict[str, object]:
-    closed_trade_ids = {trade.get("trade_id", "") for trade in trades if trade.get("status") == "closed" and trade.get("trade_id", "")}
+def trade_candidate_summary(labels: list[dict[str, str]], trades: list[dict[str, str]], candidates: list[dict[str, str]]) -> dict[str, object]:
+    labels_by_id = {label.get("id", ""): label for label in labels if label.get("id", "")}
+    closed_trade_ids = {
+        trade.get("trade_id", "")
+        for trade in trades
+        if trade.get("status") == "closed" and
+        trade.get("trade_id", "") and
+        labels_by_id.get(trade.get("entry_label_id", ""), {}).get("training_eligible") == "1" and
+        labels_by_id.get(trade.get("exit_label_id", ""), {}).get("training_eligible") == "1"
+    }
     candidate_ids = [row.get("candidate_id", "") for row in candidates if row.get("candidate_id", "")]
     candidate_id_counts = Counter(candidate_ids)
     candidate_trade_ids = {row.get("trade_id", "") for row in candidates if row.get("trade_id", "")}
@@ -741,7 +749,7 @@ def main() -> None:
     decision_conflicts = same_candle_decision_conflicts(labels)
     training_issues = training_row_issues(labels, training)
     target_issues = target_encoding_issues(training)
-    trade_candidate_status = trade_candidate_summary(trades, trade_candidates)
+    trade_candidate_status = trade_candidate_summary(labels, trades, trade_candidates)
 
     lines = [
         "EdgeLord Dataset Report",

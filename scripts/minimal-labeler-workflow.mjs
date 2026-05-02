@@ -56,7 +56,8 @@ async function apiSmoke() {
     ["/health", (body) => body.ok === true],
     ["/labels", (body) => Array.isArray(body.labels)],
     ["/trades", (body) => Array.isArray(body.trades)],
-    ["/state/dataset", (body) => body.version === "edgelord.dataset_pulse.v1" && Array.isArray(body.targets)]
+    ["/state/dataset", (body) => body.version === "edgelord.dataset_pulse.v1" && Array.isArray(body.targets)],
+    ["/export/schema.json", (body) => body.version === "edgelord.export_schema.v1" && Array.isArray(body.features)]
   ];
 
   for (const [route, predicate] of checks) {
@@ -389,10 +390,21 @@ async function runAcceptance() {
       return body;
     });
     assert(manifest.version === "edgelord.export_manifest.v1", "export manifest version is unexpected");
+    assert(manifest.files.includes("schema.json"), "export manifest should include schema.json");
     assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
     assert(manifest.labels.excluded === 1, "export manifest should count excluded labels");
     assert(manifest.trades.byStatus.closed === 1, "export manifest should count closed trades");
     console.log("ok /export/manifest.json");
+
+    const schema = await fetchJson(baseUrl, "/export/schema.json").then(({ response, body }) => {
+      assert(response.ok, `/export/schema.json returned ${response.status}`);
+      return body;
+    });
+    assert(schema.version === "edgelord.export_schema.v1", "export schema version is unexpected");
+    assert(schema.files["training-features.csv"].targetColumns.includes("target_entry"), "export schema should describe training targets");
+    assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineSupport === "mapped"), "export schema should describe Pine-supported features");
+    assert(schema.features.some((feature) => feature.column === "feature_pair_ratio_close" && feature.pineSupport === "research_only"), "export schema should flag research-only features");
+    console.log("ok /export/schema.json");
 
     const datasetPulse = await fetchJson(baseUrl, "/state/dataset").then(({ response, body }) => {
       assert(response.ok, `/state/dataset returned ${response.status}`);

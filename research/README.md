@@ -11,6 +11,7 @@ Goal:
 This folder is intentionally only scaffolding. Do not build strategy mining UI into the app.
 
 `training-features.csv` is the primary model table. It includes one row per training-eligible label, explicit target columns for ENTRY/EXIT/SKIP/INVALID, chart price, optional execution price, and `decision_price` using execution price when available.
+`schema.json` is the contract for exported datasets. It lists each CSV/JSONL file, feature column, target column, training policy, and whether a feature is currently mapped into the generated Pine scaffold.
 
 ## First Report
 

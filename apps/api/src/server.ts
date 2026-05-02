@@ -8,7 +8,7 @@ import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from 
 import { CsvImportValidationError, parseBarsCsv, readCsvFile } from "./csvImport";
 import { buildDatasetPulse } from "./dataset";
 import { repoRoot } from "./db";
-import { exportManifest, labelsCsv, labelsJsonl, tradeCandidatesCsv, tradesCsv, trainingFeaturesCsv } from "./export";
+import { exportManifest, exportSchemaCatalog, labelsCsv, labelsJsonl, tradeCandidatesCsv, tradesCsv, trainingFeaturesCsv } from "./export";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
 import type { ChartTimeframe, Ticker } from "./schema";
 import { getOpenTrade, getTrades } from "./trades";
@@ -115,6 +115,7 @@ app.get("/export/training-features.csv", async (_request, reply) => reply.type("
 app.get("/export/trade-candidates.csv", async (_request, reply) => reply.type("text/csv").send(tradeCandidatesCsv(getLabels(), getTrades())));
 app.get("/export/labels.jsonl", async (_request, reply) => reply.type("application/x-ndjson").send(labelsJsonl(getLabels())));
 app.get("/export/manifest.json", async () => exportManifest(getLabels(), getTrades()));
+app.get("/export/schema.json", async () => exportSchemaCatalog());
 
 const port = Number(process.env.API_PORT ?? 4317);
 await app.listen({ host: "127.0.0.1", port });

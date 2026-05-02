@@ -93,9 +93,11 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 - `GET /export/trade-candidates.csv`
 - `GET /export/labels.jsonl`
 - `GET /export/manifest.json`
+- `GET /export/schema.json`
 
 Training features include only training-eligible labels by default and carry label source / capture mode metadata, explicit `target_entry` / `target_exit` / `target_skip` / `target_invalid` columns, and both chart/execution decision prices so research can segment actual trades from replay labels without joining back to the label export.
 Trade candidates include HOLD/EXIT rows between training-eligible entry/exit pairs so exit-rule research can compare in-trade bars instead of only labeled decision rows.
+The export schema describes each exported file, target column, feature column, training policy, and whether the feature currently has a Pine mapping.
 
 ## Verify
 
@@ -135,7 +137,7 @@ pnpm labels:repair
 
 `checkpoint:minimal-labeler` is the heavier end-of-slice command for backend/data/export/research work. It runs the closeout gate, then `data:status`, then prints final git status. Use it when the local API is already running and you want one command to verify code plus current dataset readiness.
 
-`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `trade-candidates.csv`, `labels.jsonl`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
+`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `trade-candidates.csv`, `labels.jsonl`, `schema.json`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 
 `data:coverage` writes SOXL/SOXS `1D`/`4H`/`2H` coverage reports into `reports/` so you can tell whether you are still on sample data or have enough history for research. It writes both markdown and JSON; the JSON includes a readiness code such as `sample_only`, `too_short`, or `ready`.
 

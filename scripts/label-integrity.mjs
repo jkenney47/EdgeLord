@@ -38,11 +38,43 @@ const priceMismatches = [];
 const staleIndexes = [];
 const trainingEligibilityMismatches = [];
 const eligibleOrphanExits = [];
+const sequenceIssues = [];
 
 function expectedTrainingEligible(label) {
   if (Number(label.potential_visual_leakage) === 1) return false;
   return label.label_source === "actual_trade" || (label.label_source === "retrospective_replay" && label.capture_mode === "replay");
 }
+
+function inspectSequence(items) {
+  let open = null;
+  for (const label of [...items].sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))) {
+    if (label.action === "ENTRY") {
+      if (open) {
+        sequenceIssues.push({
+          label,
+          reason: `ENTRY while ${open.ticker} trade ${open.id} is still open`,
+          openLabel: open
+        });
+      } else {
+        open = label;
+      }
+    } else if (label.action === "EXIT") {
+      if (!open) {
+        sequenceIssues.push({ label, reason: "EXIT with no open trade", openLabel: null });
+      } else if (open.ticker !== label.ticker) {
+        sequenceIssues.push({
+          label,
+          reason: `EXIT ${label.ticker} while open trade is ${open.ticker}`,
+          openLabel: open
+        });
+      } else {
+        open = null;
+      }
+    }
+  }
+}
+
+inspectSequence(labels);
 
 for (const label of labels) {
   const expectedEligible = expectedTrainingEligible(label);
@@ -86,6 +118,7 @@ const lines = [
   `stale_bar_indexes: ${staleIndexes.length}`,
   `training_eligibility_mismatches: ${trainingEligibilityMismatches.length}`,
   `eligible_orphan_exits: ${eligibleOrphanExits.length}`,
+  `sequence_issues: ${sequenceIssues.length}`,
   "",
   "Missing Bars"
 ];
@@ -137,13 +170,23 @@ if (eligibleOrphanExits.length === 0) {
   }
 }
 
+lines.push("", "State Machine Sequence Issues");
+if (sequenceIssues.length === 0) {
+  lines.push("- none");
+} else {
+  for (const item of sequenceIssues.slice(0, 25)) {
+    lines.push(`- ${item.label.id} ${item.label.action} ${item.label.ticker} ${item.label.timeframe} ${item.label.timestamp}: ${item.reason}`);
+  }
+}
+
 lines.push("", "Readiness");
 if (
   missingBars.length ||
   priceMismatches.length ||
   staleIndexes.length ||
   trainingEligibilityMismatches.length ||
-  eligibleOrphanExits.length
+  eligibleOrphanExits.length ||
+  sequenceIssues.length
 ) {
   lines.push("- Label integrity issues exist. Repair or re-label before modeling.");
 } else {
@@ -161,14 +204,16 @@ const summary = {
     chartPriceMismatches: priceMismatches.length,
     staleBarIndexes: staleIndexes.length,
     trainingEligibilityMismatches: trainingEligibilityMismatches.length,
-    eligibleOrphanExits: eligibleOrphanExits.length
+    eligibleOrphanExits: eligibleOrphanExits.length,
+    sequenceIssues: sequenceIssues.length
   },
   readyForModeling:
     missingBars.length === 0 &&
     priceMismatches.length === 0 &&
     staleIndexes.length === 0 &&
     trainingEligibilityMismatches.length === 0 &&
-    eligibleOrphanExits.length === 0,
+    eligibleOrphanExits.length === 0 &&
+    sequenceIssues.length === 0,
   samples: {
     missingBars: missingBars.slice(0, 25).map((label) => ({
       id: label.id,
@@ -208,6 +253,16 @@ const summary = {
       ticker: label.ticker,
       timeframe: label.timeframe,
       timestamp: label.timestamp
+    })),
+    sequenceIssues: sequenceIssues.slice(0, 25).map((item) => ({
+      id: item.label.id,
+      action: item.label.action,
+      ticker: item.label.ticker,
+      timeframe: item.label.timeframe,
+      timestamp: item.label.timestamp,
+      reason: item.reason,
+      openLabelId: item.openLabel?.id ?? null,
+      openTicker: item.openLabel?.ticker ?? null
     }))
   }
 };

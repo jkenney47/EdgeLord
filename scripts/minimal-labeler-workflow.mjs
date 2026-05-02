@@ -552,6 +552,12 @@ async function runAcceptance() {
     assert(/Refusing to replace bars/i.test(guardedImport.error ?? ""), "Replace-bars guard should explain the refusal");
     console.log("ok replace-bars refuses to strand existing labels");
 
+    const unsafePathImport = await importCsv(baseUrl, { path: "../.env" }, 400);
+    assert(/inside the repository/i.test(unsafePathImport.error ?? ""), "Unsafe CSV path should be rejected with a clear error");
+    const nonCsvPathImport = await importCsv(baseUrl, { path: "data/.env" }, 400);
+    assert(/\.csv file/i.test(nonCsvPathImport.error ?? ""), "Non-CSV import path should be rejected with a clear error");
+    console.log("ok CSV path imports are constrained");
+
     const missingBarLabel = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "SKIP",

@@ -5,7 +5,7 @@ import { getBarIndex } from "./bars";
 import { db, nowIso } from "./db";
 import { buildFeatures } from "./indicators";
 import type { CaptureMode, Label, LabelSource } from "./schema";
-import { canEnter, canExit, closeTrade, createTrade, getOpenTrade } from "./trades";
+import { canEnter, canExit, closeTrade, createTrade, getOpenTrade, rebuildTrades } from "./trades";
 
 export const createLabelSchema = z.object({
   labelSource: z.enum(["actual_trade", "retrospective_replay", "retrospective_hindsight"]),
@@ -127,6 +127,8 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
     updated_at: nowIso()
   };
   next.training_eligible = trainingEligible(next.label_source, next.capture_mode, Boolean(next.potential_visual_leakage)) ? 1 : 0;
+  next.bar_index = getBarIndex(next.ticker, next.timeframe, next.timestamp);
+  next.features_json = JSON.stringify(buildFeatures(next.ticker, next.timeframe, next.timestamp));
 
   db.prepare(`
     update labels set
@@ -136,6 +138,7 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
       ticker = @ticker,
       timeframe = @timeframe,
       timestamp = @timestamp,
+      bar_index = @bar_index,
       chart_price = @chart_price,
       execution_price = @execution_price,
       capture_mode = @capture_mode,
@@ -145,12 +148,15 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
       setup_quality = @setup_quality,
       reason_codes_json = @reason_codes_json,
       notes = @notes,
+      features_json = @features_json,
       updated_at = @updated_at
     where id = @id
   `).run(next);
+  rebuildTrades(getLabels());
   return getLabel(id) as Label;
 }
 
 export function deleteLabel(id: string): void {
   db.prepare("update labels set deleted_at = ?, updated_at = ? where id = ?").run(nowIso(), nowIso(), id);
+  rebuildTrades(getLabels());
 }

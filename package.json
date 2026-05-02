@@ -11,8 +11,9 @@
     "test": "pnpm --recursive test",
     "typecheck": "pnpm --recursive typecheck",
     "lint": "pnpm --recursive lint",
-    "verify": "pnpm typecheck && pnpm --filter @edgelord/web build",
+    "verify": "pnpm test && pnpm typecheck && pnpm --filter @edgelord/web build",
     "acceptance:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --acceptance",
+    "closeout:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --closeout",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"
   },
   "devDependencies": {

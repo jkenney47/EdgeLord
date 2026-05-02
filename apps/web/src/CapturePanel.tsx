@@ -1,4 +1,5 @@
 import type { Bar, CaptureMode, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
+import { canCapture } from "./captureRules";
 
 type Props = {
   selected: Bar | null;
@@ -12,13 +13,6 @@ type Props = {
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
 };
-
-function canCapture(action: LabelAction, selected: Bar | null, ticker: Ticker, openTrade: Trade | null): boolean {
-  if (!selected) return false;
-  if (action === "ENTRY") return !openTrade;
-  if (action === "EXIT") return Boolean(openTrade && openTrade.ticker === ticker);
-  return true;
-}
 
 const actionKeys: Record<LabelAction, string> = {
   ENTRY: "E",

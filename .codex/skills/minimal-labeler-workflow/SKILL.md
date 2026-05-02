@@ -27,12 +27,12 @@ Keep work scoped to the minimal labeler:
 Close out backend, labeling-rule, or export changes with:
 
 ```bash
-pnpm acceptance:minimal-labeler
+pnpm closeout:minimal-labeler
 ```
 
-That command runs `pnpm verify`, starts a temporary API with a temporary SQLite database, seeds sample bars, creates entry/exit/skip/hindsight labels, checks that opposite ETF entry is blocked while a trade is open, verifies exit pairing, and checks all export endpoints. It does not touch local labeling data.
+That command runs lint, tests, typecheck, web build, a temporary API acceptance check, and a live API smoke check when the dev API is already running. The temporary acceptance check uses a temporary SQLite database, seeds sample bars, creates entry/exit/skip/hindsight labels, checks that opposite ETF entry is blocked while a trade is open, verifies exit pairing, and checks all export endpoints. It does not touch local labeling data.
 
-Equivalent explicit form:
+Use the narrower acceptance-only check when you do not need lint or live API smoke:
 
 ```bash
 pnpm workflow:minimal-labeler -- --acceptance
@@ -65,6 +65,6 @@ Default labeler loop:
 ```bash
 pnpm workflow:minimal-labeler
 # edit the scoped slice
-pnpm acceptance:minimal-labeler
+pnpm closeout:minimal-labeler
 # if UI changed, reload and inspect http://127.0.0.1:5173/ in the Codex in-app browser
 ```

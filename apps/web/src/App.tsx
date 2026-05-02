@@ -18,6 +18,7 @@ import {
   type Trade
 } from "./api";
 import { CapturePanel } from "./CapturePanel";
+import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
 import { ReplayControls } from "./ReplayControls";
 
@@ -89,7 +90,13 @@ export function App() {
   }, [bars]);
 
   const capture = useCallback(async (action: LabelAction) => {
-    if (!selected) return;
+    const blockReason = getCaptureBlockReason(action, selected, ticker, openTrade);
+    if (blockReason) {
+      setError(blockReason);
+      return;
+    }
+    const activeBar = selected;
+    if (!activeBar) return;
     setError(null);
     try {
       await createLabel({
@@ -97,17 +104,17 @@ export function App() {
         action,
         ticker,
         timeframe,
-        timestamp: selected.timestamp,
-        chartPrice: selected.close,
+        timestamp: activeBar.timestamp,
+        chartPrice: activeBar.close,
         captureMode: mode,
-        visibleUntilTimestamp: mode === "replay" ? selected.timestamp : bars.at(-1)?.timestamp ?? selected.timestamp,
+        visibleUntilTimestamp: mode === "replay" ? activeBar.timestamp : bars.at(-1)?.timestamp ?? activeBar.timestamp,
         potentialVisualLeakage: mode === "regular" && labelSource !== "actual_trade"
       });
       await refreshState();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [bars, labelSource, mode, refreshState, selected, ticker, timeframe]);
+  }, [bars, labelSource, mode, openTrade, refreshState, selected, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     const last = labels.at(-1);

@@ -16,6 +16,15 @@ function run(command, commandArgs, options = {}) {
   });
 }
 
+async function isApiRunning(baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl}/health`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function apiSmoke() {
   const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
   const checks = [
@@ -66,6 +75,25 @@ async function postLabel(baseUrl, payload, expectedStatus = 200) {
   assert(
     result.response.status === expectedStatus,
     `POST /labels expected ${expectedStatus}, got ${result.response.status}: ${JSON.stringify(result.body)}`
+  );
+  return result.body;
+}
+
+async function deleteLabel(baseUrl, id) {
+  const response = await fetch(`${baseUrl}/labels/${id}`, { method: "DELETE" });
+  const body = await response.json().catch(() => ({}));
+  assert(response.ok, `DELETE /labels/${id} returned ${response.status}`);
+  return body;
+}
+
+async function patchLabel(baseUrl, id, payload, expectedStatus = 200) {
+  const result = await fetchJson(baseUrl, `/labels/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+  assert(
+    result.response.status === expectedStatus,
+    `PATCH /labels/${id} expected ${expectedStatus}, got ${result.response.status}: ${JSON.stringify(result.body)}`
   );
   return result.body;
 }
@@ -210,6 +238,48 @@ async function runAcceptance() {
     assert(trades[0].exit_label_id === exit.label.id, "Trade should reference exit label");
     console.log("ok paired trade persisted");
 
+    await deleteLabel(baseUrl, exit.label.id);
+    const reopened = await fetchJson(baseUrl, "/state/open-trade").then(({ response, body }) => {
+      assert(response.ok, `/state/open-trade returned ${response.status}`);
+      return body.openTrade;
+    });
+    assert(reopened?.ticker === "SOXL", "Undoing the exit should reopen the SOXL trade");
+    assert(reopened.exit_label_id === null, "Reopened trade should not keep the deleted exit");
+    console.log("ok undo exit rebuilds open trade state");
+
+    const secondExit = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "EXIT",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[1].timestamp,
+      chartPrice: soxlBars[1].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[1].timestamp
+    });
+    assert(secondExit.label.parent_entry_label_id === entry.label.id, "Second exit should relink to the entry label");
+    console.log("ok exit can be recaptured after undo");
+
+    const patchedSkip = await patchLabel(baseUrl, secondExit.label.id, { action: "SKIP" });
+    assert(patchedSkip.label.trade_id === null, "Patching exit to skip should clear the label trade id");
+    assert(patchedSkip.label.parent_entry_label_id === null, "Patching exit to skip should clear the parent entry link");
+    const reopenedAfterPatch = await fetchJson(baseUrl, "/state/open-trade").then(({ response, body }) => {
+      assert(response.ok, `/state/open-trade returned ${response.status}`);
+      return body.openTrade;
+    });
+    assert(reopenedAfterPatch?.ticker === "SOXL", "Patching exit to skip should reopen the trade");
+    console.log("ok patch exit to skip rebuilds trade state");
+
+    const patchedExit = await patchLabel(baseUrl, secondExit.label.id, { action: "EXIT" });
+    assert(patchedExit.label.trade_id === entry.label.trade_id, "Patching skip back to exit should relink the trade id");
+    assert(patchedExit.label.parent_entry_label_id === entry.label.id, "Patching skip back to exit should relink the parent entry");
+    const closedAfterPatch = await fetchJson(baseUrl, "/state/open-trade").then(({ response, body }) => {
+      assert(response.ok, `/state/open-trade returned ${response.status}`);
+      return body.openTrade;
+    });
+    assert(closedAfterPatch === null, "Patching skip back to exit should close the trade again");
+    console.log("ok patch skip back to exit rebuilds trade state");
+
     const labelsCsv = await fetch(`${baseUrl}/export/labels.csv`).then((response) => response.text());
     assert(labelsCsv.startsWith("id,label_source,training_eligible,action"), "labels.csv header is unexpected");
     assert(labelsCsv.includes("retrospective_hindsight,0,SKIP"), "labels.csv should show excluded hindsight label");
@@ -225,6 +295,7 @@ async function runAcceptance() {
     assert(trainingRows[0].startsWith("label_id,action,ticker,timeframe,timestamp"), "training-features.csv header is unexpected");
     assert(trainingRows.length === 4, `Expected 3 training rows plus header, got ${trainingRows.length}`);
     assert(!trainingCsv.includes(hindsight.label.id), "training-features.csv should exclude hindsight label");
+    assert(!trainingCsv.includes(exit.label.id), "training-features.csv should exclude deleted labels");
     console.log("ok /export/training-features.csv excludes ineligible labels");
 
     const labelsJsonl = await fetch(`${baseUrl}/export/labels.jsonl`).then((response) => response.text());
@@ -232,6 +303,22 @@ async function runAcceptance() {
     assert(jsonlRows.length === 4, "labels.jsonl should include all labels");
     assert(jsonlRows.every((row) => row.features && typeof row.features === "object"), "labels.jsonl should include feature snapshots");
     console.log("ok /export/labels.jsonl");
+
+    await deleteLabel(baseUrl, entry.label.id);
+    const orphanState = await fetchJson(baseUrl, "/labels").then(({ response, body }) => {
+      assert(response.ok, `/labels returned ${response.status}`);
+      return body.labels;
+    });
+    const orphanExit = orphanState.find((label) => label.id === patchedExit.label.id);
+    assert(orphanExit?.trade_id === null, "Deleting an entry should clear dependent exit trade id");
+    assert(orphanExit.parent_entry_label_id === null, "Deleting an entry should clear dependent exit parent link");
+    assert(orphanExit.training_eligible === 0, "Orphan exit should be excluded from training");
+    const tradesAfterEntryDelete = await fetchJson(baseUrl, "/trades").then(({ response, body }) => {
+      assert(response.ok, `/trades returned ${response.status}`);
+      return body.trades;
+    });
+    assert(tradesAfterEntryDelete.length === 0, "Deleting an entry should remove the paired trade");
+    console.log("ok deleting entry clears dependent exit state");
   } catch (error) {
     const output = api.getOutput().trim();
     if (output) {
@@ -245,6 +332,10 @@ async function runAcceptance() {
   }
 }
 
+const shouldCloseout = args.has("--closeout");
+const shouldRunAcceptance = args.has("--acceptance") || shouldCloseout;
+const shouldRunApiSmoke = args.has("--api-smoke") || shouldCloseout;
+
 if (args.has("--reset-db")) {
   for (const file of ["edgelord.sqlite", "edgelord.sqlite-shm", "edgelord.sqlite-wal"]) {
     const target = path.join(root, "data", file);
@@ -255,12 +346,23 @@ if (args.has("--reset-db")) {
   }
 }
 
-run("pnpm", ["verify"]);
-
-if (args.has("--api-smoke")) {
-  await apiSmoke();
+if (shouldCloseout) {
+  run("pnpm", ["lint"]);
 }
 
-if (args.has("--acceptance")) {
+run("pnpm", ["verify"]);
+
+if (shouldRunAcceptance) {
   await runAcceptance();
+}
+
+if (shouldRunApiSmoke) {
+  const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
+  if (await isApiRunning(baseUrl)) {
+    await apiSmoke();
+  } else if (shouldCloseout) {
+    console.log(`skip live API smoke; ${baseUrl} is not running`);
+  } else {
+    throw new Error(`Live API is not running at ${baseUrl}`);
+  }
 }

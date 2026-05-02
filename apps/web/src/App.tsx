@@ -404,6 +404,7 @@ export function App() {
           onUndo={undo}
           onGoToOpenTradeEntry={goToOpenTradeEntry}
           onGoToOpenTradeExitReview={goToOpenTradeExitReview}
+          onNextUnlabeled={nextUnlabeled}
           onGoToLabel={goToLabel}
         />
       </div>

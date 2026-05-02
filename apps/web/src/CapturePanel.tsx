@@ -22,6 +22,7 @@ type Props = {
   onUndo: () => void;
   onGoToOpenTradeEntry: () => void;
   onGoToOpenTradeExitReview: () => void;
+  onNextUnlabeled: () => void;
   onGoToLabel: (label: Label) => void;
 };
 
@@ -59,6 +60,7 @@ export function CapturePanel({
   onUndo,
   onGoToOpenTradeEntry,
   onGoToOpenTradeExitReview,
+  onNextUnlabeled,
   onGoToLabel
 }: Props) {
   const lastLabels = labels.slice(-10).reverse();
@@ -71,6 +73,7 @@ export function CapturePanel({
   }));
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
+  const showNextUnlabeledFocusAction = ["skip_coverage", "entry_coverage", "decision_coverage"].includes(nextTarget?.kind ?? "");
   return (
     <aside className="capture-panel">
       {nextTarget && nextAction ? (
@@ -83,6 +86,11 @@ export function CapturePanel({
             {showExitFocusAction ? (
               <button className="secondary compact" onClick={onGoToOpenTradeExitReview}>
                 Review exit <kbd>V</kbd>
+              </button>
+            ) : null}
+            {showNextUnlabeledFocusAction ? (
+              <button className="secondary compact" onClick={onNextUnlabeled}>
+                Next unlabeled <kbd>N</kbd>
               </button>
             ) : null}
           </div>

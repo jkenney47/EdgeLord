@@ -38,6 +38,23 @@ function readFile(name) {
   return fs.readFileSync(path.join(tempDir, name), "utf8");
 }
 
+function writeResearchSummaryFixture() {
+  const summary = {
+    version: "edgelord.research_summary.v1",
+    createdAt: "2024-01-01T00:00:00.000Z",
+    apiBaseUrl: "fixture",
+    slug: "fixture",
+    artifacts: {
+      pineStrategy: "reports/fixture-strategy-soxl-soxs.pine",
+      strategyRules: "reports/fixture-strategy-rules.v1.json",
+    },
+    exports: [],
+    topHumanMimicRule: null,
+    topReturnOptimizedRule: null,
+  };
+  writeFile("research-summary.json", `${JSON.stringify(summary, null, 2)}\n`);
+}
+
 const labelsCsv = writeFile("labels.csv", [
   "id,label_source,training_eligible,action,ticker,timeframe,timestamp,bar_index,chart_price,execution_price,trade_id,parent_entry_label_id,capture_mode,visible_until_timestamp,potential_visual_leakage,confidence,setup_quality,reason_codes,notes,created_at",
   "l1,retrospective_replay,1,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,0,10,,t1,,replay,2024-01-02T14:30:00.000Z,0,,,,2024-01-02T14:30:00.000Z",
@@ -130,6 +147,10 @@ try {
   assert(readFile("strategy-rules.v1.json").includes('"returnOptimizedTopRule"'), "strategy rules JSON should include the return rule");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
+  writeResearchSummaryFixture();
+  const summary = JSON.parse(readFile("research-summary.json"));
+  assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
+  assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
 
   runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv"]);
   try {

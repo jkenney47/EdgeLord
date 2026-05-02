@@ -206,7 +206,7 @@ async function runAcceptance() {
     });
     const soxsBars = await fetchJson(baseUrl, "/bars?ticker=SOXS&timeframe=4H").then(({ response, body }) => {
       assert(response.ok, `/bars SOXS returned ${response.status}`);
-      assert(Array.isArray(body.bars) && body.bars.length >= 2, "SOXS 4H sample bars were not seeded");
+      assert(Array.isArray(body.bars) && body.bars.length >= 4, "SOXS 4H sample bars were not seeded");
       return body.bars;
     });
     console.log("ok seeded SOXL/SOXS bars");
@@ -366,6 +366,33 @@ async function runAcceptance() {
     assert(closedAfterPatch === null, "Patching invalid back to exit should close the trade again");
     console.log("ok patch invalid back to exit rebuilds trade state");
 
+    const hindsightEntry = await postLabel(baseUrl, {
+      labelSource: "retrospective_hindsight",
+      action: "ENTRY",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[2].timestamp,
+      chartPrice: soxsBars[2].close,
+      captureMode: "regular",
+      visibleUntilTimestamp: soxsBars[2].timestamp,
+      potentialVisualLeakage: true
+    });
+    const hindsightExit = await postLabel(baseUrl, {
+      labelSource: "retrospective_hindsight",
+      action: "EXIT",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[3].timestamp,
+      chartPrice: soxsBars[3].close,
+      captureMode: "regular",
+      visibleUntilTimestamp: soxsBars[3].timestamp,
+      potentialVisualLeakage: true
+    });
+    assert(hindsightEntry.label.training_eligible === 0, "Hindsight entry should be excluded from training");
+    assert(hindsightExit.label.training_eligible === 0, "Hindsight exit should be excluded from training");
+    assert(hindsightExit.label.trade_id === hindsightEntry.label.trade_id, "Hindsight exit should close the hindsight trade");
+    console.log("ok ineligible hindsight trade is captured but excluded from training");
+
     const skip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "SKIP",
@@ -424,6 +451,8 @@ async function runAcceptance() {
     assert(trainingCsv.includes(",ENTRY,1,0,0,0,"), "training-features.csv should include explicit ENTRY target columns");
     assert(trainingCsv.includes(",SKIP,0,0,1,0,"), "training-features.csv should include explicit SKIP target columns");
     assert(!trainingCsv.includes(hindsight.label.id), "training-features.csv should exclude hindsight label");
+    assert(!trainingCsv.includes(hindsightEntry.label.id), "training-features.csv should exclude hindsight entry labels");
+    assert(!trainingCsv.includes(hindsightExit.label.id), "training-features.csv should exclude hindsight exit labels");
     assert(!trainingCsv.includes(exit.label.id), "training-features.csv should exclude deleted labels");
     console.log("ok /export/training-features.csv excludes ineligible labels");
 
@@ -433,11 +462,12 @@ async function runAcceptance() {
       "trade-candidates.csv header is unexpected"
     );
     assert(tradeCandidatesCsv.includes("EXIT,1,0"), "trade-candidates.csv should include exit candidate rows for closed trades");
+    assert(!tradeCandidatesCsv.includes(hindsightEntry.label.trade_id), "trade-candidates.csv should exclude ineligible hindsight trades");
     console.log("ok /export/trade-candidates.csv");
 
     const labelsJsonl = await fetch(`${baseUrl}/export/labels.jsonl`).then((response) => response.text());
     const jsonlRows = labelsJsonl.trim().split("\n").map((line) => JSON.parse(line));
-    assert(jsonlRows.length === 4, "labels.jsonl should include all labels");
+    assert(jsonlRows.length === 6, "labels.jsonl should include all labels");
     assert(jsonlRows.every((row) => row.features && typeof row.features === "object"), "labels.jsonl should include feature snapshots");
     console.log("ok /export/labels.jsonl");
 
@@ -448,10 +478,11 @@ async function runAcceptance() {
     assert(manifest.version === "edgelord.export_manifest.v1", "export manifest version is unexpected");
     assert(manifest.files.includes("schema.json"), "export manifest should include schema.json");
     assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
-    assert(manifest.labels.excluded === 1, "export manifest should count excluded labels");
-    assert(manifest.trades.byStatus.closed === 1, "export manifest should count closed trades");
+    assert(manifest.labels.excluded === 3, "export manifest should count excluded labels");
+    assert(manifest.trades.byStatus.closed === 2, "export manifest should count closed trades");
     assert(manifest.tradeCandidates.rows > 0, "export manifest should count trade candidate rows");
     assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
+    assert(manifest.tradeCandidates.closedTrades === 1, "export manifest should only require candidates for training-eligible closed trades");
     assert(manifest.tradeCandidates.closedTradesWithCandidates === 1, "export manifest should count closed trades with candidates");
     assert(manifest.trainingPolicy.stateMachine.includes("SKIP is a flat-state negative example only"), "export manifest should document flat-state SKIP semantics");
     console.log("ok /export/manifest.json");
@@ -480,7 +511,7 @@ async function runAcceptance() {
     assert(datasetPulse.version === "edgelord.dataset_pulse.v1", "dataset pulse version is unexpected");
     assert(datasetPulse.integrity?.ready === true, "dataset pulse should report clean integrity for the acceptance flow");
     assert(datasetPulse.labels.trainingEligible === 3, "dataset pulse should count training-eligible labels");
-    assert(datasetPulse.trades.closed === 1, "dataset pulse should count closed trades");
+    assert(datasetPulse.trades.closed === 2, "dataset pulse should count closed trades");
     assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 1), "dataset pulse should include skip target progress");
     console.log("ok /state/dataset");
 
@@ -497,7 +528,8 @@ async function runAcceptance() {
       assert(response.ok, `/trades returned ${response.status}`);
       return body.trades;
     });
-    assert(tradesAfterEntryDelete.length === 0, "Deleting an entry should remove the paired trade");
+    assert(tradesAfterEntryDelete.length === 1, "Deleting an entry should remove only its paired trade");
+    assert(tradesAfterEntryDelete[0].entry_label_id === hindsightEntry.label.id, "Deleting an entry should preserve unrelated trades");
     console.log("ok deleting entry clears dependent exit state");
 
     const actualEntry = await postLabel(baseUrl, {

@@ -43,11 +43,15 @@ for (const [name, route] of exportFiles) {
   console.log(`wrote ${path.relative(root, target)} (${bytes} bytes)`);
 }
 
+const apiManifest = JSON.parse(fs.readFileSync(path.join(backupDir, "manifest.api.json"), "utf8"));
 const manifest = {
+  version: "edgelord.export_backup.v1",
   createdAt: new Date().toISOString(),
   apiBaseUrl: baseUrl,
-  files
+  files,
+  apiManifest
 };
 fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`wrote ${path.relative(root, path.join(backupDir, "manifest.json"))}`);
+console.log(`api_manifest: ${apiManifest.version ?? "unknown"} (${apiManifest.labels?.trainingEligible ?? 0} training labels)`);
 console.log(`backup: ${path.relative(root, backupDir)}`);

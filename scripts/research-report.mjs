@@ -67,11 +67,14 @@ for (const [name, route] of exportFiles) {
   const bytes = await download(route, target);
   files.push({ name, route, bytes });
 }
+const apiManifest = JSON.parse(fs.readFileSync(path.join(backupDir, "manifest.api.json"), "utf8"));
 
 fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
+  version: "edgelord.export_backup.v1",
   createdAt: new Date().toISOString(),
   apiBaseUrl: baseUrl,
   files,
+  apiManifest,
   report: path.relative(root, reportPath),
   reportJson: path.relative(root, reportJsonPath),
   candidateRules: path.relative(root, rulesPath),
@@ -284,7 +287,6 @@ execFileSync("python3", [
 const returnRules = JSON.parse(fs.readFileSync(returnRulesJsonPath, "utf8"));
 const exitRules = JSON.parse(fs.readFileSync(exitRulesJsonPath, "utf8"));
 const datasetReport = JSON.parse(fs.readFileSync(reportJsonPath, "utf8"));
-const exportManifest = JSON.parse(fs.readFileSync(path.join(backupDir, "manifest.api.json"), "utf8"));
 const artifacts = {
   exportBackup: path.relative(root, backupDir),
   datasetReport: path.relative(root, reportPath),
@@ -317,7 +319,7 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
   slug,
   artifacts,
   exports: files,
-  exportManifest,
+  exportManifest: apiManifest,
   dataset: {
     counts: datasetReport.counts,
     readiness: datasetReport.readiness,

@@ -89,6 +89,7 @@ const readiness = {
   } : null,
   research: researchSummary ? {
     exportBackup: researchSummary.artifacts?.exportBackup ?? null,
+    exportManifest: researchSummary.exportManifest ?? null,
     dataset: researchSummary.dataset ?? null,
     topHumanMimicRule: researchSummary.topHumanMimicRule ?? null,
     topExitRule: researchSummary.topExitRule ?? null,
@@ -128,6 +129,10 @@ if (failures.length === 0) {
     console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
     console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
     console.log(`- Exit rule mining: ${datasetReadiness.readyForExitRuleMining ? "ready" : "not ready"} (${datasetReadiness.tradeCandidateExitRows} exits / ${datasetReadiness.tradeCandidateHoldRows} holds)`);
+  }
+  if (readiness.research?.exportManifest?.tradeCandidates) {
+    const tradeCandidates = readiness.research.exportManifest.tradeCandidates;
+    console.log(`- Trade candidates export: ${tradeCandidates.rows} rows (${tradeCandidates.closedTradesWithCandidates}/${tradeCandidates.closedTrades} closed trades covered)`);
   }
   if (nextLabelingTarget) {
     console.log(`- Next labeling target: ${nextLabelingTarget.kind} (${nextLabelingTarget.remaining} remaining)`);

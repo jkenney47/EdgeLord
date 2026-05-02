@@ -49,6 +49,15 @@ function writeResearchSummaryFixture() {
       strategyRules: "reports/fixture-strategy-rules.v1.json",
     },
     exports: [],
+    exportManifest: {
+      version: "edgelord.export_manifest.v1",
+      tradeCandidates: {
+        rows: 4,
+        byAction: { HOLD: 2, EXIT: 2 },
+        closedTrades: 2,
+        closedTradesWithCandidates: 2,
+      },
+    },
     topHumanMimicRule: null,
     topReturnOptimizedRule: null,
   };
@@ -263,6 +272,7 @@ try {
   const summary = JSON.parse(readFile("research-summary.json"));
   assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
   assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
+  assert(summary.exportManifest.tradeCandidates.rows === 4, "research summary should embed export manifest trade candidate coverage");
 
   runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--json-output", path.join(tempDir, "csv-validation.json")]);
   const csvValidation = JSON.parse(readFile("csv-validation.json"));

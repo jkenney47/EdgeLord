@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CsvImportValidationError, parseBarsCsv } from "./csvImport";
+import { CsvImportValidationError, parseBarsCsv, resolveCsvImportPath } from "./csvImport";
 
 const validCsv = [
   "ticker,timestamp,open,high,low,close,volume",
@@ -55,5 +55,22 @@ describe("parseBarsCsv", () => {
     ].join("\n");
 
     expect(() => parseBarsCsv(csv)).toThrow(/unadjusted OHLCV rows are not allowed/);
+  });
+});
+
+describe("resolveCsvImportPath", () => {
+  const repoRoot = "/repo/EdgeLord";
+
+  it("resolves repo-local CSV paths", () => {
+    expect(resolveCsvImportPath(repoRoot, "data/bars.csv")).toBe("/repo/EdgeLord/data/bars.csv");
+  });
+
+  it("rejects paths outside the repository", () => {
+    expect(() => resolveCsvImportPath(repoRoot, "../secrets.csv")).toThrow(/inside the repository/);
+    expect(() => resolveCsvImportPath(repoRoot, "/tmp/bars.csv")).toThrow(/inside the repository/);
+  });
+
+  it("rejects non-CSV paths", () => {
+    expect(() => resolveCsvImportPath(repoRoot, "data/.env")).toThrow(/\.csv/);
   });
 });

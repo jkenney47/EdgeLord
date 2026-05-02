@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 
 import type { Bar, Ticker } from "./schema";
 
@@ -128,4 +129,23 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
 
 export function readCsvFile(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
+}
+
+export function resolveCsvImportPath(repoRoot: string, requestedPath: string): string {
+  const trimmedPath = requestedPath.trim();
+  if (!trimmedPath) {
+    throw new Error("CSV import path is required.");
+  }
+
+  const resolvedPath = path.resolve(repoRoot, trimmedPath);
+  const relativePath = path.relative(repoRoot, resolvedPath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error("CSV import path must stay inside the repository.");
+  }
+
+  if (path.extname(resolvedPath).toLowerCase() !== ".csv") {
+    throw new Error("CSV import path must point to a .csv file.");
+  }
+
+  return resolvedPath;
 }

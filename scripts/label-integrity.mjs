@@ -151,11 +151,76 @@ if (
 }
 
 const report = `${lines.join("\n")}\n`;
+const summary = {
+  version: "edgelord.label_integrity.v1",
+  createdAt: new Date().toISOString(),
+  apiBaseUrl: baseUrl,
+  labels: labels.length,
+  issues: {
+    missingBarLabels: missingBars.length,
+    chartPriceMismatches: priceMismatches.length,
+    staleBarIndexes: staleIndexes.length,
+    trainingEligibilityMismatches: trainingEligibilityMismatches.length,
+    eligibleOrphanExits: eligibleOrphanExits.length
+  },
+  readyForModeling:
+    missingBars.length === 0 &&
+    priceMismatches.length === 0 &&
+    staleIndexes.length === 0 &&
+    trainingEligibilityMismatches.length === 0 &&
+    eligibleOrphanExits.length === 0,
+  samples: {
+    missingBars: missingBars.slice(0, 25).map((label) => ({
+      id: label.id,
+      action: label.action,
+      ticker: label.ticker,
+      timeframe: label.timeframe,
+      timestamp: label.timestamp
+    })),
+    chartPriceMismatches: priceMismatches.slice(0, 25).map((item) => ({
+      id: item.label.id,
+      ticker: item.label.ticker,
+      timeframe: item.label.timeframe,
+      timestamp: item.label.timestamp,
+      labelPrice: Number(item.label.chart_price),
+      barClose: Number(item.bar.close),
+      priceDelta: item.priceDelta
+    })),
+    staleBarIndexes: staleIndexes.slice(0, 25).map((item) => ({
+      id: item.label.id,
+      ticker: item.label.ticker,
+      timeframe: item.label.timeframe,
+      timestamp: item.label.timestamp,
+      labelBarIndex: Number(item.label.bar_index),
+      expectedBarIndex: item.expectedIndex
+    })),
+    trainingEligibilityMismatches: trainingEligibilityMismatches.slice(0, 25).map((item) => ({
+      id: item.label.id,
+      action: item.label.action,
+      labelSource: item.label.label_source,
+      captureMode: item.label.capture_mode,
+      potentialVisualLeakage: Number(item.label.potential_visual_leakage),
+      labelTrainingEligible: Number(item.label.training_eligible),
+      expectedTrainingEligible: item.expectedEligible ? 1 : 0
+    })),
+    eligibleOrphanExits: eligibleOrphanExits.slice(0, 25).map((label) => ({
+      id: label.id,
+      ticker: label.ticker,
+      timeframe: label.timeframe,
+      timestamp: label.timestamp
+    }))
+  }
+};
+
 process.stdout.write(report);
 
 if (writeReport) {
   fs.mkdirSync(reportsDir, { recursive: true });
-  const reportPath = path.join(reportsDir, `${timestampSlug()}-label-integrity.md`);
+  const slug = timestampSlug();
+  const reportPath = path.join(reportsDir, `${slug}-label-integrity.md`);
+  const jsonPath = path.join(reportsDir, `${slug}-label-integrity.json`);
   fs.writeFileSync(reportPath, report);
+  fs.writeFileSync(jsonPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(`report: ${path.relative(root, reportPath)}`);
+  console.log(`json: ${path.relative(root, jsonPath)}`);
 }

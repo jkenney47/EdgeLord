@@ -19,6 +19,11 @@ function latestFile(dir, suffix) {
   return matches[0] ? path.join(dir, matches[0]) : null;
 }
 
+function readJson(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
 const checks = [
   ["Data coverage", ["pnpm", "data:coverage"]],
   ["Label integrity", ["pnpm", "labels:integrity"]],
@@ -64,7 +69,24 @@ const finishedAt = new Date();
 const latestArtifacts = {
   dataCoverageJson: latestFile(reportsDir, "-data-coverage.json"),
   labelIntegrityMd: latestFile(reportsDir, "-label-integrity.md"),
+  labelIntegrityJson: latestFile(reportsDir, "-label-integrity.json"),
   researchSummaryJson: latestFile(reportsDir, "-research-summary.json")
+};
+const dataCoverage = readJson(latestArtifacts.dataCoverageJson);
+const labelIntegrity = readJson(latestArtifacts.labelIntegrityJson);
+const researchSummary = readJson(latestArtifacts.researchSummaryJson);
+const readiness = {
+  dataCoverage: dataCoverage?.readiness ?? null,
+  labelIntegrity: labelIntegrity ? {
+    labels: labelIntegrity.labels,
+    readyForModeling: labelIntegrity.readyForModeling,
+    issues: labelIntegrity.issues
+  } : null,
+  research: researchSummary ? {
+    exportBackup: researchSummary.artifacts?.exportBackup ?? null,
+    topHumanMimicRule: researchSummary.topHumanMimicRule ?? null,
+    topReturnOptimizedRule: researchSummary.topReturnOptimizedRule ?? null
+  } : null
 };
 const summary = {
   version: "edgelord.data_status.v1",
@@ -74,6 +96,7 @@ const summary = {
   ok: failures.length === 0,
   results,
   failures,
+  readiness,
   artifacts: Object.fromEntries(
     Object.entries(latestArtifacts).map(([key, value]) => [key, value ? path.relative(root, value) : null])
   )
@@ -83,6 +106,12 @@ const summaryPath = path.join(reportsDir, `${slug}-data-status.json`);
 fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
 if (failures.length === 0) {
   console.log("- All data status checks completed.");
+  if (readiness.dataCoverage) {
+    console.log(`- Data coverage: ${readiness.dataCoverage.code} (${readiness.dataCoverage.readyForResearch ? "research-ready" : "not research-ready"})`);
+  }
+  if (readiness.labelIntegrity) {
+    console.log(`- Label integrity: ${readiness.labelIntegrity.readyForModeling ? "ready" : "issues found"}`);
+  }
   console.log(`status: ${path.relative(root, summaryPath)}`);
   process.exit(0);
 }

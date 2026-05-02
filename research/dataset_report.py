@@ -67,6 +67,16 @@ def format_return_summary(trades: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def training_eligible_closed_trades(labels: list[dict[str, str]], trades: list[dict[str, str]]) -> list[dict[str, str]]:
+    labels_by_id = {label.get("id", ""): label for label in labels if label.get("id", "")}
+    return [
+        trade for trade in trades
+        if trade.get("status") == "closed" and
+        labels_by_id.get(trade.get("entry_label_id", ""), {}).get("training_eligible") == "1" and
+        labels_by_id.get(trade.get("exit_label_id", ""), {}).get("training_eligible") == "1"
+    ]
+
+
 def missing_count(rows: Iterable[dict[str, str]], key: str) -> int:
     return sum(1 for row in rows if row.get(key, "") == "")
 
@@ -287,7 +297,7 @@ def labeling_target_plan(
     exits = training_actions.get("EXIT", 0)
     skips = training_actions.get("SKIP", 0)
     decisions = len(training)
-    closed = count_by(trades, "status").get("closed", 0)
+    closed = len(training_eligible_closed_trades(labels, trades))
     excluded = len([label for label in labels if label.get("training_eligible") != "1"])
     consistency_issue_count = (
         len(orphan_exits) +
@@ -541,7 +551,7 @@ def dataset_summary(
     skip_count = training_actions.get("SKIP", 0)
     exit_count = training_actions.get("EXIT", 0)
     decision_count = len(training)
-    closed_trade_count = count_by(trades, "status").get("closed", 0)
+    closed_trade_count = len(training_eligible_closed_trades(labels, trades))
     excluded_labels = [label for label in labels if label.get("training_eligible") != "1"]
     ready_for_rule_mining = (
         len(orphan_exits) == 0 and
@@ -619,7 +629,7 @@ def dataset_summary(
         "tickers": counter_dict(labels, "ticker"),
         "timeframes": counter_dict(labels, "timeframe"),
         "tradeStatus": counter_dict(trades, "status"),
-        "returns": return_summary(trades),
+        "returns": return_summary(training_eligible_closed_trades(labels, trades)),
         "featureCoverage": feature_coverage_summary(training),
         "labelingPlan": labeling_plan,
         "issues": {
@@ -779,7 +789,7 @@ def main() -> None:
     lines.extend(format_counts("Tickers", count_by(labels, "ticker")))
     lines.extend(format_counts("Timeframes", count_by(labels, "timeframe")))
     lines.extend(format_counts("Trade Status", count_by(trades, "status")))
-    lines.extend(format_return_summary(trades))
+    lines.extend(format_return_summary(training_eligible_closed_trades(labels, trades)))
     lines.extend(format_sequence_issues(state_sequence_issues))
     lines.extend(format_same_candle_decision_conflicts(decision_conflicts))
     lines.extend(format_training_row_issues(training_issues))
@@ -804,7 +814,7 @@ def main() -> None:
     entry_count = count_by(training, "action").get("ENTRY", 0)
     skip_count = count_by(training, "action").get("SKIP", 0)
     exit_count = count_by(training, "action").get("EXIT", 0)
-    closed_count = count_by(trades, "status").get("closed", 0)
+    closed_count = len(training_eligible_closed_trades(labels, trades))
     if len(training) < DECISION_ROUGH_TARGET:
         lines.append(f"  decision rows are still early: {len(training)}/{DECISION_ROUGH_TARGET} rough-mining target")
     else:

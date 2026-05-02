@@ -140,6 +140,9 @@ try {
   assert(datasetReport.counts.tradeCandidateHoldRows === 2, "dataset report should count trade candidate hold rows");
   assert(datasetReport.counts.closedTradesWithCandidates === 2, "dataset report should count covered training-eligible closed trades");
   assert(datasetReport.counts.missingClosedTradeCandidates === 0, "dataset report should count missing trade candidates");
+  assert(datasetReport.returns.count === 2, "dataset report returns should only count training-eligible closed trades");
+  assert(datasetReport.readiness.closedTrades === 2, "dataset report readiness should only count training-eligible closed trades");
+  assert(datasetReport.labelingPlan.some((item) => item.kind === "closed_trade_coverage" && item.current === 2), "closed-trade labeling target should ignore ineligible closed trades");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(Array.isArray(datasetReport.issues.sameCandleDecisionConflicts), "dataset report should expose same-candle decision conflicts");
   assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");

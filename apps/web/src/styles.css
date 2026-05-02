@@ -334,6 +334,11 @@ a {
   font-weight: 800;
 }
 
+.secondary.compact {
+  min-height: 32px;
+  font-size: 12px;
+}
+
 .blocked-reasons {
   display: grid;
   gap: 6px;

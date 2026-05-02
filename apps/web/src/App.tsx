@@ -26,6 +26,12 @@ import { labelTargetProgress } from "./labelTargets";
 import { findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
+type PendingSelection = {
+  ticker: Ticker;
+  timeframe: Timeframe;
+  timestamp: string;
+};
+
 export function App() {
   const [ticker, setTicker] = useState<Ticker>("SOXL");
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
@@ -43,6 +49,7 @@ export function App() {
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [barSummary, setBarSummary] = useState<BarSummaryRow[]>([]);
+  const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
   const labelStats = useMemo(() => ({
@@ -120,6 +127,17 @@ export function App() {
   useEffect(() => {
     void refreshState();
   }, [refreshState]);
+
+  useEffect(() => {
+    if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
+    const nextIndex = bars.findIndex((bar) => bar.timestamp === pendingSelection.timestamp);
+    if (nextIndex >= 0) {
+      setIndex(nextIndex);
+      setSelected(bars[nextIndex]);
+      setCaptureStatus(`Selected open trade entry ${pendingSelection.timestamp.slice(0, 10)}.`);
+      setPendingSelection(null);
+    }
+  }, [bars, pendingSelection, ticker, timeframe]);
 
   useEffect(() => {
     if (mode === "replay") {
@@ -215,6 +233,24 @@ export function App() {
     setCaptureStatus(bars[nextIndex] ? `Resumed at ${bars[nextIndex].timestamp.slice(0, 10)}.` : null);
   }, [bars, labels, ticker, timeframe]);
 
+  const goToOpenTradeEntry = useCallback(() => {
+    setError(null);
+    if (!openTrade) return;
+    const entryLabel = labels.find((label) => label.id === openTrade.entry_label_id);
+    if (!entryLabel) {
+      setError("Open trade entry label is missing.");
+      return;
+    }
+    setPendingSelection({
+      ticker: entryLabel.ticker,
+      timeframe: entryLabel.timeframe,
+      timestamp: entryLabel.timestamp
+    });
+    setMode("replay");
+    setTicker(entryLabel.ticker);
+    setTimeframe(entryLabel.timeframe);
+  }, [labels, openTrade]);
+
   const handleImportCsv = useCallback(async (file: File) => {
     setError(null);
     setImportStatus(`Importing ${file.name}`);
@@ -302,6 +338,7 @@ export function App() {
           onAutoAdvance={setAutoAdvance}
           onCapture={capture}
           onUndo={undo}
+          onGoToOpenTradeEntry={goToOpenTradeEntry}
         />
       </div>
       <footer className="statusbar">

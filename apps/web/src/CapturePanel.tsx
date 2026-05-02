@@ -16,6 +16,7 @@ type Props = {
   onAutoAdvance: (enabled: boolean) => void;
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
+  onGoToOpenTradeEntry: () => void;
 };
 
 const actionKeys: Record<LabelAction, string> = {
@@ -45,9 +46,13 @@ export function CapturePanel({
   onLabelSource,
   onAutoAdvance,
   onCapture,
-  onUndo
+  onUndo,
+  onGoToOpenTradeEntry
 }: Props) {
   const lastLabels = labels.slice(-10).reverse();
+  const openTradeEntryLabel = openTrade
+    ? labels.find((label) => label.id === openTrade.entry_label_id)
+    : null;
   const actionBlockReasons = (["ENTRY", "EXIT", "SKIP", "INVALID"] as LabelAction[]).map((action) => ({
     action,
     reason: getCaptureBlockReason(action, selected, ticker, openTrade)
@@ -128,7 +133,13 @@ export function CapturePanel({
         {openTrade ? (
           <div className="trade-card">
             <strong>Long {openTrade.ticker}</strong>
-            <span>{openTrade.entry_timestamp.slice(0, 10)} @ {openTrade.entry_price.toFixed(2)}</span>
+            <span>
+              {openTradeEntryLabel ? `${openTradeEntryLabel.timeframe} ` : ""}
+              {openTrade.entry_timestamp.slice(0, 10)} @ {openTrade.entry_price.toFixed(2)}
+            </span>
+            <button className="secondary compact" disabled={!openTradeEntryLabel} onClick={onGoToOpenTradeEntry}>
+              Go to entry
+            </button>
           </div>
         ) : (
           <p>Flat</p>

@@ -145,7 +145,7 @@ if (topRule) {
     "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(comparisonPath, report);
-  fs.writeFileSync(comparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,feature,direction,threshold,feature_value\n");
+  fs.writeFileSync(comparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason,feature,direction,threshold,feature_value\n");
   console.log(report);
 }
 
@@ -169,7 +169,7 @@ if (topPairRule?.conditions) {
     "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(pairComparisonPath, report);
-  fs.writeFileSync(pairComparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,feature,direction,threshold,feature_value\n");
+  fs.writeFileSync(pairComparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason,feature,direction,threshold,feature_value\n");
   console.log(report);
 }
 

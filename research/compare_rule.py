@@ -27,6 +27,22 @@ def category_for(action: str, model_enters: bool) -> str:
     return "both_skipped"
 
 
+def review_priority(category: str) -> str:
+    if category in {"human_entered_model_skipped", "model_entered_human_skipped"}:
+        return "high"
+    return "low"
+
+
+def review_reason(category: str) -> str:
+    if category == "human_entered_model_skipped":
+        return "Model rejected a human ENTRY; inspect whether the rule is missing discretionary context."
+    if category == "model_entered_human_skipped":
+        return "Model entered on a human SKIP; inspect whether the rule is too broad or the skip label was conservative."
+    if category == "human_and_model_enter":
+        return "Human and model both entered."
+    return "Human and model both skipped."
+
+
 def compare(rows: list[dict[str, str]], feature: str, direction: str, threshold: float) -> list[dict[str, str]]:
     compared: list[dict[str, str]] = []
     for row in rows:
@@ -34,6 +50,7 @@ def compare(rows: list[dict[str, str]], feature: str, direction: str, threshold:
         if action not in {"ENTRY", "SKIP"}:
             continue
         model_enters = rule_matches(row, feature, direction, threshold)
+        category = category_for(action, model_enters)
         compared.append({
             "label_id": row.get("label_id", ""),
             "timestamp": row.get("timestamp", ""),
@@ -41,7 +58,9 @@ def compare(rows: list[dict[str, str]], feature: str, direction: str, threshold:
             "timeframe": row.get("timeframe", ""),
             "human_action": action,
             "model_action": "ENTRY" if model_enters else "SKIP",
-            "category": category_for(action, model_enters),
+            "category": category,
+            "review_priority": review_priority(category),
+            "review_reason": review_reason(category),
             "feature": feature,
             "direction": direction,
             "threshold": f"{threshold:.8g}",
@@ -58,6 +77,7 @@ def compare_conditions(rows: list[dict[str, str]], conditions: list[dict[str, An
         if action not in {"ENTRY", "SKIP"}:
             continue
         model_enters = conditions_match(row, conditions)
+        category = category_for(action, model_enters)
         compared.append({
             "label_id": row.get("label_id", ""),
             "timestamp": row.get("timestamp", ""),
@@ -65,7 +85,9 @@ def compare_conditions(rows: list[dict[str, str]], conditions: list[dict[str, An
             "timeframe": row.get("timeframe", ""),
             "human_action": action,
             "model_action": "ENTRY" if model_enters else "SKIP",
-            "category": category_for(action, model_enters),
+            "category": category,
+            "review_priority": review_priority(category),
+            "review_reason": review_reason(category),
             "feature": rule_label,
             "direction": "AND",
             "threshold": "",
@@ -159,6 +181,38 @@ def format_category_contrasts(training: list[dict[str, str]], compared: list[dic
     return lines
 
 
+def threshold_distance(row: dict[str, str]) -> float:
+    try:
+        value = float(row.get("feature_value", ""))
+        threshold = float(row.get("threshold", ""))
+    except ValueError:
+        return 0
+    return abs(value - threshold)
+
+
+def review_sort_key(row: dict[str, str]) -> tuple[int, float, str]:
+    priority_rank = 0 if row.get("review_priority") == "high" else 1
+    return (priority_rank, -threshold_distance(row), row.get("timestamp", ""))
+
+
+def format_review_queue(compared: list[dict[str, str]]) -> list[str]:
+    lines = ["", "Review Queue"]
+    rows = sorted(compared, key=review_sort_key)
+    high_priority = [row for row in rows if row.get("review_priority") == "high"]
+    if not high_priority:
+        return [*lines, "- no high-priority disagreements"]
+
+    lines.append("- Inspect these rows before changing rule thresholds or promoting the candidate.")
+    for row in high_priority[:15]:
+        lines.append(
+            f"- {row['review_priority']}: {row['category']} {row['label_id']} "
+            f"{row['ticker']} {row['timeframe']} {row['timestamp']} | "
+            f"human={row['human_action']} model={row['model_action']} | "
+            f"{row['feature']}={row['feature_value']} | {row['review_reason']}"
+        )
+    return lines
+
+
 def format_report(training: list[dict[str, str]], compared: list[dict[str, str]], feature: str, direction: str, threshold: float) -> str:
     counts = Counter(row["category"] for row in compared)
     total = len(compared)
@@ -184,7 +238,10 @@ def format_report(training: list[dict[str, str]], compared: list[dict[str, str]]
         "Largest Disagreements",
     ]
 
-    disagreements = [row for row in compared if row["category"] in {"human_entered_model_skipped", "model_entered_human_skipped"}]
+    disagreements = sorted(
+        [row for row in compared if row["category"] in {"human_entered_model_skipped", "model_entered_human_skipped"}],
+        key=review_sort_key,
+    )
     if not disagreements:
         lines.append("- none")
     else:
@@ -193,6 +250,7 @@ def format_report(training: list[dict[str, str]], compared: list[dict[str, str]]
                 f"- {row['category']}: {row['ticker']} {row['timeframe']} {row['timestamp']} "
                 f"value={row['feature_value']} human={row['human_action']} model={row['model_action']}"
             )
+    lines.extend(format_review_queue(compared))
     lines.extend(format_disagreement_context(training, compared))
     lines.extend(format_category_contrasts(training, compared))
     return "\n".join(lines) + "\n"
@@ -206,7 +264,7 @@ def format_conditions_report(training: list[dict[str, str]], compared: list[dict
 def write_comparison_csv(path: Path, compared: list[dict[str, str]]) -> None:
     columns = [
         "label_id", "timestamp", "ticker", "timeframe", "human_action", "model_action",
-        "category", "feature", "direction", "threshold", "feature_value"
+        "category", "review_priority", "review_reason", "feature", "direction", "threshold", "feature_value"
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as handle:

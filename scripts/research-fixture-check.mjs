@@ -147,8 +147,10 @@ try {
     "--csv-output", path.join(tempDir, "human-vs-rule.csv")
   ]);
   assert(readFile("human-vs-rule.md").includes("EdgeLord Human vs Rule Comparison"), "comparison report should be written");
+  assert(readFile("human-vs-rule.md").includes("Review Queue"), "comparison report should include the disagreement review queue");
   assert(readFile("human-vs-rule.md").includes("Disagreement Context"), "comparison report should include disagreement context");
   assert(readFile("human-vs-rule.md").includes("Why Disagreements Cluster"), "comparison report should include disagreement feature clusters");
+  assert(readFile("human-vs-rule.csv").startsWith("label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason"), "comparison CSV should include review priority columns");
 
   run([
     "research/compare_rule.py",
@@ -158,7 +160,7 @@ try {
     "--csv-output", path.join(tempDir, "human-vs-pair-rule.csv")
   ]);
   assert(readFile("human-vs-pair-rule.md").includes("EdgeLord Human vs Pair Rule Comparison"), "pair comparison report should be written");
-  assert(readFile("human-vs-pair-rule.csv").startsWith("label_id,timestamp,ticker,timeframe"), "pair comparison CSV should have expected header");
+  assert(readFile("human-vs-pair-rule.csv").startsWith("label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason"), "pair comparison CSV should include review priority columns");
 
   run(["research/time_splits.py", "--training", trainingCsv, "--output", path.join(tempDir, "time-splits.md"), "--csv-output", path.join(tempDir, "time-splits.csv")]);
   assert(readFile("time-splits.csv").startsWith("split,label_id"), "time splits CSV should have expected header");

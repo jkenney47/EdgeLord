@@ -86,7 +86,7 @@ python3 research/compare_rule.py \
   --csv-output /path/to/human-vs-rule.csv
 ```
 
-The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips. The markdown report also includes feature context for disagreements and simple feature-delta clusters so rule differences are inspectable without opening the CSV first.
+The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips. The markdown report also includes a review queue, feature context for disagreements, and simple feature-delta clusters so rule differences are inspectable without opening the CSV first. The CSV includes `review_priority` and `review_reason` columns for turning disagreements into a labeling/review checklist.
 
 For pairwise `AND` candidates, pass conditions as JSON:
 

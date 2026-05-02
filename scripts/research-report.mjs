@@ -319,6 +319,7 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
   dataset: {
     counts: datasetReport.counts,
     readiness: datasetReport.readiness,
+    labelingPlan: datasetReport.labelingPlan,
     issues: datasetReport.issues
   },
   topHumanMimicRule: topRule ?? null,

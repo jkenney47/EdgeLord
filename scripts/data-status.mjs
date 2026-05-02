@@ -24,6 +24,11 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function nextReadyLabelingTarget(plan) {
+  if (!Array.isArray(plan)) return null;
+  return plan.find((item) => item?.status === "ready" && Number(item?.remaining ?? 0) > 0) ?? null;
+}
+
 const checks = [
   ["Data coverage", ["pnpm", "data:coverage"]],
   ["Label integrity", ["pnpm", "labels:integrity"]],
@@ -90,6 +95,7 @@ const readiness = {
     topReturnOptimizedRule: researchSummary.topReturnOptimizedRule ?? null
   } : null
 };
+const nextLabelingTarget = nextReadyLabelingTarget(readiness.research?.dataset?.labelingPlan);
 const summary = {
   version: "edgelord.data_status.v1",
   startedAt: startedAt.toISOString(),
@@ -99,6 +105,7 @@ const summary = {
   results,
   failures,
   readiness,
+  nextLabelingTarget,
   artifacts: Object.fromEntries(
     Object.entries(latestArtifacts).map(([key, value]) => [key, value ? path.relative(root, value) : null])
   )
@@ -121,6 +128,10 @@ if (failures.length === 0) {
     console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
     console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
     console.log(`- Exit rule mining: ${datasetReadiness.readyForExitRuleMining ? "ready" : "not ready"} (${datasetReadiness.tradeCandidateExitRows} exits / ${datasetReadiness.tradeCandidateHoldRows} holds)`);
+  }
+  if (nextLabelingTarget) {
+    console.log(`- Next labeling target: ${nextLabelingTarget.kind} (${nextLabelingTarget.remaining} remaining)`);
+    console.log(`  ${nextLabelingTarget.action}`);
   }
   console.log(`status: ${path.relative(root, summaryPath)}`);
   process.exit(0);

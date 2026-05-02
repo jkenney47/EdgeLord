@@ -108,6 +108,7 @@ try {
   assert(readFile("dataset-report.md").includes("actions match target columns"), "fixture targets should match actions");
   assert(readFile("dataset-report.md").includes("Trade Candidate Coverage"), "dataset report should include trade candidate coverage");
   assert(readFile("dataset-report.md").includes("closed_trades_with_candidates: 2/2"), "fixture trade candidates should cover closed trades");
+  assert(readFile("dataset-report.md").includes("Labeling Target Plan"), "dataset report should include a labeling target plan");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
@@ -127,6 +128,8 @@ try {
   assert(datasetReport.readiness.readyForExitRuleMining === true, "fixture dataset should be ready for basic exit rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");
   assert(datasetReport.readiness.targets.roughRuleMiningDecisionRows === 300, "dataset report JSON should include rough decision target");
+  assert(Array.isArray(datasetReport.labelingPlan), "dataset report JSON should include a machine-readable labeling plan");
+  assert(datasetReport.labelingPlan.some((item) => item.kind === "decision_coverage"), "labeling plan should include decision coverage");
 
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));

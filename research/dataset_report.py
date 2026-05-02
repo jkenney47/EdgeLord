@@ -210,6 +210,103 @@ def return_summary(trades: list[dict[str, str]]) -> dict[str, float | int | None
     }
 
 
+def labeling_target_plan(
+    labels: list[dict[str, str]],
+    training: list[dict[str, str]],
+    trades: list[dict[str, str]],
+    orphan_exits: list[dict[str, str]],
+    entries_without_trade: list[dict[str, str]],
+    state_sequence_issues: list[dict[str, str]],
+    training_issues: dict[str, list[str]],
+    target_issues: list[dict[str, str]],
+    trade_candidate_status: dict[str, object],
+) -> list[dict[str, object]]:
+    training_actions = count_by(training, "action")
+    entries = training_actions.get("ENTRY", 0)
+    exits = training_actions.get("EXIT", 0)
+    skips = training_actions.get("SKIP", 0)
+    decisions = len(training)
+    closed = count_by(trades, "status").get("closed", 0)
+    excluded = len([label for label in labels if label.get("training_eligible") != "1"])
+    consistency_issue_count = (
+        len(orphan_exits) +
+        len(entries_without_trade) +
+        len(state_sequence_issues) +
+        len(training_issues["missingEligibleLabelIds"]) +
+        len(training_issues["extraTrainingLabelIds"]) +
+        len(training_issues["duplicateTrainingLabelIds"]) +
+        len(target_issues)
+    )
+    if trade_candidate_has_issues(trade_candidate_status):
+        consistency_issue_count += (
+            len(trade_candidate_status["missingClosedTradeCandidateIds"]) +
+            len(trade_candidate_status["extraCandidateTradeIds"]) +
+            len(trade_candidate_status["duplicateCandidateIds"])
+        )
+
+    plan: list[dict[str, object]] = []
+    priority = 1
+
+    if consistency_issue_count > 0:
+        plan.append({
+            "priority": priority,
+            "kind": "fix_integrity",
+            "status": "blocked",
+            "current": consistency_issue_count,
+            "target": 0,
+            "remaining": consistency_issue_count,
+            "action": "Fix dataset consistency, state-machine, target-encoding, or trade-candidate issues before adding modeling labels.",
+        })
+        priority += 1
+
+    target_rows = [
+        ("exit_coverage", exits, max(entries, 1), "Add EXIT labels for open/unfinished entries so trades can be paired and evaluated."),
+        ("skip_coverage", skips, max(entries, SKIP_ROUGH_TARGET), "Add replay-safe SKIP labels near tempting setups to create negative examples."),
+        ("entry_coverage", entries, ENTRY_ROUGH_TARGET, "Add replay-safe ENTRY labels across SOXL and SOXS setups."),
+        ("decision_coverage", decisions, DECISION_ROUGH_TARGET, "Add more replay-safe decision rows until rough rule mining has enough examples."),
+        ("closed_trade_coverage", closed, CLOSED_TRADE_ROUGH_TARGET, "Close labeled trades with explicit EXIT labels so return analysis and exit rules can run."),
+    ]
+
+    for kind, current, target, action in target_rows:
+        remaining = max(0, target - current)
+        plan.append({
+            "priority": priority,
+            "kind": kind,
+            "status": "ready" if remaining > 0 and consistency_issue_count == 0 else "complete" if remaining == 0 else "blocked",
+            "current": current,
+            "target": target,
+            "remaining": remaining,
+            "action": action,
+        })
+        priority += 1
+
+    if excluded > 0:
+        plan.append({
+            "priority": priority,
+            "kind": "excluded_label_review",
+            "status": "review",
+            "current": excluded,
+            "target": 0,
+            "remaining": excluded,
+            "action": "Review excluded labels before intentionally including regular or hindsight rows in research.",
+        })
+
+    return plan
+
+
+def format_labeling_target_plan(plan: list[dict[str, object]]) -> list[str]:
+    lines = ["\nLabeling Target Plan"]
+    if not plan:
+        return [*lines, "  none"]
+    for item in plan:
+        lines.append(
+            f"  {item['priority']}. {item['kind']}: {item['current']}/{item['target']} "
+            f"(remaining {item['remaining']}, {item['status']})"
+        )
+        lines.append(f"     {item['action']}")
+    return lines
+
+
 def feature_coverage_summary(training: list[dict[str, str]]) -> dict[str, object]:
     feature_columns = [column for column in training[0].keys() if column.startswith("feature_")] if training else []
     missing = {column: missing_count(training, column) for column in feature_columns}
@@ -406,6 +503,17 @@ def dataset_summary(
         closed_trade_count >= CLOSED_TRADE_ROUGH_TARGET and
         exit_count >= ENTRY_ROUGH_TARGET
     )
+    labeling_plan = labeling_target_plan(
+        labels,
+        training,
+        trades,
+        orphan_exits,
+        entries_without_trade,
+        state_sequence_issues,
+        training_issues,
+        target_issues,
+        trade_candidate_status,
+    )
     return {
         "version": "edgelord.dataset_report.v1",
         "counts": {
@@ -439,6 +547,7 @@ def dataset_summary(
         "tradeStatus": counter_dict(trades, "status"),
         "returns": return_summary(trades),
         "featureCoverage": feature_coverage_summary(training),
+        "labelingPlan": labeling_plan,
         "issues": {
             "orphanExits": [
                 {"id": label.get("id", ""), "ticker": label.get("ticker", ""), "timestamp": label.get("timestamp", "")}
@@ -599,6 +708,17 @@ def main() -> None:
     lines.extend(format_trade_candidate_summary(trade_candidate_status))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
+    lines.extend(format_labeling_target_plan(labeling_target_plan(
+        labels,
+        training,
+        trades,
+        orphan_exits,
+        entries_without_trade,
+        state_sequence_issues,
+        training_issues,
+        target_issues,
+        trade_candidate_status,
+    )))
 
     lines.append("\nReadiness")
     entry_count = count_by(training, "action").get("ENTRY", 0)

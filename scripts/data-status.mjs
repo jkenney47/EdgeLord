@@ -142,13 +142,13 @@ if (failures.length === 0) {
     const datasetReadiness = readiness.research.dataset.readiness;
     console.log(`- Rule mining: ${datasetReadiness.readyForRuleMining ? "ready" : "not ready"} (${datasetReadiness.entryRows} entries / ${datasetReadiness.skipRows} skips)`);
     console.log(`- Rough rule mining: ${datasetReadiness.readyForRoughRuleMining ? "ready" : "not ready"} (${datasetReadiness.decisionRows} decisions / ${datasetReadiness.targets?.roughRuleMiningDecisionRows ?? 300} target)`);
-    console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
-    console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
+    console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} eligible closed trades)`);
+    console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} eligible closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
     console.log(`- Exit rule mining: ${datasetReadiness.readyForExitRuleMining ? "ready" : "not ready"} (${datasetReadiness.tradeCandidateExitRows} exits / ${datasetReadiness.tradeCandidateHoldRows} holds)`);
   }
   if (readiness.research?.exportManifest?.tradeCandidates) {
     const tradeCandidates = readiness.research.exportManifest.tradeCandidates;
-    console.log(`- Trade candidates export: ${tradeCandidates.rows} rows (${tradeCandidates.closedTradesWithCandidates}/${tradeCandidates.closedTrades} closed trades covered)`);
+    console.log(`- Trade candidates export: ${tradeCandidates.rows} rows (${tradeCandidates.closedTradesWithCandidates}/${tradeCandidates.closedTrades} eligible closed trades covered)`);
   }
   if (readiness.app?.nextTarget) {
     const appTarget = readiness.app.nextTarget;

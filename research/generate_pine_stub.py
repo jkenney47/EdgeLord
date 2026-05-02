@@ -413,10 +413,10 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
     closed_target = targets.get("roughReturnAnalysisClosedTrades", 30)
     return [
         f"// Dataset rule-mining readiness: {rule_state} ({entry_rows} entries / {skip_rows} skips / {sequence_issues} sequence issues)",
-        f"// Dataset return-analysis readiness: {return_state} ({closed_trades} closed trades)",
+        f"// Dataset return-analysis readiness: {return_state} ({closed_trades} eligible closed trades)",
         f"// Dataset exit-rule readiness: {exit_rule_state} ({exit_candidate_rows} exit candidates / {hold_candidate_rows} hold candidates)",
         f"// Rough rule-mining target: {rough_rule_state} ({decision_rows}/{decision_target} decisions, {entry_rows}/{entry_target} entries, {skip_rows}/{skip_target} skips)",
-        f"// Rough return-analysis target: {rough_return_state} ({closed_trades}/{closed_target} closed trades)",
+        f"// Rough return-analysis target: {rough_return_state} ({closed_trades}/{closed_target} eligible closed trades)",
     ]
 
 

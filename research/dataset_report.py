@@ -714,7 +714,7 @@ def next_label_recommendations(
     if skips < entries:
         lines.append(f"  2. Add SKIP labels near tempting setups: {skips} skips vs {entries} entries.")
     if closed < max(1, entries // 2):
-        lines.append(f"  3. Complete more closed trades for return analysis: {closed} closed trades.")
+        lines.append(f"  3. Complete more closed trades for return analysis: {closed} eligible closed trades.")
     if training_tickers:
         weakest_ticker = min(training_tickers.items(), key=lambda item: item[1])
         lines.append(f"  4. Balance ticker coverage if relevant: {weakest_ticker[0]} has {weakest_ticker[1]} training rows.")
@@ -832,7 +832,7 @@ def main() -> None:
     if exit_count < entry_count:
         lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
     if closed_count < CLOSED_TRADE_ROUGH_TARGET:
-        lines.append(f"  closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
+        lines.append(f"  eligible closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
     if (
         orphan_exits or entries_without_trade or state_sequence_issues or decision_conflicts or
         has_training_row_issues(training_issues) or target_issues or

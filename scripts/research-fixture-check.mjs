@@ -329,6 +329,7 @@ try {
   assert(strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_close") && strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_volume"), "strategy rules JSON should include mapped Pine columns");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(strategyRules.promotionChecklist.some((item) => item.includes("trade-candidates.csv HOLD-vs-EXIT")), "strategy rules checklist should mention HOLD-vs-EXIT candidates");
+  assert(readFile("strategy-soxl-soxs.pine").includes("eligible closed trades"), "Pine scaffold should clarify eligible closed-trade readiness counts");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset exit-rule readiness: ready"), "Pine scaffold should include exit-rule readiness");

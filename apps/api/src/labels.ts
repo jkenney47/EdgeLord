@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getBarIndex } from "./bars";
 import { db, nowIso } from "./db";
 import { buildFeatures } from "./indicators";
-import type { CaptureMode, ChartTimeframe, Label, LabelAction, LabelSource, Ticker } from "./schema";
+import type { CaptureMode, Label, LabelSource } from "./schema";
 import { canEnter, canExit, closeTrade, createTrade, getOpenTrade } from "./trades";
 
 export const createLabelSchema = z.object({

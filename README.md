@@ -80,8 +80,12 @@ For the common local workflow:
 
 ```bash
 pnpm workflow:minimal-labeler
+pnpm acceptance:minimal-labeler
+pnpm workflow:minimal-labeler -- --acceptance
 pnpm workflow:minimal-labeler -- --api-smoke
 pnpm workflow:minimal-labeler -- --reset-db
 ```
+
+`--acceptance` starts a temporary API with a temporary SQLite database, seeds the sample bars, creates entry/exit/skip/hindsight labels, verifies the no-reversal state machine, and checks the export endpoints. It does not touch your real local labeling database.
 
 `--reset-db` removes the local SQLite files in `data/`. Use it only when you intentionally want a clean local labeling database.

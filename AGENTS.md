@@ -20,4 +20,12 @@ Verification:
 pnpm verify
 ```
 
+Before closing out backend, labeling-rule, or export changes, run:
+
+```bash
+pnpm acceptance:minimal-labeler
+```
+
+That command uses a temporary SQLite database and verifies the SOXL/SOXS entry/exit/skip state machine plus CSV/JSONL exports without touching local labeling data.
+
 For browser/UI verification, use the Codex in-app browser at `http://127.0.0.1:5173/`.

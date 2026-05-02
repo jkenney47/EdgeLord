@@ -28,10 +28,14 @@ It writes:
 - `reports/<timestamp>-candidate-rules.json`
 - `reports/<timestamp>-human-vs-rule.md`
 - `reports/<timestamp>-human-vs-rule.csv`
+- `reports/<timestamp>-human-vs-pair-rule.md`
+- `reports/<timestamp>-human-vs-pair-rule.csv`
 - `reports/<timestamp>-time-splits.md`
 - `reports/<timestamp>-time-splits.csv`
 - `reports/<timestamp>-split-rule-eval.md`
 - `reports/<timestamp>-split-rule-eval.csv`
+- `reports/<timestamp>-split-pair-rule-eval.md`
+- `reports/<timestamp>-split-pair-rule-eval.csv`
 - `reports/<timestamp>-entry-outcomes.md`
 - `reports/<timestamp>-entry-outcomes.csv`
 - `reports/<timestamp>-return-rules.md`
@@ -80,6 +84,16 @@ python3 research/compare_rule.py \
 
 The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips. The markdown report also includes feature context for disagreements and simple feature-delta clusters so rule differences are inspectable without opening the CSV first.
 
+For pairwise `AND` candidates, pass conditions as JSON:
+
+```bash
+python3 research/compare_rule.py \
+  --training /path/to/training-features.csv \
+  --conditions-json '[{"feature":"feature_distance_to_ema25_pct","direction":">=","threshold":1.5},{"feature":"feature_close_above_ema25","direction":">=","threshold":1}]' \
+  --output /path/to/human-vs-pair-rule.md \
+  --csv-output /path/to/human-vs-pair-rule.csv
+```
+
 To create only chronological train/validate/test split assignments:
 
 ```bash
@@ -105,6 +119,8 @@ python3 research/split_rule_eval.py \
 ```
 
 Use validate/test split behavior as an early warning before promoting a candidate rule.
+
+Pairwise split evaluation uses the same `--conditions-json` option and is generated automatically by `pnpm research:report` when a pair candidate exists.
 
 To compare entry-time features on winning vs losing closed trades:
 

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -30,6 +32,24 @@ def rule_matches(row: dict[str, str], feature: str, direction: str, threshold: f
     if direction == "<=":
         return value <= threshold
     raise ValueError("direction must be >= or <=")
+
+
+def conditions_match(row: dict[str, str], conditions: list[dict[str, Any]]) -> bool:
+    return all(
+        rule_matches(row, str(condition["feature"]), str(condition["direction"]), float(condition["threshold"]))
+        for condition in conditions
+    )
+
+
+def condition_label(conditions: list[dict[str, Any]]) -> str:
+    return " AND ".join(
+        f"{condition['feature']} {condition['direction']} {float(condition['threshold']):.4f}"
+        for condition in conditions
+    )
+
+
+def condition_values(row: dict[str, str], conditions: list[dict[str, Any]]) -> str:
+    return "; ".join(f"{condition['feature']}={row.get(str(condition['feature']), '')}" for condition in conditions)
 
 
 def category_for(action: str, model_enters: bool) -> str:
@@ -61,6 +81,30 @@ def compare(rows: list[dict[str, str]], feature: str, direction: str, threshold:
             "direction": direction,
             "threshold": f"{threshold:.8g}",
             "feature_value": row.get(feature, ""),
+        })
+    return compared
+
+
+def compare_conditions(rows: list[dict[str, str]], conditions: list[dict[str, Any]]) -> list[dict[str, str]]:
+    compared: list[dict[str, str]] = []
+    rule_label = condition_label(conditions)
+    for row in rows:
+        action = row.get("action", "")
+        if action not in {"ENTRY", "SKIP"}:
+            continue
+        model_enters = conditions_match(row, conditions)
+        compared.append({
+            "label_id": row.get("label_id", ""),
+            "timestamp": row.get("timestamp", ""),
+            "ticker": row.get("ticker", ""),
+            "timeframe": row.get("timeframe", ""),
+            "human_action": action,
+            "model_action": "ENTRY" if model_enters else "SKIP",
+            "category": category_for(action, model_enters),
+            "feature": rule_label,
+            "direction": "AND",
+            "threshold": "",
+            "feature_value": condition_values(row, conditions),
         })
     return compared
 
@@ -189,6 +233,11 @@ def format_report(training: list[dict[str, str]], compared: list[dict[str, str]]
     return "\n".join(lines) + "\n"
 
 
+def format_conditions_report(training: list[dict[str, str]], compared: list[dict[str, str]], conditions: list[dict[str, Any]]) -> str:
+    report = format_report(training, compared, condition_label(conditions), "AND", 0).replace(" AND 0.0000", "")
+    return report.replace("EdgeLord Human vs Rule Comparison", "EdgeLord Human vs Pair Rule Comparison", 1)
+
+
 def write_comparison_csv(path: Path, compared: list[dict[str, str]]) -> None:
     columns = [
         "label_id", "timestamp", "ticker", "timeframe", "human_action", "model_action",
@@ -204,16 +253,26 @@ def write_comparison_csv(path: Path, compared: list[dict[str, str]]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare one simple rule against EdgeLord ENTRY/SKIP labels.")
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
-    parser.add_argument("--feature", required=True, help="Feature column, for example feature_distance_to_ema25_pct")
-    parser.add_argument("--direction", required=True, choices=[">=", "<="], help="Threshold direction")
-    parser.add_argument("--threshold", required=True, type=float, help="Numeric threshold")
+    parser.add_argument("--feature", help="Feature column, for example feature_distance_to_ema25_pct")
+    parser.add_argument("--direction", choices=[">=", "<="], help="Threshold direction")
+    parser.add_argument("--threshold", type=float, help="Numeric threshold")
+    parser.add_argument("--conditions-json", help="JSON array of {feature,direction,threshold} conditions joined with AND")
     parser.add_argument("--output", type=Path, help="Optional markdown report path")
     parser.add_argument("--csv-output", type=Path, help="Optional CSV comparison path")
     args = parser.parse_args()
 
     training = read_csv(args.training)
-    compared = compare(training, args.feature, args.direction, args.threshold)
-    report = format_report(training, compared, args.feature, args.direction, args.threshold)
+    if args.conditions_json:
+        conditions = json.loads(args.conditions_json)
+        if not isinstance(conditions, list) or not conditions:
+            raise ValueError("--conditions-json must be a non-empty JSON array")
+        compared = compare_conditions(training, conditions)
+        report = format_conditions_report(training, compared, conditions)
+    else:
+        if args.feature is None or args.direction is None or args.threshold is None:
+            raise ValueError("--feature, --direction, and --threshold are required unless --conditions-json is provided")
+        compared = compare(training, args.feature, args.direction, args.threshold)
+        report = format_report(training, compared, args.feature, args.direction, args.threshold)
     print(report, end="")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

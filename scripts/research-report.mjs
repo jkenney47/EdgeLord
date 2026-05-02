@@ -40,10 +40,14 @@ const rulesPath = path.join(reportsDir, `${slug}-candidate-rules.md`);
 const rulesJsonPath = path.join(reportsDir, `${slug}-candidate-rules.json`);
 const comparisonPath = path.join(reportsDir, `${slug}-human-vs-rule.md`);
 const comparisonCsvPath = path.join(reportsDir, `${slug}-human-vs-rule.csv`);
+const pairComparisonPath = path.join(reportsDir, `${slug}-human-vs-pair-rule.md`);
+const pairComparisonCsvPath = path.join(reportsDir, `${slug}-human-vs-pair-rule.csv`);
 const timeSplitsPath = path.join(reportsDir, `${slug}-time-splits.md`);
 const timeSplitsCsvPath = path.join(reportsDir, `${slug}-time-splits.csv`);
 const splitRuleEvalPath = path.join(reportsDir, `${slug}-split-rule-eval.md`);
 const splitRuleEvalCsvPath = path.join(reportsDir, `${slug}-split-rule-eval.csv`);
+const pairSplitRuleEvalPath = path.join(reportsDir, `${slug}-split-pair-rule-eval.md`);
+const pairSplitRuleEvalCsvPath = path.join(reportsDir, `${slug}-split-pair-rule-eval.csv`);
 const entryOutcomePath = path.join(reportsDir, `${slug}-entry-outcomes.md`);
 const entryOutcomeCsvPath = path.join(reportsDir, `${slug}-entry-outcomes.csv`);
 const returnRulesPath = path.join(reportsDir, `${slug}-return-rules.md`);
@@ -72,10 +76,14 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   candidateRulesJson: path.relative(root, rulesJsonPath),
   humanVsRule: path.relative(root, comparisonPath),
   humanVsRuleCsv: path.relative(root, comparisonCsvPath),
+  humanVsPairRule: path.relative(root, pairComparisonPath),
+  humanVsPairRuleCsv: path.relative(root, pairComparisonCsvPath),
   timeSplits: path.relative(root, timeSplitsPath),
   timeSplitsCsv: path.relative(root, timeSplitsCsvPath),
   splitRuleEval: path.relative(root, splitRuleEvalPath),
   splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath),
+  splitPairRuleEval: path.relative(root, pairSplitRuleEvalPath),
+  splitPairRuleEvalCsv: path.relative(root, pairSplitRuleEvalCsvPath),
   entryOutcomes: path.relative(root, entryOutcomePath),
   entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
   returnRules: path.relative(root, returnRulesPath),
@@ -138,6 +146,30 @@ if (topRule) {
   console.log(report);
 }
 
+if (topPairRule?.conditions) {
+  execFileSync("python3", [
+    "research/compare_rule.py",
+    "--training", path.join(backupDir, "training-features.csv"),
+    "--conditions-json", JSON.stringify(topPairRule.conditions),
+    "--output", pairComparisonPath,
+    "--csv-output", pairComparisonCsvPath
+  ], {
+    cwd: root,
+    stdio: "inherit"
+  });
+} else {
+  const report = [
+    "EdgeLord Human vs Pair Rule Comparison",
+    "======================================",
+    "No pair candidate rule is available yet.",
+    "",
+    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+  ].join("\n") + "\n";
+  fs.writeFileSync(pairComparisonPath, report);
+  fs.writeFileSync(pairComparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,feature,direction,threshold,feature_value\n");
+  console.log(report);
+}
+
 execFileSync("python3", [
   "research/time_splits.py",
   "--training", path.join(backupDir, "training-features.csv"),
@@ -172,6 +204,31 @@ if (topRule) {
   ].join("\n") + "\n";
   fs.writeFileSync(splitRuleEvalPath, report);
   fs.writeFileSync(splitRuleEvalCsvPath, "split,rows,human_entries,model_entries,precision,recall,agreement,true_positive,false_positive,false_negative,true_negative\n");
+  console.log(report);
+}
+
+if (topPairRule?.conditions) {
+  execFileSync("python3", [
+    "research/split_rule_eval.py",
+    "--training", path.join(backupDir, "training-features.csv"),
+    "--splits", timeSplitsCsvPath,
+    "--conditions-json", JSON.stringify(topPairRule.conditions),
+    "--output", pairSplitRuleEvalPath,
+    "--csv-output", pairSplitRuleEvalCsvPath
+  ], {
+    cwd: root,
+    stdio: "inherit"
+  });
+} else {
+  const report = [
+    "EdgeLord Split Pair Rule Evaluation",
+    "===================================",
+    "No pair candidate rule is available yet.",
+    "",
+    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+  ].join("\n") + "\n";
+  fs.writeFileSync(pairSplitRuleEvalPath, report);
+  fs.writeFileSync(pairSplitRuleEvalCsvPath, "split,rows,human_entries,model_entries,precision,recall,agreement,true_positive,false_positive,false_negative,true_negative\n");
   console.log(report);
 }
 
@@ -231,10 +288,14 @@ const artifacts = {
   candidateRulesJson: path.relative(root, rulesJsonPath),
   humanVsRule: path.relative(root, comparisonPath),
   humanVsRuleCsv: path.relative(root, comparisonCsvPath),
+  humanVsPairRule: path.relative(root, pairComparisonPath),
+  humanVsPairRuleCsv: path.relative(root, pairComparisonCsvPath),
   timeSplits: path.relative(root, timeSplitsPath),
   timeSplitsCsv: path.relative(root, timeSplitsCsvPath),
   splitRuleEval: path.relative(root, splitRuleEvalPath),
   splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath),
+  splitPairRuleEval: path.relative(root, pairSplitRuleEvalPath),
+  splitPairRuleEvalCsv: path.relative(root, pairSplitRuleEvalCsvPath),
   entryOutcomes: path.relative(root, entryOutcomePath),
   entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
   returnRules: path.relative(root, returnRulesPath),
@@ -267,8 +328,10 @@ console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`report_json: ${path.relative(root, reportJsonPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
 console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
+console.log(`human_vs_pair_rule: ${path.relative(root, pairComparisonPath)}`);
 console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);
 console.log(`split_rule_eval: ${path.relative(root, splitRuleEvalPath)}`);
+console.log(`split_pair_rule_eval: ${path.relative(root, pairSplitRuleEvalPath)}`);
 console.log(`entry_outcomes: ${path.relative(root, entryOutcomePath)}`);
 console.log(`return_rules: ${path.relative(root, returnRulesPath)}`);
 console.log(`exit_rules: ${path.relative(root, exitRulesPath)}`);

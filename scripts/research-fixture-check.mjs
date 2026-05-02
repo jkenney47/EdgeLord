@@ -121,6 +121,16 @@ try {
   assert(readFile("human-vs-rule.md").includes("Disagreement Context"), "comparison report should include disagreement context");
   assert(readFile("human-vs-rule.md").includes("Why Disagreements Cluster"), "comparison report should include disagreement feature clusters");
 
+  run([
+    "research/compare_rule.py",
+    "--training", trainingCsv,
+    "--conditions-json", JSON.stringify(rules.pairCandidates[0].conditions),
+    "--output", path.join(tempDir, "human-vs-pair-rule.md"),
+    "--csv-output", path.join(tempDir, "human-vs-pair-rule.csv")
+  ]);
+  assert(readFile("human-vs-pair-rule.md").includes("EdgeLord Human vs Pair Rule Comparison"), "pair comparison report should be written");
+  assert(readFile("human-vs-pair-rule.csv").startsWith("label_id,timestamp,ticker,timeframe"), "pair comparison CSV should have expected header");
+
   run(["research/time_splits.py", "--training", trainingCsv, "--output", path.join(tempDir, "time-splits.md"), "--csv-output", path.join(tempDir, "time-splits.csv")]);
   assert(readFile("time-splits.csv").startsWith("split,label_id"), "time splits CSV should have expected header");
 
@@ -135,6 +145,16 @@ try {
     "--csv-output", path.join(tempDir, "split-rule-eval.csv")
   ]);
   assert(readFile("split-rule-eval.md").includes("EdgeLord Split Rule Evaluation"), "split rule eval report should be written");
+
+  run([
+    "research/split_rule_eval.py",
+    "--training", trainingCsv,
+    "--splits", path.join(tempDir, "time-splits.csv"),
+    "--conditions-json", JSON.stringify(rules.pairCandidates[0].conditions),
+    "--output", path.join(tempDir, "split-pair-rule-eval.md"),
+    "--csv-output", path.join(tempDir, "split-pair-rule-eval.csv")
+  ]);
+  assert(readFile("split-pair-rule-eval.md").includes("EdgeLord Split Pair Rule Evaluation"), "split pair rule eval report should be written");
 
   run([
     "research/entry_outcome_analysis.py",

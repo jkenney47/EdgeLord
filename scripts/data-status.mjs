@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const reportsDir = path.join(root, "reports");
+const apiBaseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 
 function timestampSlug(date = new Date()) {
   return date.toISOString().replace(/[-:.]/g, "");
@@ -29,6 +30,14 @@ function nextReadyLabelingTarget(plan) {
   return plan.find((item) => item?.status === "ready" && Number(item?.remaining ?? 0) > 0) ?? null;
 }
 
+async function fetchJson(route) {
+  const response = await fetch(`${apiBaseUrl}${route}`);
+  if (!response.ok) {
+    throw new Error(`${route} returned ${response.status}`);
+  }
+  return response.json();
+}
+
 const checks = [
   ["Data coverage", ["pnpm", "data:coverage"]],
   ["Label integrity", ["pnpm", "labels:integrity"]],
@@ -41,7 +50,7 @@ const slug = timestampSlug(startedAt);
 console.log("EdgeLord Data Status");
 console.log("====================");
 console.log(`started: ${startedAt.toISOString()}`);
-console.log(`api: ${process.env.API_BASE_URL ?? "http://127.0.0.1:4317"}`);
+console.log(`api: ${apiBaseUrl}`);
 
 const failures = [];
 const results = [];
@@ -80,12 +89,19 @@ const latestArtifacts = {
 const dataCoverage = readJson(latestArtifacts.dataCoverageJson);
 const labelIntegrity = readJson(latestArtifacts.labelIntegrityJson);
 const researchSummary = readJson(latestArtifacts.researchSummaryJson);
+const datasetPulse = failures.length === 0 ? await fetchJson("/state/dataset") : null;
 const readiness = {
   dataCoverage: dataCoverage?.readiness ?? null,
   labelIntegrity: labelIntegrity ? {
     labels: labelIntegrity.labels,
     readyForModeling: labelIntegrity.readyForModeling,
     issues: labelIntegrity.issues
+  } : null,
+  app: datasetPulse ? {
+    nextTarget: datasetPulse.nextTarget ?? null,
+    labels: datasetPulse.labels ?? null,
+    trades: datasetPulse.trades ?? null,
+    targets: datasetPulse.targets ?? null
   } : null,
   research: researchSummary ? {
     exportBackup: researchSummary.artifacts?.exportBackup ?? null,
@@ -101,7 +117,7 @@ const summary = {
   version: "edgelord.data_status.v1",
   startedAt: startedAt.toISOString(),
   finishedAt: finishedAt.toISOString(),
-  apiBaseUrl: process.env.API_BASE_URL ?? "http://127.0.0.1:4317",
+  apiBaseUrl,
   ok: failures.length === 0,
   results,
   failures,
@@ -134,8 +150,13 @@ if (failures.length === 0) {
     const tradeCandidates = readiness.research.exportManifest.tradeCandidates;
     console.log(`- Trade candidates export: ${tradeCandidates.rows} rows (${tradeCandidates.closedTradesWithCandidates}/${tradeCandidates.closedTrades} closed trades covered)`);
   }
+  if (readiness.app?.nextTarget) {
+    const appTarget = readiness.app.nextTarget;
+    console.log(`- App focus target: ${appTarget.kind} (${appTarget.current}/${appTarget.target}, ${appTarget.remaining} remaining)`);
+    console.log(`  ${appTarget.action}`);
+  }
   if (nextLabelingTarget) {
-    console.log(`- Next labeling target: ${nextLabelingTarget.kind} (${nextLabelingTarget.remaining} remaining)`);
+    console.log(`- Research labeling target: ${nextLabelingTarget.kind} (${nextLabelingTarget.current}/${nextLabelingTarget.target}, ${nextLabelingTarget.remaining} remaining)`);
     console.log(`  ${nextLabelingTarget.action}`);
   }
   console.log(`status: ${path.relative(root, summaryPath)}`);

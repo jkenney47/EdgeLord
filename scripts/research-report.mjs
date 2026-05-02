@@ -34,6 +34,7 @@ fs.mkdirSync(reportsDir, { recursive: true });
 const slug = timestampSlug();
 const backupDir = path.join(exportsDir, slug);
 const reportPath = path.join(reportsDir, `${slug}-dataset-report.md`);
+const rulesPath = path.join(reportsDir, `${slug}-candidate-rules.md`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -47,7 +48,8 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   createdAt: new Date().toISOString(),
   apiBaseUrl: baseUrl,
   files,
-  report: path.relative(root, reportPath)
+  report: path.relative(root, reportPath),
+  candidateRules: path.relative(root, rulesPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -61,5 +63,15 @@ execFileSync("python3", [
   stdio: "inherit"
 });
 
+execFileSync("python3", [
+  "research/discover_rules.py",
+  "--training", path.join(backupDir, "training-features.csv"),
+  "--output", rulesPath
+], {
+  cwd: root,
+  stdio: "inherit"
+});
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
+console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);

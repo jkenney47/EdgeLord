@@ -20,6 +20,11 @@ pnpm research:report
 
 That command saves a timestamped export backup under `exports/` and writes the report under `reports/`. Both output directories are ignored by git except for `.gitkeep`.
 
+It writes:
+
+- `reports/<timestamp>-dataset-report.md`
+- `reports/<timestamp>-candidate-rules.md`
+
 Or export CSV files manually and run:
 
 ```bash
@@ -30,3 +35,12 @@ python3 research/dataset_report.py \
 ```
 
 The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, feature coverage, basic closed-trade return stats, ENTRY-vs-SKIP feature contrasts, and what to label next.
+
+To generate only the simple rule-candidate report from a training export:
+
+```bash
+python3 research/discover_rules.py \
+  --training /path/to/training-features.csv
+```
+
+Candidate rules are one-feature threshold prompts for research, not a tested strategy.

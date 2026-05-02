@@ -1,5 +1,5 @@
 import type { Bar, CaptureMode, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
-import { canCapture } from "./captureRules";
+import { getCaptureBlockReason } from "./captureRules";
 
 type Props = {
   selected: Bar | null;
@@ -34,6 +34,11 @@ export function CapturePanel({
   onUndo
 }: Props) {
   const lastLabels = labels.slice(-10).reverse();
+  const actionBlockReasons = (["ENTRY", "EXIT", "SKIP", "INVALID"] as LabelAction[]).map((action) => ({
+    action,
+    reason: getCaptureBlockReason(action, selected, ticker, openTrade)
+  }));
+  const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   return (
     <aside className="capture-panel">
       <section className="panel-section">
@@ -72,13 +77,20 @@ export function CapturePanel({
 
       <section className="panel-section">
         <div className="action-grid">
-          {(["ENTRY", "EXIT", "SKIP", "INVALID"] as LabelAction[]).map((action) => (
-            <button key={action} disabled={!canCapture(action, selected, ticker, openTrade)} onClick={() => onCapture(action)}>
+          {actionBlockReasons.map(({ action, reason }) => (
+            <button key={action} disabled={Boolean(reason)} title={reason ?? `${action} ${actionKeys[action]}`} onClick={() => onCapture(action)}>
               {action}
               <kbd>{actionKeys[action]}</kbd>
             </button>
           ))}
         </div>
+        {blockedReasons.length > 0 ? (
+          <div className="blocked-reasons" aria-label="Blocked actions">
+            {blockedReasons.map((reason) => (
+              <p key={reason}>{reason}</p>
+            ))}
+          </div>
+        ) : null}
         <button className="secondary" disabled={labels.length === 0} onClick={onUndo}>Undo last label <kbd>U</kbd></button>
         {error ? <p className="error">{error}</p> : null}
       </section>

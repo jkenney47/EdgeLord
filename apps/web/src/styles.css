@@ -314,6 +314,19 @@ a {
   font-weight: 800;
 }
 
+.blocked-reasons {
+  display: grid;
+  gap: 6px;
+}
+
+.blocked-reasons p {
+  border: 1px solid rgba(244, 211, 94, 0.35);
+  border-radius: 6px;
+  padding: 7px 8px;
+  background: rgba(244, 211, 94, 0.07);
+  color: #f4d35e;
+}
+
 kbd {
   display: inline-grid;
   place-items: center;

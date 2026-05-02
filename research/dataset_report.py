@@ -299,6 +299,64 @@ def format_training_row_issues(issues: dict[str, list[str]]) -> list[str]:
     return lines
 
 
+def trade_candidate_summary(trades: list[dict[str, str]], candidates: list[dict[str, str]]) -> dict[str, object]:
+    closed_trade_ids = {trade.get("trade_id", "") for trade in trades if trade.get("status") == "closed" and trade.get("trade_id", "")}
+    candidate_ids = [row.get("candidate_id", "") for row in candidates if row.get("candidate_id", "")]
+    candidate_id_counts = Counter(candidate_ids)
+    candidate_trade_ids = {row.get("trade_id", "") for row in candidates if row.get("trade_id", "")}
+    actions = counter_dict(candidates, "action")
+    return {
+        "rows": len(candidates),
+        "actions": actions,
+        "exitRows": actions.get("EXIT", 0),
+        "holdRows": actions.get("HOLD", 0),
+        "closedTrades": len(closed_trade_ids),
+        "closedTradesWithCandidates": len(closed_trade_ids & candidate_trade_ids),
+        "missingClosedTradeCandidateIds": sorted(closed_trade_ids - candidate_trade_ids),
+        "extraCandidateTradeIds": sorted(candidate_trade_ids - closed_trade_ids),
+        "duplicateCandidateIds": sorted(candidate_id for candidate_id, count in candidate_id_counts.items() if count > 1),
+    }
+
+
+def trade_candidate_has_issues(summary: dict[str, object]) -> bool:
+    return bool(
+        summary["missingClosedTradeCandidateIds"] or
+        summary["extraCandidateTradeIds"] or
+        summary["duplicateCandidateIds"]
+    )
+
+
+def format_trade_candidate_summary(summary: dict[str, object]) -> list[str]:
+    lines = ["\nTrade Candidate Coverage"]
+    actions = summary["actions"]
+    if not isinstance(actions, dict):
+        actions = {}
+    lines.append(f"  rows: {summary['rows']}")
+    lines.append(f"  closed_trades_with_candidates: {summary['closedTradesWithCandidates']}/{summary['closedTrades']}")
+    if actions:
+        lines.append("  actions:")
+        for action, count in actions.items():
+            lines.append(f"    {action}: {count}")
+    else:
+        lines.append("  actions: none")
+
+    if not trade_candidate_has_issues(summary):
+        lines.append("  candidate trade links are consistent")
+        return lines
+
+    for key, label in [
+        ("missingClosedTradeCandidateIds", "missing_closed_trade_candidate_ids"),
+        ("extraCandidateTradeIds", "extra_candidate_trade_ids"),
+        ("duplicateCandidateIds", "duplicate_candidate_ids"),
+    ]:
+        values = summary[key]
+        if isinstance(values, list) and values:
+            lines.append(f"  {label}:")
+            for value in values[:25]:
+                lines.append(f"    {value}")
+    return lines
+
+
 def dataset_summary(
     labels: list[dict[str, str]],
     training: list[dict[str, str]],
@@ -308,6 +366,7 @@ def dataset_summary(
     state_sequence_issues: list[dict[str, str]],
     training_issues: dict[str, list[str]],
     target_issues: list[dict[str, str]],
+    trade_candidate_status: dict[str, object],
 ) -> dict[str, object]:
     training_actions = count_by(training, "action")
     entry_count = training_actions.get("ENTRY", 0)
@@ -329,6 +388,12 @@ def dataset_summary(
         ready_for_rule_mining and
         closed_trade_count > 0 and
         exit_count > 0
+    )
+    ready_for_exit_rule_mining = (
+        ready_for_return_analysis and
+        trade_candidate_status["exitRows"] > 0 and
+        trade_candidate_status["holdRows"] > 0 and
+        not trade_candidate_has_issues(trade_candidate_status)
     )
     ready_for_rough_rule_mining = (
         ready_for_rule_mining and
@@ -356,6 +421,13 @@ def dataset_summary(
             "extraTrainingRows": len(training_issues["extraTrainingLabelIds"]),
             "duplicateTrainingRows": len(training_issues["duplicateTrainingLabelIds"]),
             "targetEncodingIssues": len(target_issues),
+            "tradeCandidateRows": trade_candidate_status["rows"],
+            "tradeCandidateExitRows": trade_candidate_status["exitRows"],
+            "tradeCandidateHoldRows": trade_candidate_status["holdRows"],
+            "closedTradesWithCandidates": trade_candidate_status["closedTradesWithCandidates"],
+            "missingClosedTradeCandidates": len(trade_candidate_status["missingClosedTradeCandidateIds"]),
+            "extraTradeCandidateRows": len(trade_candidate_status["extraCandidateTradeIds"]),
+            "duplicateTradeCandidateRows": len(trade_candidate_status["duplicateCandidateIds"]),
         },
         "actions": counter_dict(labels, "action"),
         "trainingActions": counter_dict(training, "action"),
@@ -379,17 +451,26 @@ def dataset_summary(
             "sequenceIssues": state_sequence_issues[:25],
             "trainingRows": training_issues,
             "targetEncoding": target_issues[:25],
+            "tradeCandidates": {
+                "missingClosedTradeCandidateIds": trade_candidate_status["missingClosedTradeCandidateIds"],
+                "extraCandidateTradeIds": trade_candidate_status["extraCandidateTradeIds"],
+                "duplicateCandidateIds": trade_candidate_status["duplicateCandidateIds"],
+            },
         },
         "readiness": {
             "readyForRuleMining": ready_for_rule_mining,
             "readyForReturnAnalysis": ready_for_return_analysis,
             "readyForRoughRuleMining": ready_for_rough_rule_mining,
             "readyForRoughReturnAnalysis": ready_for_rough_return_analysis,
+            "readyForExitRuleMining": ready_for_exit_rule_mining,
             "decisionRows": decision_count,
             "entryRows": entry_count,
             "skipRows": skip_count,
             "exitRows": exit_count,
             "closedTrades": closed_trade_count,
+            "tradeCandidateRows": trade_candidate_status["rows"],
+            "tradeCandidateExitRows": trade_candidate_status["exitRows"],
+            "tradeCandidateHoldRows": trade_candidate_status["holdRows"],
             "targets": {
                 "roughRuleMiningDecisionRows": DECISION_ROUGH_TARGET,
                 "roughRuleMiningEntryRows": ENTRY_ROUGH_TARGET,
@@ -409,6 +490,7 @@ def next_label_recommendations(
     state_sequence_issues: list[dict[str, str]],
     training_issues: dict[str, list[str]],
     target_issues: list[dict[str, str]],
+    trade_candidate_status: dict[str, object],
 ) -> list[str]:
     training_actions = count_by(training, "action")
     training_tickers = count_by(training, "ticker")
@@ -420,7 +502,11 @@ def next_label_recommendations(
     excluded = len([label for label in labels if label.get("training_eligible") != "1"])
 
     lines = ["\nWhat To Label Next"]
-    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues) or target_issues:
+    if (
+        orphan_exits or entries_without_trade or state_sequence_issues or
+        has_training_row_issues(training_issues) or target_issues or
+        trade_candidate_has_issues(trade_candidate_status)
+    ):
         lines.append("  1. Fix dataset consistency, state-machine, or orphan trade-link issues before adding modeling labels.")
         return lines
     if entries == 0:
@@ -452,6 +538,7 @@ def main() -> None:
     parser.add_argument("--labels", required=True, type=Path, help="Path to labels.csv export")
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
     parser.add_argument("--trades", required=True, type=Path, help="Path to trades.csv export")
+    parser.add_argument("--trade-candidates", type=Path, help="Optional path to trade-candidates.csv export")
     parser.add_argument("--output", type=Path, help="Optional path to write the report as markdown/plain text")
     parser.add_argument("--json-output", type=Path, help="Optional path to write a machine-readable report summary")
     args = parser.parse_args()
@@ -459,6 +546,7 @@ def main() -> None:
     labels = read_csv(args.labels)
     training = read_csv(args.training)
     trades = read_csv(args.trades)
+    trade_candidates = read_csv(args.trade_candidates) if args.trade_candidates else []
 
     eligible_labels = [label for label in labels if label.get("training_eligible") == "1"]
     excluded_labels = [label for label in labels if label.get("training_eligible") != "1"]
@@ -475,6 +563,7 @@ def main() -> None:
     state_sequence_issues = sequence_issues(labels)
     training_issues = training_row_issues(labels, training)
     target_issues = target_encoding_issues(training)
+    trade_candidate_status = trade_candidate_summary(trades, trade_candidates)
 
     lines = [
         "EdgeLord Dataset Report",
@@ -491,6 +580,8 @@ def main() -> None:
         f"extra_training_rows: {len(training_issues['extraTrainingLabelIds'])}",
         f"duplicate_training_rows: {len(training_issues['duplicateTrainingLabelIds'])}",
         f"target_encoding_issues: {len(target_issues)}",
+        f"trade_candidate_rows: {trade_candidate_status['rows']}",
+        f"missing_closed_trade_candidates: {len(trade_candidate_status['missingClosedTradeCandidateIds'])}",
     ]
 
     lines.extend(format_counts("Actions", count_by(labels, "action")))
@@ -505,6 +596,7 @@ def main() -> None:
     lines.extend(format_sequence_issues(state_sequence_issues))
     lines.extend(format_training_row_issues(training_issues))
     lines.extend(format_target_encoding_issues(target_issues))
+    lines.extend(format_trade_candidate_summary(trade_candidate_status))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
 
@@ -531,12 +623,16 @@ def main() -> None:
         lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
     if closed_count < CLOSED_TRADE_ROUGH_TARGET:
         lines.append(f"  closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
-    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues) or target_issues:
+    if (
+        orphan_exits or entries_without_trade or state_sequence_issues or
+        has_training_row_issues(training_issues) or target_issues or
+        trade_candidate_has_issues(trade_candidate_status)
+    ):
         lines.append("  fix dataset consistency/state-machine/orphan trade-link issues before modeling")
     if excluded_labels:
         lines.append("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
 
-    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues))
+    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues, trade_candidate_status))
 
     report = "\n".join(lines) + "\n"
     print(report, end="")
@@ -545,7 +641,7 @@ def main() -> None:
         args.output.write_text(report)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues)
+        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues, trade_candidate_status)
         args.json_output.write_text(f"{json.dumps(summary, indent=2)}\n")
 
 

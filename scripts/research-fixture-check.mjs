@@ -95,6 +95,7 @@ try {
     "--labels", labelsCsv,
     "--training", trainingCsv,
     "--trades", tradesCsv,
+    "--trade-candidates", tradeCandidatesCsv,
     "--output", path.join(tempDir, "dataset-report.md"),
     "--json-output", path.join(tempDir, "dataset-report.json")
   ]);
@@ -105,6 +106,8 @@ try {
   assert(readFile("dataset-report.md").includes("eligible labels match training rows"), "fixture training rows should match eligible labels");
   assert(readFile("dataset-report.md").includes("Target Encoding Consistency"), "dataset report should include target encoding diagnostics");
   assert(readFile("dataset-report.md").includes("actions match target columns"), "fixture targets should match actions");
+  assert(readFile("dataset-report.md").includes("Trade Candidate Coverage"), "dataset report should include trade candidate coverage");
+  assert(readFile("dataset-report.md").includes("closed_trades_with_candidates: 2/2"), "fixture trade candidates should cover closed trades");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
@@ -113,9 +116,15 @@ try {
   assert(datasetReport.counts.extraTrainingRows === 0, "dataset report should count extra training rows");
   assert(datasetReport.counts.duplicateTrainingRows === 0, "dataset report should count duplicate training rows");
   assert(datasetReport.counts.targetEncodingIssues === 0, "dataset report should count target encoding issues");
+  assert(datasetReport.counts.tradeCandidateRows === 4, "dataset report should count trade candidate rows");
+  assert(datasetReport.counts.tradeCandidateExitRows === 2, "dataset report should count trade candidate exit rows");
+  assert(datasetReport.counts.tradeCandidateHoldRows === 2, "dataset report should count trade candidate hold rows");
+  assert(datasetReport.counts.missingClosedTradeCandidates === 0, "dataset report should count missing trade candidates");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");
+  assert(Array.isArray(datasetReport.issues.tradeCandidates.missingClosedTradeCandidateIds), "dataset report should expose trade candidate issues");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
+  assert(datasetReport.readiness.readyForExitRuleMining === true, "fixture dataset should be ready for basic exit rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");
   assert(datasetReport.readiness.targets.roughRuleMiningDecisionRows === 300, "dataset report JSON should include rough decision target");
 

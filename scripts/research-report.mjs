@@ -102,6 +102,7 @@ execFileSync("python3", [
   "--labels", path.join(backupDir, "labels.csv"),
   "--training", path.join(backupDir, "training-features.csv"),
   "--trades", path.join(backupDir, "trades.csv"),
+  "--trade-candidates", path.join(backupDir, "trade-candidates.csv"),
   "--output", reportPath,
   "--json-output", reportJsonPath
 ], {

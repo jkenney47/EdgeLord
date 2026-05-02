@@ -2,6 +2,7 @@
   "version": "edgelord.pine_feature_map.v1",
   "expressions": {
     "feature_close": "close",
+    "feature_volume": "volume",
     "feature_ema25": "ta.ema(close, 25)",
     "feature_sma100": "ta.sma(close, 100)",
     "feature_atr14": "ta.atr(14)",

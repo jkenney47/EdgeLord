@@ -420,6 +420,7 @@ async function runAcceptance() {
     assert(trainingRows[0].startsWith("label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp"), "training-features.csv header is unexpected");
     assert(trainingRows.length === 4, `Expected 3 training rows plus header, got ${trainingRows.length}`);
     assert(trainingRows[0].includes("execution_price,decision_price"), "training-features.csv should expose execution and decision prices");
+    assert(trainingRows[0].includes("feature_close,feature_volume,feature_ema25"), "training-features.csv should export close and volume feature columns");
     assert(trainingCsv.includes(",ENTRY,1,0,0,0,"), "training-features.csv should include explicit ENTRY target columns");
     assert(trainingCsv.includes(",SKIP,0,0,1,0,"), "training-features.csv should include explicit SKIP target columns");
     assert(!trainingCsv.includes(hindsight.label.id), "training-features.csv should exclude hindsight label");
@@ -462,6 +463,7 @@ async function runAcceptance() {
     assert(schema.version === "edgelord.export_schema.v1", "export schema version is unexpected");
     assert(schema.files["training-features.csv"].targetColumns.includes("target_entry"), "export schema should describe training targets");
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineSupport === "mapped"), "export schema should describe Pine-supported features");
+    assert(schema.features.some((feature) => feature.column === "feature_volume" && feature.pineExpression === "volume"), "export schema should expose volume as a Pine-supported feature");
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineExpression === "close"), "export schema should expose Pine expressions");
     assert(schema.features.some((feature) => feature.column === "feature_pair_ratio_close" && feature.pineSupport === "research_only"), "export schema should flag research-only features");
     assert(schema.trainingPolicy.stateMachine.includes("In-trade non-exit bars are exported as HOLD candidates in trade-candidates.csv after a trade is closed"), "export schema should document HOLD-vs-SKIP semantics");

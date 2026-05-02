@@ -5,6 +5,7 @@ import pineFeatureMap from "../../../research/pine_feature_map.json" with { type
 
 export const featureColumns = [
   ["close", "feature_close"],
+  ["volume", "feature_volume"],
   ["ema25", "feature_ema25"],
   ["sma100", "feature_sma100"],
   ["atr14", "feature_atr14"],
@@ -33,6 +34,7 @@ export const featureColumns = [
 
 const featureCatalog = [
   ["close", "feature_close", "number", "Selected candle close."],
+  ["volume", "feature_volume", "number", "Selected candle volume."],
   ["ema25", "feature_ema25", "number", "EMA 25 on the selected ticker/timeframe using bars through the selected candle."],
   ["sma100", "feature_sma100", "number", "SMA 100 on the selected ticker/timeframe using bars through the selected candle."],
   ["atr14", "feature_atr14", "number", "ATR 14 on the selected ticker/timeframe using bars through the selected candle."],

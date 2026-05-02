@@ -490,6 +490,14 @@ kbd {
   color: #f4d35e;
 }
 
+.next-action {
+  flex: 1 1 360px;
+  min-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c4ceda;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     height: auto;
@@ -516,5 +524,9 @@ kbd {
 
   .data-readiness {
     margin-left: 0;
+  }
+
+  .next-action {
+    flex-basis: 100%;
   }
 }

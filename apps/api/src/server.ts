@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from "./bars";
 import { CsvImportValidationError, parseBarsCsv, readCsvFile } from "./csvImport";
+import { buildDatasetPulse } from "./dataset";
 import { repoRoot } from "./db";
 import { exportManifest, labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
@@ -106,6 +107,7 @@ app.delete("/labels/:id", async (request) => {
 
 app.get("/trades", async () => ({ trades: getTrades() }));
 app.get("/state/open-trade", async () => ({ openTrade: getOpenTrade() }));
+app.get("/state/dataset", async () => buildDatasetPulse(getBarsSummary(), getLabels(), getTrades()));
 
 app.get("/export/labels.csv", async (_request, reply) => reply.type("text/csv").send(labelsCsv(getLabels())));
 app.get("/export/trades.csv", async (_request, reply) => reply.type("text/csv").send(tradesCsv(getTrades())));

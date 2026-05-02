@@ -86,6 +86,7 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 
 ## Exports
 
+- `GET /state/dataset`
 - `GET /export/labels.csv`
 - `GET /export/trades.csv`
 - `GET /export/training-features.csv`

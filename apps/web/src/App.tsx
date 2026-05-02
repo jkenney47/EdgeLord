@@ -4,14 +4,14 @@ import {
   createLabel,
   deleteLabel,
   fetchBars,
-  fetchBarsSummary,
+  fetchDatasetPulse,
   fetchLabels,
   fetchOpenTrade,
   fetchTrades,
   importCsv,
   type Bar,
-  type BarSummaryRow,
   type CaptureMode,
+  type DatasetPulse,
   type Label,
   type LabelAction,
   type LabelSource,
@@ -22,7 +22,6 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
-import { labelTargetProgress } from "./labelTargets";
 import { findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
@@ -49,19 +48,21 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
-  const [barSummary, setBarSummary] = useState<BarSummaryRow[]>([]);
+  const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
   const labelStats = useMemo(() => ({
-    eligible: labels.filter((label) => label.training_eligible === 1).length,
-    ineligible: labels.filter((label) => label.training_eligible !== 1).length,
-    entries: labels.filter((label) => label.action === "ENTRY").length,
-    exits: labels.filter((label) => label.action === "EXIT").length,
-    skips: labels.filter((label) => label.action === "SKIP").length
-  }), [labels]);
-  const closedTrades = useMemo(() => trades.filter((trade) => trade.status === "closed").length, [trades]);
-  const targets = useMemo(() => labelTargetProgress(labels, trades), [labels, trades]);
+    eligible: datasetPulse?.labels.trainingEligible ?? labels.filter((label) => label.training_eligible === 1).length,
+    ineligible: datasetPulse?.labels.excluded ?? labels.filter((label) => label.training_eligible !== 1).length,
+    entries: datasetPulse?.labels.actions.ENTRY ?? labels.filter((label) => label.action === "ENTRY").length,
+    exits: datasetPulse?.labels.actions.EXIT ?? labels.filter((label) => label.action === "EXIT").length,
+    skips: datasetPulse?.labels.actions.SKIP ?? labels.filter((label) => label.action === "SKIP").length
+  }), [datasetPulse, labels]);
+  const closedTrades = datasetPulse?.trades.closed ?? trades.filter((trade) => trade.status === "closed").length;
+  const targets = datasetPulse?.targets ?? [];
+  const dataReadiness = datasetPulse?.dataReadiness ?? { tone: "warn" as const, text: "Checking data" };
+  const nextAction = datasetPulse?.nextActions[0] ?? null;
   const selectedLabels = useMemo(() => {
     if (!selected) return [];
     return labels.filter((label) =>
@@ -70,30 +71,17 @@ export function App() {
       label.timestamp === selected.timestamp
     );
   }, [labels, selected]);
-  const dataReadiness = useMemo(() => {
-    const rawRows = barSummary.filter((row) => row.timeframe === "RAW");
-    const chartRows = barSummary.filter((row) => row.timeframe !== "RAW");
-    const rawSources = new Set(rawRows.map((row) => row.source));
-    const chartCombos = new Set(chartRows.map((row) => `${row.ticker}:${row.timeframe}`));
-    const spans = chartRows
-      .filter((row) => row.first && row.last)
-      .map((row) => (new Date(row.last as string).getTime() - new Date(row.first as string).getTime()) / 86_400_000);
-    const shortestSpan = spans.length ? Math.min(...spans) : 0;
-
-    if (chartCombos.size < 6) return { tone: "warn", text: "Data incomplete" };
-    if (rawSources.size === 1 && rawSources.has("sample")) return { tone: "warn", text: "Sample data only" };
-    if (rawSources.has("sample") && rawSources.has("csv")) return { tone: "warn", text: "Mixed sample/csv data" };
-    if (rawSources.size === 0) return { tone: "warn", text: "Chart cache only" };
-    if (shortestSpan < 365) return { tone: "warn", text: `Short data ${shortestSpan.toFixed(0)}d` };
-    if (shortestSpan < 365 * 5) return { tone: "warn", text: `Early data ${Math.floor(shortestSpan / 365)}y` };
-    return { tone: "good", text: `Data ${Math.floor(shortestSpan / 365)}y` };
-  }, [barSummary]);
-
   const refreshState = useCallback(async () => {
-    const [nextLabels, nextTrades, nextOpenTrade] = await Promise.all([fetchLabels(), fetchTrades(), fetchOpenTrade()]);
+    const [nextLabels, nextTrades, nextOpenTrade, nextDatasetPulse] = await Promise.all([
+      fetchLabels(),
+      fetchTrades(),
+      fetchOpenTrade(),
+      fetchDatasetPulse()
+    ]);
     setLabels(nextLabels);
     setTrades(nextTrades);
     setOpenTrade(nextOpenTrade);
+    setDatasetPulse(nextDatasetPulse);
   }, []);
 
   const loadBars = useCallback(async () => {
@@ -109,21 +97,9 @@ export function App() {
     }
   }, [mode, ticker, timeframe]);
 
-  const refreshBarSummary = useCallback(async () => {
-    try {
-      setBarSummary(await fetchBarsSummary());
-    } catch {
-      setBarSummary([]);
-    }
-  }, []);
-
   useEffect(() => {
     void loadBars();
   }, [loadBars]);
-
-  useEffect(() => {
-    void refreshBarSummary();
-  }, [refreshBarSummary]);
 
   useEffect(() => {
     void refreshState();
@@ -286,14 +262,13 @@ export function App() {
       const replaced = result.replacedBars ? `, replaced ${result.replacedBars}` : "";
       setImportStatus(`Imported ${result.rawInserted} raw / ${result.aggregateInserted} chart bars${replaced}`);
       await loadBars();
-      await refreshBarSummary();
       await refreshState();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not import CSV";
       setError(message);
       setImportStatus("Import failed");
     }
-  }, [loadBars, refreshBarSummary, refreshState]);
+  }, [loadBars, refreshState]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -389,6 +364,7 @@ export function App() {
           </span>
         ))}
         <span className={`data-readiness ${dataReadiness.tone}`}>{dataReadiness.text}</span>
+        {nextAction ? <span className="next-action">{nextAction}</span> : null}
       </footer>
     </main>
   );

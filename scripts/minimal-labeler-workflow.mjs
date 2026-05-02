@@ -55,7 +55,8 @@ async function apiSmoke() {
   const checks = [
     ["/health", (body) => body.ok === true],
     ["/labels", (body) => Array.isArray(body.labels)],
-    ["/trades", (body) => Array.isArray(body.trades)]
+    ["/trades", (body) => Array.isArray(body.trades)],
+    ["/state/dataset", (body) => body.version === "edgelord.dataset_pulse.v1" && Array.isArray(body.targets)]
   ];
 
   for (const [route, predicate] of checks) {
@@ -354,6 +355,16 @@ async function runAcceptance() {
     assert(manifest.labels.excluded === 1, "export manifest should count excluded labels");
     assert(manifest.trades.byStatus.closed === 1, "export manifest should count closed trades");
     console.log("ok /export/manifest.json");
+
+    const datasetPulse = await fetchJson(baseUrl, "/state/dataset").then(({ response, body }) => {
+      assert(response.ok, `/state/dataset returned ${response.status}`);
+      return body;
+    });
+    assert(datasetPulse.version === "edgelord.dataset_pulse.v1", "dataset pulse version is unexpected");
+    assert(datasetPulse.labels.trainingEligible === 3, "dataset pulse should count training-eligible labels");
+    assert(datasetPulse.trades.closed === 1, "dataset pulse should count closed trades");
+    assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 1), "dataset pulse should include skip target progress");
+    console.log("ok /state/dataset");
 
     await deleteLabel(baseUrl, entry.label.id);
     const orphanState = await fetchJson(baseUrl, "/labels").then(({ response, body }) => {

@@ -26,6 +26,43 @@ export type BarSummaryRow = {
   last: string | null;
 };
 
+export type DatasetPulse = {
+  version: string;
+  dataReadiness: {
+    code: string;
+    tone: "good" | "warn";
+    text: string;
+    shortestSpanDays: number;
+  };
+  labels: {
+    total: number;
+    trainingEligible: number;
+    excluded: number;
+    actions: Record<string, number>;
+    trainingActions: Record<string, number>;
+  };
+  trades: {
+    total: number;
+    open: number;
+    closed: number;
+    status: Record<string, number>;
+    openTrade: {
+      id: string;
+      ticker: Ticker;
+      entryTimestamp: string;
+      entryPrice: number;
+    } | null;
+  };
+  targets: Array<{
+    key: "decisions" | "entries" | "skips" | "closedTrades";
+    label: string;
+    current: number;
+    target: number;
+    complete: boolean;
+  }>;
+  nextActions: string[];
+};
+
 export type Label = {
   id: string;
   label_source: LabelSource;
@@ -80,6 +117,10 @@ export async function fetchBars(ticker: Ticker, timeframe: Timeframe): Promise<B
 
 export async function fetchBarsSummary(): Promise<BarSummaryRow[]> {
   return (await request<{ rows: BarSummaryRow[] }>("/bars/summary")).rows;
+}
+
+export async function fetchDatasetPulse(): Promise<DatasetPulse> {
+  return request<DatasetPulse>("/state/dataset");
 }
 
 export async function importCsv(csv: string, options: { replaceBars?: boolean } = {}): Promise<{

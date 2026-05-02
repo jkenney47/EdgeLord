@@ -27,6 +27,8 @@ It writes:
 - `reports/<timestamp>-candidate-rules.json`
 - `reports/<timestamp>-human-vs-rule.md`
 - `reports/<timestamp>-human-vs-rule.csv`
+- `reports/<timestamp>-time-splits.md`
+- `reports/<timestamp>-time-splits.csv`
 
 Or export CSV files manually and run:
 
@@ -62,3 +64,14 @@ python3 research/compare_rule.py \
 ```
 
 The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips.
+
+To create only chronological train/validate/test split assignments:
+
+```bash
+python3 research/time_splits.py \
+  --training /path/to/training-features.csv \
+  --output /path/to/time-splits.md \
+  --csv-output /path/to/time-splits.csv
+```
+
+The split scaffold uses chronological 60/20/20 row assignment. It is a research guardrail, not a claim that the dataset is large enough yet.

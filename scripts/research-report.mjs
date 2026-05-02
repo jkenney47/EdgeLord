@@ -38,6 +38,8 @@ const rulesPath = path.join(reportsDir, `${slug}-candidate-rules.md`);
 const rulesJsonPath = path.join(reportsDir, `${slug}-candidate-rules.json`);
 const comparisonPath = path.join(reportsDir, `${slug}-human-vs-rule.md`);
 const comparisonCsvPath = path.join(reportsDir, `${slug}-human-vs-rule.csv`);
+const timeSplitsPath = path.join(reportsDir, `${slug}-time-splits.md`);
+const timeSplitsCsvPath = path.join(reportsDir, `${slug}-time-splits.csv`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -55,7 +57,9 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   candidateRules: path.relative(root, rulesPath),
   candidateRulesJson: path.relative(root, rulesJsonPath),
   humanVsRule: path.relative(root, comparisonPath),
-  humanVsRuleCsv: path.relative(root, comparisonCsvPath)
+  humanVsRuleCsv: path.relative(root, comparisonCsvPath),
+  timeSplits: path.relative(root, timeSplitsPath),
+  timeSplitsCsv: path.relative(root, timeSplitsCsvPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -107,7 +111,18 @@ if (topRule) {
   console.log(report);
 }
 
+execFileSync("python3", [
+  "research/time_splits.py",
+  "--training", path.join(backupDir, "training-features.csv"),
+  "--output", timeSplitsPath,
+  "--csv-output", timeSplitsCsvPath
+], {
+  cwd: root,
+  stdio: "inherit"
+});
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
 console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
+console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);

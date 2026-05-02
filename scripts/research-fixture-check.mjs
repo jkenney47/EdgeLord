@@ -66,12 +66,12 @@ const labelsCsv = writeFile("labels.csv", [
 ].join("\n") + "\n");
 
 const trainingCsv = writeFile("training-features.csv", [
-  "label_id,action,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
-  "l1,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,10,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
-  "l2,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
-  "l3,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,9,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
-  "l5,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,20,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
-  "l6,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+  "label_id,label_source,capture_mode,action,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,visible_until_timestamp,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
+  "l1,retrospective_replay,replay,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,2024-01-02T14:30:00.000Z,10,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
+  "l2,retrospective_replay,replay,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,2024-01-03T14:30:00.000Z,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
+  "l3,retrospective_replay,replay,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,2024-01-04T14:30:00.000Z,9,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
+  "l5,retrospective_replay,replay,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,2024-01-06T14:30:00.000Z,20,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
+  "l6,retrospective_replay,replay,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,2024-01-07T14:30:00.000Z,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
 ].join("\n") + "\n");
 
 const tradesCsv = writeFile("trades.csv", [

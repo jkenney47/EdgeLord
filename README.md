@@ -70,7 +70,7 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 - `GET /export/training-features.csv`
 - `GET /export/labels.jsonl`
 
-Training features include only training-eligible labels by default.
+Training features include only training-eligible labels by default and carry label source / capture mode metadata so research can segment actual trades from replay labels.
 
 ## Verify
 

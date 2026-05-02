@@ -54,13 +54,16 @@ export function tradesCsv(trades: Trade[]): string {
 
 export function trainingFeaturesCsv(labels: Label[]): string {
   const columns = [
-    "label_id", "action", "ticker", "timeframe", "timestamp", "trade_id", "parent_entry_label_id", "chart_price",
+    "label_id", "label_source", "capture_mode", "action", "ticker", "timeframe", "timestamp", "trade_id", "parent_entry_label_id",
+    "chart_price", "visible_until_timestamp",
     ...featureColumns.map(([, column]) => column)
   ];
   const rows = labels.filter((label) => label.training_eligible === 1).map((label) => {
     const features = JSON.parse(label.features_json || "{}") as Record<string, unknown>;
     return {
       label_id: label.id,
+      label_source: label.label_source,
+      capture_mode: label.capture_mode,
       action: label.action,
       ticker: label.ticker,
       timeframe: label.timeframe,
@@ -68,6 +71,7 @@ export function trainingFeaturesCsv(labels: Label[]): string {
       trade_id: label.trade_id,
       parent_entry_label_id: label.parent_entry_label_id,
       chart_price: label.chart_price,
+      visible_until_timestamp: label.visible_until_timestamp,
       ...Object.fromEntries(featureColumns.map(([featureKey, column]) => [
         column,
         features[featureKey]

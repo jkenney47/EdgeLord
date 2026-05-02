@@ -114,14 +114,19 @@ if (!allRowsHaveData) {
   lines.push("- Missing bars for at least one ticker/timeframe.");
 } else if (onlySampleData) {
   lines.push("- Only bundled sample data is loaded. Import adjusted SOXL/SOXS CSV before serious labeling.");
+  lines.push("- Recommended: `pnpm validate:csv /path/to/adjusted-bars.csv --research-ready`, then `pnpm import:csv /path/to/adjusted-bars.csv --replace-bars --research-ready`.");
 } else if (hasSampleData && hasCsvData) {
   lines.push("- Sample and CSV data are mixed. Prefer re-importing with --replace-bars before serious labeling.");
+  lines.push("- Recommended: `pnpm import:csv /path/to/adjusted-bars.csv --replace-bars --research-ready`.");
 } else if (chartSources.size === 1 && chartSources.has("aggregate") && rawSources.size === 0) {
   lines.push("- Chart bars exist without RAW import rows. Re-import adjusted CSV with --replace-bars before serious labeling.");
+  lines.push("- Recommended: `pnpm import:csv /path/to/adjusted-bars.csv --replace-bars --research-ready`.");
 } else if (shortestSpan < 365) {
   lines.push(`- Data is still too short for serious strategy work. Shortest span is ${shortestSpan.toFixed(1)} days.`);
+  lines.push("- Recommended: import a longer adjusted backfill with `--replace-bars --research-ready`.");
 } else if (shortestSpan < 365 * 5) {
   lines.push(`- Data is usable for early tests, but below the 2011-present target. Shortest span is ${shortestSpan.toFixed(1)} days.`);
+  lines.push("- Recommended: keep this for smoke testing only; use `--research-ready` for the real backfill.");
 } else {
   lines.push(`- Data span is ready for broader research. Shortest span is ${shortestSpan.toFixed(1)} days.`);
 }

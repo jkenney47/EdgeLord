@@ -82,7 +82,7 @@ LONG_SOXS
   -> EXIT SOXS
 ```
 
-Opposite ETF entry is blocked while a trade is open. Switching requires an explicit exit, then a separate entry.
+Opposite ETF entry is blocked while a trade is open. Switching requires an explicit exit, then a separate entry. `SKIP` is a flat-state negative example only; while a trade is open, unexited bars are treated as HOLD candidates after the trade is closed.
 
 ## Exports
 

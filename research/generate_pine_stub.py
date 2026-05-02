@@ -149,6 +149,7 @@ def promotion_status(
     human_candidate: dict[str, Any] | None,
     human_pair_candidate: dict[str, Any] | None,
     return_candidate: dict[str, Any] | None,
+    exit_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     warnings: list[str] = []
@@ -172,16 +173,21 @@ def promotion_status(
         warnings.append("No human-mimic candidate rule is available yet.")
     if not return_candidate:
         warnings.append("No return-optimized candidate rule is available yet.")
+    if not exit_candidate:
+        warnings.append("No rough exit candidate rule is available yet.")
 
     human_support = pine_feature_support(human_candidate)
     human_pair_support = pine_pair_support(human_pair_candidate)
     return_support = pine_feature_support(return_candidate)
+    exit_support = pine_feature_support(exit_candidate)
     if human_candidate and not human_support["supported"]:
         warnings.extend(human_support["warnings"])
     if human_pair_candidate and not human_pair_support["supported"]:
         warnings.extend(human_pair_support["warnings"])
     if return_candidate and not return_support["supported"]:
         warnings.extend(return_support["warnings"])
+    if exit_candidate and not exit_support["supported"]:
+        warnings.extend(exit_support["warnings"])
 
     return {
         "status": "review_ready" if not warnings else "scaffold_only",
@@ -195,6 +201,8 @@ def strategy_rules_payload(
     human_pair_candidate: dict[str, Any] | None,
     return_source: Path | None,
     return_candidate: dict[str, Any] | None,
+    exit_source: Path | None,
+    exit_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     warnings = [
@@ -209,24 +217,27 @@ def strategy_rules_payload(
         "status": "research_scaffold",
         "humanMimicSource": str(human_source),
         "returnOptimizedSource": str(return_source) if return_source else None,
+        "exitRuleSource": str(exit_source) if exit_source else None,
         "humanMimicTopRule": human_candidate,
         "humanMimicTopPairRule": human_pair_candidate,
         "returnOptimizedTopRule": return_candidate,
+        "exitTopRule": exit_candidate,
         "topRule": human_pair_candidate if pine_pair_support(human_pair_candidate)["supported"] else human_candidate,
         "datasetReadiness": dataset_readiness_payload(dataset_report),
         "pineSupport": {
             "humanMimicTopRule": pine_feature_support(human_candidate),
             "humanMimicTopPairRule": pine_pair_support(human_pair_candidate),
             "returnOptimizedTopRule": pine_feature_support(return_candidate),
+            "exitTopRule": pine_feature_support(exit_candidate),
         },
-        "promotion": promotion_status(human_candidate, human_pair_candidate, return_candidate, dataset_report),
+        "promotion": promotion_status(human_candidate, human_pair_candidate, return_candidate, exit_candidate, dataset_report),
         "promotionChecklist": [
             "Confirm the rule was generated from replay-safe training rows only.",
             "Confirm the dataset readiness report is clean enough for the intended use.",
             "Confirm the feature is mapped to the same calculation in Pine.",
             "Inspect human-vs-rule disagreements before trusting the signal.",
             "Run walk-forward split evaluation after enough labels exist.",
-            "Add explicit exit logic before treating the Pine scaffold as a strategy.",
+            "Replace rough EXIT-vs-non-EXIT exit logic with an in-trade HOLD-vs-EXIT model before treating the Pine scaffold as a strategy.",
             "Compare TradingView results against EdgeLord exported trades.",
         ],
         "warnings": warnings,
@@ -379,6 +390,7 @@ def pine_stub(
     human_candidate: dict[str, Any] | None,
     human_pair_candidate: dict[str, Any] | None,
     return_candidate: dict[str, Any] | None,
+    exit_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
 ) -> str:
     lines = [
@@ -395,6 +407,7 @@ def pine_stub(
     lines.extend(rule_comment("Human-mimic candidate", human_candidate))
     lines.extend(pair_rule_comment("Human-mimic pair candidate", human_pair_candidate))
     lines.extend(rule_comment("Return-optimized candidate", return_candidate))
+    lines.extend(rule_comment("Rough exit candidate", exit_candidate))
     lines.append("")
 
     if human_pair_candidate and pine_pair_support(human_pair_candidate)["supported"]:
@@ -412,14 +425,29 @@ def pine_stub(
             "candidateSignal = false",
         ])
 
+    if exit_candidate and pine_feature_support(exit_candidate)["supported"]:
+        exit_lines, exit_signal_variable = pine_condition_lines("exitCandidate", exit_candidate)
+        lines.extend(["", "// Rough EXIT-vs-non-EXIT scaffold. Replace with in-trade HOLD-vs-EXIT logic before promotion."])
+        lines.extend(exit_lines)
+        lines.append(f"exitCandidateSignal = {exit_signal_variable}")
+    else:
+        lines.extend([
+            "",
+            "// No Pine-supported exit candidate is available yet.",
+            "exitCandidateSignal = false",
+        ])
+
     lines.extend([
         "",
         'plotshape(candidateSignal, title="Candidate ENTRY", style=shape.triangleup, location=location.belowbar, size=size.tiny)',
+        'plotshape(exitCandidateSignal, title="Candidate EXIT", style=shape.triangledown, location=location.abovebar, size=size.tiny)',
         'if candidateSignal and strategy.position_size == 0',
         '    strategy.entry("Candidate Long", strategy.long)',
+        'if exitCandidateSignal and strategy.position_size > 0',
+        '    strategy.close("Candidate Long")',
         "",
-        "// Exits are intentionally not generated yet.",
-        "// EdgeLord needs tested exit rules or explicit exported exit logic before this becomes a complete strategy.",
+        "// Exit logic is intentionally rough.",
+        "// EdgeLord needs explicit in-trade candidate rows or stronger exported exit logic before this becomes a complete strategy.",
     ])
     return "\n".join(lines) + "\n"
 
@@ -428,6 +456,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate EdgeLord strategy-rules JSON and a Pine Script scaffold.")
     parser.add_argument("--rules-json", required=True, type=Path, help="Path to candidate-rules.json")
     parser.add_argument("--return-rules-json", type=Path, help="Optional path to return-rules.json")
+    parser.add_argument("--exit-rules-json", type=Path, help="Optional path to exit-rules.json")
     parser.add_argument("--dataset-report-json", type=Path, help="Optional path to dataset-report.json")
     parser.add_argument("--rules-output", required=True, type=Path, help="Path to write strategy_rules.v1.json")
     parser.add_argument("--pine-output", required=True, type=Path, help="Path to write strategy_soxl_soxs.pine")
@@ -437,15 +466,16 @@ def main() -> None:
     human_candidate = top_candidate(candidate_rules)
     human_pair_candidate = top_pair_candidate(candidate_rules)
     return_candidate = top_candidate(read_rules(args.return_rules_json)) if args.return_rules_json else None
+    exit_candidate = top_candidate(read_rules(args.exit_rules_json)) if args.exit_rules_json else None
     dataset_report = read_optional_object(args.dataset_report_json, "dataset report")
 
     args.rules_output.parent.mkdir(parents=True, exist_ok=True)
     args.rules_output.write_text(
-        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, human_pair_candidate, args.return_rules_json, return_candidate, dataset_report), indent=2)}\n"
+        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, human_pair_candidate, args.return_rules_json, return_candidate, args.exit_rules_json, exit_candidate, dataset_report), indent=2)}\n"
     )
 
     args.pine_output.parent.mkdir(parents=True, exist_ok=True)
-    args.pine_output.write_text(pine_stub(human_candidate, human_pair_candidate, return_candidate, dataset_report))
+    args.pine_output.write_text(pine_stub(human_candidate, human_pair_candidate, return_candidate, exit_candidate, dataset_report))
 
 
 if __name__ == "__main__":

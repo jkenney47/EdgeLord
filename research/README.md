@@ -36,6 +36,8 @@ It writes:
 - `reports/<timestamp>-entry-outcomes.csv`
 - `reports/<timestamp>-return-rules.md`
 - `reports/<timestamp>-return-rules.json`
+- `reports/<timestamp>-exit-rules.md`
+- `reports/<timestamp>-exit-rules.json`
 - `reports/<timestamp>-strategy-rules.v1.json`
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 - `reports/<timestamp>-research-summary.json`
@@ -128,15 +130,27 @@ python3 research/optimize_entry_rules.py \
 
 This is separate from the human-mimic rule report. It asks which labeled-entry conditions had better returns, not which conditions best predict Joseph's ENTRY labels.
 
+To generate rough exit-rule candidates:
+
+```bash
+python3 research/discover_exit_rules.py \
+  --training /path/to/training-features.csv \
+  --output /path/to/exit-rules.md \
+  --json-output /path/to/exit-rules.json
+```
+
+This is only an EXIT-vs-non-EXIT scaffold over labeled decision rows. It is not a proper in-trade HOLD-vs-EXIT model until EdgeLord exports held candidate bars.
+
 To generate only the TradingView-facing scaffold from candidate rules:
 
 ```bash
 python3 research/generate_pine_stub.py \
   --rules-json /path/to/candidate-rules.json \
   --return-rules-json /path/to/return-rules.json \
+  --exit-rules-json /path/to/exit-rules.json \
   --dataset-report-json /path/to/dataset-report.json \
   --rules-output /path/to/strategy-rules.v1.json \
   --pine-output /path/to/strategy-soxl-soxs.pine
 ```
 
-The Pine file is a research scaffold. It carries the human-mimic top rule, the human-mimic top pair rule, and the return-optimized top rule. When the pair rule's features are mapped to Pine, the scaffold uses that pair signal; otherwise it falls back to the one-feature human-mimic signal. It still does not generate exit logic until exit rules and return-optimized backtesting are stronger. `strategy-rules.v1.json` records dataset readiness, rough label-count targets, promotion warnings, and whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.
+The Pine file is a research scaffold. It carries the human-mimic top rule, the human-mimic top pair rule, the rough exit rule, and the return-optimized top rule. When the pair rule's features are mapped to Pine, the scaffold uses that pair entry signal; otherwise it falls back to the one-feature human-mimic signal. It can also wire the rough exit candidate into `strategy.close`, but that exit logic is not promotion-ready until the dataset has true in-trade HOLD-vs-EXIT candidates. `strategy-rules.v1.json` records dataset readiness, rough label-count targets, promotion warnings, and whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.

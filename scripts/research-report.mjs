@@ -48,6 +48,8 @@ const entryOutcomePath = path.join(reportsDir, `${slug}-entry-outcomes.md`);
 const entryOutcomeCsvPath = path.join(reportsDir, `${slug}-entry-outcomes.csv`);
 const returnRulesPath = path.join(reportsDir, `${slug}-return-rules.md`);
 const returnRulesJsonPath = path.join(reportsDir, `${slug}-return-rules.json`);
+const exitRulesPath = path.join(reportsDir, `${slug}-exit-rules.md`);
+const exitRulesJsonPath = path.join(reportsDir, `${slug}-exit-rules.json`);
 const strategyRulesPath = path.join(reportsDir, `${slug}-strategy-rules.v1.json`);
 const pineStrategyPath = path.join(reportsDir, `${slug}-strategy-soxl-soxs.pine`);
 const researchSummaryPath = path.join(reportsDir, `${slug}-research-summary.json`);
@@ -78,6 +80,8 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
   returnRules: path.relative(root, returnRulesPath),
   returnRulesJson: path.relative(root, returnRulesJsonPath),
+  exitRules: path.relative(root, exitRulesPath),
+  exitRulesJson: path.relative(root, exitRulesJsonPath),
   strategyRules: path.relative(root, strategyRulesPath),
   pineStrategy: path.relative(root, pineStrategyPath),
   researchSummary: path.relative(root, researchSummaryPath)
@@ -194,9 +198,20 @@ execFileSync("python3", [
 });
 
 execFileSync("python3", [
+  "research/discover_exit_rules.py",
+  "--training", path.join(backupDir, "training-features.csv"),
+  "--output", exitRulesPath,
+  "--json-output", exitRulesJsonPath
+], {
+  cwd: root,
+  stdio: "inherit"
+});
+
+execFileSync("python3", [
   "research/generate_pine_stub.py",
   "--rules-json", rulesJsonPath,
   "--return-rules-json", returnRulesJsonPath,
+  "--exit-rules-json", exitRulesJsonPath,
   "--dataset-report-json", reportJsonPath,
   "--rules-output", strategyRulesPath,
   "--pine-output", pineStrategyPath
@@ -206,6 +221,7 @@ execFileSync("python3", [
 });
 
 const returnRules = JSON.parse(fs.readFileSync(returnRulesJsonPath, "utf8"));
+const exitRules = JSON.parse(fs.readFileSync(exitRulesJsonPath, "utf8"));
 const datasetReport = JSON.parse(fs.readFileSync(reportJsonPath, "utf8"));
 const artifacts = {
   exportBackup: path.relative(root, backupDir),
@@ -223,6 +239,8 @@ const artifacts = {
   entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
   returnRules: path.relative(root, returnRulesPath),
   returnRulesJson: path.relative(root, returnRulesJsonPath),
+  exitRules: path.relative(root, exitRulesPath),
+  exitRulesJson: path.relative(root, exitRulesJsonPath),
   strategyRules: path.relative(root, strategyRulesPath),
   pineStrategy: path.relative(root, pineStrategyPath)
 };
@@ -240,6 +258,7 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
   },
   topHumanMimicRule: topRule ?? null,
   topHumanMimicPairRule: topPairRule ?? null,
+  topExitRule: exitRules.candidates?.[0] ?? null,
   topReturnOptimizedRule: returnRules.candidates?.[0] ?? null
 }, null, 2)}\n`);
 
@@ -252,6 +271,7 @@ console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);
 console.log(`split_rule_eval: ${path.relative(root, splitRuleEvalPath)}`);
 console.log(`entry_outcomes: ${path.relative(root, entryOutcomePath)}`);
 console.log(`return_rules: ${path.relative(root, returnRulesPath)}`);
+console.log(`exit_rules: ${path.relative(root, exitRulesPath)}`);
 console.log(`strategy_rules: ${path.relative(root, strategyRulesPath)}`);
 console.log(`pine_strategy: ${path.relative(root, pineStrategyPath)}`);
 console.log(`research_summary: ${path.relative(root, researchSummaryPath)}`);

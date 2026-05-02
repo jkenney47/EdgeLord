@@ -85,6 +85,18 @@ function assert(condition, message) {
   }
 }
 
+function csvHeader(csv) {
+  return csv.trim().split("\n")[0].split(",");
+}
+
+function assertColumnsMatch(actualCsv, expectedColumns, label) {
+  const actualColumns = csvHeader(actualCsv);
+  assert(
+    JSON.stringify(actualColumns) === JSON.stringify(expectedColumns),
+    `${label} schema columns should match CSV header`
+  );
+}
+
 async function fetchJson(baseUrl, route, options = {}) {
   const response = await fetch(`${baseUrl}${route}`, {
     headers: { "content-type": "application/json", ...(options.headers ?? {}) },
@@ -405,6 +417,10 @@ async function runAcceptance() {
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineSupport === "mapped"), "export schema should describe Pine-supported features");
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineExpression === "close"), "export schema should expose Pine expressions");
     assert(schema.features.some((feature) => feature.column === "feature_pair_ratio_close" && feature.pineSupport === "research_only"), "export schema should flag research-only features");
+    assertColumnsMatch(labelsCsv, schema.files["labels.csv"].columns, "labels.csv");
+    assertColumnsMatch(tradesCsv, schema.files["trades.csv"].columns, "trades.csv");
+    assertColumnsMatch(trainingCsv, schema.files["training-features.csv"].columns, "training-features.csv");
+    assertColumnsMatch(tradeCandidatesCsv, schema.files["trade-candidates.csv"].columns, "trade-candidates.csv");
     console.log("ok /export/schema.json");
 
     const datasetPulse = await fetchJson(baseUrl, "/state/dataset").then(({ response, body }) => {

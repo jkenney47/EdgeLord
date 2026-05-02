@@ -84,6 +84,7 @@ const readiness = {
   } : null,
   research: researchSummary ? {
     exportBackup: researchSummary.artifacts?.exportBackup ?? null,
+    dataset: researchSummary.dataset ?? null,
     topHumanMimicRule: researchSummary.topHumanMimicRule ?? null,
     topReturnOptimizedRule: researchSummary.topReturnOptimizedRule ?? null
   } : null
@@ -111,6 +112,11 @@ if (failures.length === 0) {
   }
   if (readiness.labelIntegrity) {
     console.log(`- Label integrity: ${readiness.labelIntegrity.readyForModeling ? "ready" : "issues found"}`);
+  }
+  if (readiness.research?.dataset?.readiness) {
+    const datasetReadiness = readiness.research.dataset.readiness;
+    console.log(`- Rule mining: ${datasetReadiness.readyForRuleMining ? "ready" : "not ready"} (${datasetReadiness.entryRows} entries / ${datasetReadiness.skipRows} skips)`);
+    console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
   }
   console.log(`status: ${path.relative(root, summaryPath)}`);
   process.exit(0);

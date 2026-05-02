@@ -367,6 +367,14 @@ kbd {
   color: #f2a1a3 !important;
 }
 
+.capture-status {
+  border: 1px solid rgba(46, 211, 173, 0.35);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(46, 211, 173, 0.07);
+  color: #9ff3df !important;
+}
+
 .label-list {
   display: grid;
   gap: 6px;

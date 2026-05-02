@@ -38,6 +38,7 @@ export function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [openTrade, setOpenTrade] = useState<Trade | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [barSummary, setBarSummary] = useState<BarSummaryRow[]>([]);
 
@@ -139,6 +140,14 @@ export function App() {
     });
   }, [bars]);
 
+  const selectTimestamp = useCallback((timestamp: string) => {
+    const nextIndex = bars.findIndex((bar) => bar.timestamp === timestamp);
+    if (nextIndex >= 0) {
+      setIndex(nextIndex);
+      setSelected(bars[nextIndex]);
+    }
+  }, [bars]);
+
   const capture = useCallback(async (action: LabelAction) => {
     const blockReason = getCaptureBlockReason(action, selected, ticker, openTrade);
     if (blockReason) {
@@ -148,8 +157,9 @@ export function App() {
     const activeBar = selected;
     if (!activeBar) return;
     setError(null);
+    setCaptureStatus(null);
     try {
-      await createLabel({
+      const result = await createLabel({
         labelSource,
         action,
         ticker,
@@ -161,20 +171,31 @@ export function App() {
         potentialVisualLeakage: mode === "regular" && labelSource !== "actual_trade"
       });
       await refreshState();
-      if (autoAdvance && mode === "replay") {
+      const shouldAdvance = autoAdvance && mode === "replay" && index < bars.length - 1;
+      setCaptureStatus(`${result.label.action} saved${shouldAdvance ? "; advanced" : ""}.`);
+      if (shouldAdvance) {
         move(1);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [autoAdvance, bars, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
+  }, [autoAdvance, bars.length, index, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
 
   const undo = useCallback(async () => {
-    const last = labels.at(-1);
-    if (!last) return;
-    await deleteLabel(last.id);
-    await refreshState();
-  }, [labels, refreshState]);
+    setError(null);
+    setCaptureStatus(null);
+    try {
+      const latestLabels = await fetchLabels();
+      const last = latestLabels.at(-1);
+      if (!last) return;
+      await deleteLabel(last.id);
+      selectTimestamp(last.timestamp);
+      await refreshState();
+      setCaptureStatus(`Undid ${last.action}; returned to candle.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not undo last label");
+    }
+  }, [refreshState, selectTimestamp]);
 
   const jump = useCallback(() => {
     const nextIndex = bars.findIndex((bar) => bar.timestamp.slice(0, 10) >= jumpDate);
@@ -264,6 +285,7 @@ export function App() {
           selectedLabels={selectedLabels}
           openTrade={openTrade}
           error={error}
+          captureStatus={captureStatus}
           autoAdvance={autoAdvance}
           onLabelSource={setLabelSource}
           onAutoAdvance={setAutoAdvance}

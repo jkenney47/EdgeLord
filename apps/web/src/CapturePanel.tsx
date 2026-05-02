@@ -10,6 +10,7 @@ type Props = {
   selectedLabels: Label[];
   openTrade: Trade | null;
   error: string | null;
+  captureStatus: string | null;
   autoAdvance: boolean;
   onLabelSource: (source: LabelSource) => void;
   onAutoAdvance: (enabled: boolean) => void;
@@ -39,6 +40,7 @@ export function CapturePanel({
   selectedLabels,
   openTrade,
   error,
+  captureStatus,
   autoAdvance,
   onLabelSource,
   onAutoAdvance,
@@ -117,6 +119,7 @@ export function CapturePanel({
           </div>
         ) : null}
         <button className="secondary" disabled={labels.length === 0} onClick={onUndo}>Undo last label <kbd>U</kbd></button>
+        {captureStatus ? <p className="capture-status">{captureStatus}</p> : null}
         {error ? <p className="error">{error}</p> : null}
       </section>
 

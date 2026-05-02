@@ -22,13 +22,14 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
-import { findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
+import { findFirstIndexAfterTimestamp, findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
 type PendingSelection = {
   ticker: Ticker;
   timeframe: Timeframe;
-  timestamp: string;
+  timestamp?: string;
+  afterTimestamp?: string;
   status: string;
 };
 
@@ -109,8 +110,10 @@ export function App() {
 
   useEffect(() => {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
-    const nextIndex = bars.findIndex((bar) => bar.timestamp === pendingSelection.timestamp);
-    if (nextIndex >= 0) {
+    const nextIndex = pendingSelection.afterTimestamp
+      ? findFirstIndexAfterTimestamp(bars, pendingSelection.afterTimestamp)
+      : bars.findIndex((bar) => bar.timestamp === pendingSelection.timestamp);
+    if (nextIndex !== null && nextIndex >= 0) {
       setIndex(nextIndex);
       setSelected(bars[nextIndex]);
       setCaptureStatus(pendingSelection.status);
@@ -252,6 +255,25 @@ export function App() {
     setTimeframe(entryLabel.timeframe);
   }, [labels, openTrade]);
 
+  const goToOpenTradeExitReview = useCallback(() => {
+    setError(null);
+    if (!openTrade) return;
+    const entryLabel = labels.find((label) => label.id === openTrade.entry_label_id);
+    if (!entryLabel) {
+      setError("Open trade entry label is missing.");
+      return;
+    }
+    setPendingSelection({
+      ticker: entryLabel.ticker,
+      timeframe: entryLabel.timeframe,
+      afterTimestamp: entryLabel.timestamp,
+      status: `Reviewing exit after ${entryLabel.timestamp.slice(0, 10)}.`
+    });
+    setMode("replay");
+    setTicker(entryLabel.ticker);
+    setTimeframe(entryLabel.timeframe);
+  }, [labels, openTrade]);
+
   const goToLabel = useCallback((label: Label) => {
     setError(null);
     setPendingSelection({
@@ -361,6 +383,7 @@ export function App() {
           onCapture={capture}
           onUndo={undo}
           onGoToOpenTradeEntry={goToOpenTradeEntry}
+          onGoToOpenTradeExitReview={goToOpenTradeExitReview}
           onGoToLabel={goToLabel}
         />
       </div>

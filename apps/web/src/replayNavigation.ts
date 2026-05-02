@@ -41,3 +41,8 @@ export function findNextUnlabeledIndex(
   }
   return null;
 }
+
+export function findFirstIndexAfterTimestamp(bars: Bar[], timestamp: string): number | null {
+  const nextIndex = bars.findIndex((bar) => bar.timestamp > timestamp);
+  return nextIndex >= 0 ? nextIndex : null;
+}

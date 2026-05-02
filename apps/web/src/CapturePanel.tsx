@@ -19,6 +19,7 @@ type Props = {
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
   onGoToOpenTradeEntry: () => void;
+  onGoToOpenTradeExitReview: () => void;
   onGoToLabel: (label: Label) => void;
 };
 
@@ -53,6 +54,7 @@ export function CapturePanel({
   onCapture,
   onUndo,
   onGoToOpenTradeEntry,
+  onGoToOpenTradeExitReview,
   onGoToLabel
 }: Props) {
   const lastLabels = labels.slice(-10).reverse();
@@ -156,6 +158,9 @@ export function CapturePanel({
             </span>
             <button className="secondary compact" disabled={!openTradeEntryLabel} onClick={onGoToOpenTradeEntry}>
               Go to entry
+            </button>
+            <button className="secondary compact" disabled={!openTradeEntryLabel} onClick={onGoToOpenTradeExitReview}>
+              Review exit
             </button>
           </div>
         ) : (

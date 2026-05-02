@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Bar, Label } from "./api";
-import { findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
+import { findFirstIndexAfterTimestamp, findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
 
 function bar(timestamp: string): Bar {
   return {
@@ -85,5 +85,22 @@ describe("findNextUnlabeledIndex", () => {
       label(bars[2].timestamp),
       label(bars[3].timestamp)
     ], "SOXL", "4H", 0)).toBeNull();
+  });
+});
+
+describe("findFirstIndexAfterTimestamp", () => {
+  const bars = [
+    bar("2024-01-02T14:30:00.000Z"),
+    bar("2024-01-03T14:30:00.000Z"),
+    bar("2024-01-04T14:30:00.000Z")
+  ];
+
+  it("finds the first candle after a timestamp", () => {
+    expect(findFirstIndexAfterTimestamp(bars, bars[0].timestamp)).toBe(1);
+    expect(findFirstIndexAfterTimestamp(bars, "2024-01-02T15:00:00.000Z")).toBe(1);
+  });
+
+  it("returns null when there is no later candle", () => {
+    expect(findFirstIndexAfterTimestamp(bars, bars[2].timestamp)).toBeNull();
   });
 });

@@ -35,6 +35,7 @@ fs.mkdirSync(reportsDir, { recursive: true });
 const slug = timestampSlug();
 const backupDir = path.join(exportsDir, slug);
 const reportPath = path.join(reportsDir, `${slug}-dataset-report.md`);
+const reportJsonPath = path.join(reportsDir, `${slug}-dataset-report.json`);
 const rulesPath = path.join(reportsDir, `${slug}-candidate-rules.md`);
 const rulesJsonPath = path.join(reportsDir, `${slug}-candidate-rules.json`);
 const comparisonPath = path.join(reportsDir, `${slug}-human-vs-rule.md`);
@@ -64,6 +65,7 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   apiBaseUrl: baseUrl,
   files,
   report: path.relative(root, reportPath),
+  reportJson: path.relative(root, reportJsonPath),
   candidateRules: path.relative(root, rulesPath),
   candidateRulesJson: path.relative(root, rulesJsonPath),
   humanVsRule: path.relative(root, comparisonPath),
@@ -86,7 +88,8 @@ execFileSync("python3", [
   "--labels", path.join(backupDir, "labels.csv"),
   "--training", path.join(backupDir, "training-features.csv"),
   "--trades", path.join(backupDir, "trades.csv"),
-  "--output", reportPath
+  "--output", reportPath,
+  "--json-output", reportJsonPath
 ], {
   cwd: root,
   stdio: "inherit"
@@ -201,9 +204,11 @@ execFileSync("python3", [
 });
 
 const returnRules = JSON.parse(fs.readFileSync(returnRulesJsonPath, "utf8"));
+const datasetReport = JSON.parse(fs.readFileSync(reportJsonPath, "utf8"));
 const artifacts = {
   exportBackup: path.relative(root, backupDir),
   datasetReport: path.relative(root, reportPath),
+  datasetReportJson: path.relative(root, reportJsonPath),
   candidateRules: path.relative(root, rulesPath),
   candidateRulesJson: path.relative(root, rulesJsonPath),
   humanVsRule: path.relative(root, comparisonPath),
@@ -226,12 +231,18 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
   slug,
   artifacts,
   exports: files,
+  dataset: {
+    counts: datasetReport.counts,
+    readiness: datasetReport.readiness,
+    issues: datasetReport.issues
+  },
   topHumanMimicRule: topRule ?? null,
   topReturnOptimizedRule: returnRules.candidates?.[0] ?? null
 }, null, 2)}\n`);
 
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
+console.log(`report_json: ${path.relative(root, reportJsonPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
 console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
 console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);

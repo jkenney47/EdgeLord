@@ -23,6 +23,7 @@ That command saves a timestamped export backup under `exports/` and writes the r
 It writes:
 
 - `reports/<timestamp>-dataset-report.md`
+- `reports/<timestamp>-dataset-report.json`
 - `reports/<timestamp>-candidate-rules.md`
 - `reports/<timestamp>-candidate-rules.json`
 - `reports/<timestamp>-human-vs-rule.md`
@@ -39,7 +40,7 @@ It writes:
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 - `reports/<timestamp>-research-summary.json`
 
-`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact and includes the top human-mimic and return-optimized rules when available. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, Pine feature support status, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
+`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact, embeds the dataset readiness counts/issues, and includes the top human-mimic and return-optimized rules when available. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, Pine feature support status, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
 
 Or export CSV files manually and run:
 
@@ -47,10 +48,11 @@ Or export CSV files manually and run:
 python3 research/dataset_report.py \
   --labels /path/to/labels.csv \
   --training /path/to/training-features.csv \
-  --trades /path/to/trades.csv
+  --trades /path/to/trades.csv \
+  --json-output /path/to/dataset-report.json
 ```
 
-The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, feature coverage, basic closed-trade return stats, ENTRY-vs-SKIP feature contrasts, and what to label next.
+The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, state-machine sequence issues, feature coverage, basic closed-trade return stats, ENTRY-vs-SKIP feature contrasts, and what to label next.
 
 To generate only the simple rule-candidate report from a training export:
 

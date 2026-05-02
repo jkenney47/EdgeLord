@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import statistics
 from collections import Counter
 from pathlib import Path
@@ -169,6 +170,111 @@ def format_sequence_issues(issues: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def counter_dict(rows: Iterable[dict[str, str]], key: str) -> dict[str, int]:
+    return dict(count_by(rows, key).most_common())
+
+
+def return_summary(trades: list[dict[str, str]]) -> dict[str, float | int | None]:
+    returns = numeric_values((trade for trade in trades if trade.get("status") == "closed"), "return_pct")
+    if not returns:
+        return {
+            "count": 0,
+            "winRate": None,
+            "avgReturnPct": None,
+            "medianReturnPct": None,
+            "minReturnPct": None,
+            "maxReturnPct": None,
+        }
+    wins = sum(1 for value in returns if value > 0)
+    return {
+        "count": len(returns),
+        "winRate": wins / len(returns),
+        "avgReturnPct": statistics.fmean(returns),
+        "medianReturnPct": statistics.median(returns),
+        "minReturnPct": min(returns),
+        "maxReturnPct": max(returns),
+    }
+
+
+def feature_coverage_summary(training: list[dict[str, str]]) -> dict[str, object]:
+    feature_columns = [column for column in training[0].keys() if column.startswith("feature_")] if training else []
+    missing = {column: missing_count(training, column) for column in feature_columns}
+    return {
+        "featureColumns": len(feature_columns),
+        "fullyPopulated": sum(1 for count in missing.values() if count == 0),
+        "missing": missing,
+    }
+
+
+def dataset_summary(
+    labels: list[dict[str, str]],
+    training: list[dict[str, str]],
+    trades: list[dict[str, str]],
+    orphan_exits: list[dict[str, str]],
+    entries_without_trade: list[dict[str, str]],
+    state_sequence_issues: list[dict[str, str]],
+) -> dict[str, object]:
+    training_actions = count_by(training, "action")
+    entry_count = training_actions.get("ENTRY", 0)
+    skip_count = training_actions.get("SKIP", 0)
+    exit_count = training_actions.get("EXIT", 0)
+    excluded_labels = [label for label in labels if label.get("training_eligible") != "1"]
+    ready_for_rule_mining = (
+        len(orphan_exits) == 0 and
+        len(entries_without_trade) == 0 and
+        len(state_sequence_issues) == 0 and
+        entry_count > 0 and
+        skip_count > 0
+    )
+    ready_for_return_analysis = (
+        ready_for_rule_mining and
+        count_by(trades, "status").get("closed", 0) > 0 and
+        exit_count > 0
+    )
+    return {
+        "version": "edgelord.dataset_report.v1",
+        "counts": {
+            "labels": len(labels),
+            "trainingRows": len(training),
+            "trainingEligibleLabels": len([label for label in labels if label.get("training_eligible") == "1"]),
+            "excludedLabels": len(excluded_labels),
+            "trades": len(trades),
+            "orphanExits": len(orphan_exits),
+            "entriesWithoutTrade": len(entries_without_trade),
+            "sequenceIssues": len(state_sequence_issues),
+        },
+        "actions": counter_dict(labels, "action"),
+        "trainingActions": counter_dict(training, "action"),
+        "labelSources": counter_dict(labels, "label_source"),
+        "trainingLabelSources": counter_dict(training, "label_source"),
+        "trainingCaptureModes": counter_dict(training, "capture_mode"),
+        "tickers": counter_dict(labels, "ticker"),
+        "timeframes": counter_dict(labels, "timeframe"),
+        "tradeStatus": counter_dict(trades, "status"),
+        "returns": return_summary(trades),
+        "featureCoverage": feature_coverage_summary(training),
+        "issues": {
+            "orphanExits": [
+                {"id": label.get("id", ""), "ticker": label.get("ticker", ""), "timestamp": label.get("timestamp", "")}
+                for label in orphan_exits[:25]
+            ],
+            "entriesWithoutTrade": [
+                {"id": label.get("id", ""), "ticker": label.get("ticker", ""), "timestamp": label.get("timestamp", "")}
+                for label in entries_without_trade[:25]
+            ],
+            "sequenceIssues": state_sequence_issues[:25],
+        },
+        "readiness": {
+            "readyForRuleMining": ready_for_rule_mining,
+            "readyForReturnAnalysis": ready_for_return_analysis,
+            "entryRows": entry_count,
+            "skipRows": skip_count,
+            "exitRows": exit_count,
+            "closedTrades": count_by(trades, "status").get("closed", 0),
+        },
+    }
+
+
 def next_label_recommendations(
     labels: list[dict[str, str]],
     training: list[dict[str, str]],
@@ -220,6 +326,7 @@ def main() -> None:
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
     parser.add_argument("--trades", required=True, type=Path, help="Path to trades.csv export")
     parser.add_argument("--output", type=Path, help="Optional path to write the report as markdown/plain text")
+    parser.add_argument("--json-output", type=Path, help="Optional path to write a machine-readable report summary")
     args = parser.parse_args()
 
     labels = read_csv(args.labels)
@@ -290,6 +397,10 @@ def main() -> None:
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report)
+    if args.json_output:
+        args.json_output.parent.mkdir(parents=True, exist_ok=True)
+        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues)
+        args.json_output.write_text(f"{json.dumps(summary, indent=2)}\n")
 
 
 if __name__ == "__main__":

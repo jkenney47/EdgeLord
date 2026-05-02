@@ -81,10 +81,21 @@ const tradesCsv = writeFile("trades.csv", [
 ].join("\n") + "\n");
 
 try {
-  run(["research/dataset_report.py", "--labels", labelsCsv, "--training", trainingCsv, "--trades", tradesCsv, "--output", path.join(tempDir, "dataset-report.md")]);
+  run([
+    "research/dataset_report.py",
+    "--labels", labelsCsv,
+    "--training", trainingCsv,
+    "--trades", tradesCsv,
+    "--output", path.join(tempDir, "dataset-report.md"),
+    "--json-output", path.join(tempDir, "dataset-report.json")
+  ]);
   assert(readFile("dataset-report.md").includes("entry labels are still early:"), "dataset report should include readiness guidance");
   assert(readFile("dataset-report.md").includes("Training Label Sources"), "dataset report should include training source counts");
   assert(readFile("dataset-report.md").includes("State Machine Sequence Issues"), "dataset report should include state-machine sequence diagnostics");
+  const datasetReport = JSON.parse(readFile("dataset-report.json"));
+  assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
+  assert(datasetReport.counts.sequenceIssues === 0, "dataset report JSON should count sequence issues");
+  assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
 
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));

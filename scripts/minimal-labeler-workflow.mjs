@@ -531,6 +531,7 @@ async function runAcceptance() {
     assert(datasetPulse.labels.trainingEligible === 3, "dataset pulse should count training-eligible labels");
     assert(datasetPulse.trades.closed === 2, "dataset pulse should count closed trades");
     assert(datasetPulse.trades.trainingEligibleClosed === 1, "dataset pulse should count training-eligible closed trades separately");
+    assert(datasetPulse.trades.ineligibleClosed === 1, "dataset pulse should expose ineligible closed trade count");
     assert(datasetPulse.targets.some((target) => target.key === "closedTrades" && target.current === 1), "dataset pulse closed target should ignore ineligible hindsight trades");
     assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 1), "dataset pulse should include skip target progress");
     console.log("ok /state/dataset");

@@ -24,6 +24,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
     const exit = trade.exit_label_id ? labelById.get(trade.exit_label_id) : null;
     return entry?.training_eligible === 1 && exit?.training_eligible === 1;
   });
+  const ineligibleClosedTrades = closedTrades.length - trainingEligibleClosedTrades.length;
   const trainingEntries = trainingLabels.filter((label) => label.action === "ENTRY").length;
   const trainingExits = trainingLabels.filter((label) => label.action === "EXIT").length;
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
@@ -64,6 +65,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
       open: openTrade ? 1 : 0,
       closed: closedTrades.length,
       trainingEligibleClosed: trainingEligibleClosedTrades.length,
+      ineligibleClosed: ineligibleClosedTrades,
       status: countBy(trades, "status"),
       openTrade: openTrade ? {
         id: openTrade.id,

@@ -55,6 +55,7 @@ export type DatasetPulse = {
     open: number;
     closed: number;
     trainingEligibleClosed: number;
+    ineligibleClosed: number;
     status: Record<string, number>;
     openTrade: {
       id: string;

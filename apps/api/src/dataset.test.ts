@@ -113,6 +113,7 @@ describe("buildDatasetPulse", () => {
 
     expect(pulse.trades.closed).toBe(2);
     expect(pulse.trades.trainingEligibleClosed).toBe(1);
+    expect(pulse.trades.ineligibleClosed).toBe(1);
     expect(pulse.targets.find((target) => target.key === "closedTrades")?.current).toBe(1);
   });
 

@@ -237,6 +237,7 @@ a {
   text-transform: uppercase;
 }
 
+.focus-card,
 .selected-card,
 .trade-card {
   display: grid;
@@ -247,16 +248,27 @@ a {
   background: #151c26;
 }
 
+.focus-card strong,
 .selected-card strong,
 .trade-card strong {
   color: #f3f6fb;
   font-size: 15px;
 }
 
+.focus-card span,
 .selected-card span,
 .trade-card span {
   color: #a8b3c2;
   font-size: 12px;
+}
+
+.focus-card {
+  border-color: rgba(159, 208, 255, 0.38);
+  background: rgba(159, 208, 255, 0.06);
+}
+
+.focus-card strong {
+  text-transform: capitalize;
 }
 
 .ohlc {

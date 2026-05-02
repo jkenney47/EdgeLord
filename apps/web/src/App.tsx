@@ -393,6 +393,8 @@ export function App() {
           openTrade={openTrade}
           error={error}
           captureStatus={captureStatus}
+          nextTarget={nextTarget}
+          nextAction={nextAction}
           autoAdvance={autoAdvance}
           executionPrice={executionPrice}
           onLabelSource={setLabelSource}

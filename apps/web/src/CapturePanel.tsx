@@ -1,4 +1,4 @@
-import type { Bar, CaptureMode, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
+import type { Bar, CaptureMode, DatasetPulse, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
 import { getCaptureBlockReason } from "./captureRules";
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
   openTrade: Trade | null;
   error: string | null;
   captureStatus: string | null;
+  nextTarget: DatasetPulse["nextTarget"] | null;
+  nextAction: string | null;
   autoAdvance: boolean;
   executionPrice: string;
   onLabelSource: (source: LabelSource) => void;
@@ -46,6 +48,8 @@ export function CapturePanel({
   openTrade,
   error,
   captureStatus,
+  nextTarget,
+  nextAction,
   autoAdvance,
   executionPrice,
   onLabelSource,
@@ -68,6 +72,17 @@ export function CapturePanel({
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   return (
     <aside className="capture-panel">
+      {nextTarget && nextAction ? (
+        <section className="panel-section">
+          <span className="eyebrow">Labeling focus</span>
+          <div className="focus-card">
+            <strong>{nextTarget.kind.replace(/_/g, " ")}</strong>
+            <span>{nextTarget.current}/{nextTarget.target} complete · {nextTarget.remaining} remaining</span>
+            <p>{nextAction}</p>
+          </div>
+        </section>
+      ) : null}
+
       <section className="panel-section">
         <span className="eyebrow">Selected candle</span>
         {selected ? (

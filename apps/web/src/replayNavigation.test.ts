@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Bar, Label } from "./api";
-import { findReplayResumeIndex } from "./replayNavigation";
+import { findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
 
 function bar(timestamp: string): Bar {
   return {
@@ -56,5 +56,33 @@ describe("findReplayResumeIndex", () => {
 
   it("stays on the final candle when the latest label is final", () => {
     expect(findReplayResumeIndex(bars, [label(bars[2].timestamp)], "SOXL", "4H")).toBe(2);
+  });
+});
+
+describe("findNextUnlabeledIndex", () => {
+  const bars = [
+    bar("2024-01-02T14:30:00.000Z"),
+    bar("2024-01-03T14:30:00.000Z"),
+    bar("2024-01-04T14:30:00.000Z"),
+    bar("2024-01-05T14:30:00.000Z")
+  ];
+
+  it("finds the next unlabeled candle after the current index", () => {
+    expect(findNextUnlabeledIndex(bars, [label(bars[1].timestamp)], "SOXL", "4H", 0)).toBe(2);
+  });
+
+  it("ignores labels from other ticker/timeframe combinations", () => {
+    expect(findNextUnlabeledIndex(bars, [
+      label(bars[1].timestamp, { ticker: "SOXS" }),
+      label(bars[2].timestamp, { timeframe: "2H" })
+    ], "SOXL", "4H", 0)).toBe(1);
+  });
+
+  it("returns null when no later unlabeled candle exists", () => {
+    expect(findNextUnlabeledIndex(bars, [
+      label(bars[1].timestamp),
+      label(bars[2].timestamp),
+      label(bars[3].timestamp)
+    ], "SOXL", "4H", 0)).toBeNull();
   });
 });

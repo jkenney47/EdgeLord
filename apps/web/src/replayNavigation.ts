@@ -20,3 +20,24 @@ export function findReplayResumeIndex(
   }
   return Math.min(latestLabeledIndex + 1, bars.length - 1);
 }
+
+export function findNextUnlabeledIndex(
+  bars: Bar[],
+  labels: Label[],
+  ticker: Ticker,
+  timeframe: Timeframe,
+  currentIndex: number
+): number | null {
+  const labeledTimestamps = new Set(
+    labels
+      .filter((label) => label.ticker === ticker && label.timeframe === timeframe)
+      .map((label) => label.timestamp)
+  );
+  const startIndex = Math.max(0, currentIndex + 1);
+  for (let index = startIndex; index < bars.length; index += 1) {
+    if (!labeledTimestamps.has(bars[index].timestamp)) {
+      return index;
+    }
+  }
+  return null;
+}

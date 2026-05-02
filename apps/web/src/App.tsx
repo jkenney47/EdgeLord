@@ -23,7 +23,7 @@ import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
 import { labelTargetProgress } from "./labelTargets";
-import { findReplayResumeIndex } from "./replayNavigation";
+import { findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
 type PendingSelection = {
@@ -233,6 +233,17 @@ export function App() {
     setCaptureStatus(bars[nextIndex] ? `Resumed at ${bars[nextIndex].timestamp.slice(0, 10)}.` : null);
   }, [bars, labels, ticker, timeframe]);
 
+  const nextUnlabeled = useCallback(() => {
+    const nextIndex = findNextUnlabeledIndex(bars, labels, ticker, timeframe, index);
+    if (nextIndex === null) {
+      setCaptureStatus("No later unlabeled candle.");
+      return;
+    }
+    setIndex(nextIndex);
+    setSelected(bars[nextIndex] ?? null);
+    setCaptureStatus(`Next unlabeled ${bars[nextIndex].timestamp.slice(0, 10)}.`);
+  }, [bars, index, labels, ticker, timeframe]);
+
   const goToOpenTradeEntry = useCallback(() => {
     setError(null);
     if (!openTrade) return;
@@ -289,6 +300,12 @@ export function App() {
       } else if (event.key.toLowerCase() === "u") {
         event.preventDefault();
         void undo();
+      } else if (event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        resumeReplay();
+      } else if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        nextUnlabeled();
       } else {
         const action = ({ e: "ENTRY", x: "EXIT", s: "SKIP", i: "INVALID" } as Record<string, LabelAction>)[event.key.toLowerCase()];
         if (action) {
@@ -299,7 +316,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [capture, move, undo]);
+  }, [capture, move, nextUnlabeled, resumeReplay, undo]);
 
   return (
     <main className="app-shell">
@@ -318,6 +335,7 @@ export function App() {
         onJumpDate={setJumpDate}
         onJump={jump}
         onResume={resumeReplay}
+        onNextUnlabeled={nextUnlabeled}
         onImportCsv={(file) => void handleImportCsv(file)}
         importStatus={importStatus}
       />

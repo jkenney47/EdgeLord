@@ -16,6 +16,7 @@ type Props = {
   onJumpDate: (value: string) => void;
   onJump: () => void;
   onResume: () => void;
+  onNextUnlabeled: () => void;
   onImportCsv: (file: File) => void;
   importStatus: string | null;
 };
@@ -35,6 +36,7 @@ export function ReplayControls({
   onJumpDate,
   onJump,
   onResume,
+  onNextUnlabeled,
   onImportCsv,
   importStatus
 }: Props) {
@@ -66,6 +68,7 @@ export function ReplayControls({
       </label>
       <button onClick={onJump}>Jump</button>
       <button onClick={onResume} disabled={total === 0}>Resume</button>
+      <button onClick={onNextUnlabeled} disabled={index >= total - 1}>Next unlabeled</button>
       <label className="file-import">
         <span>Import CSV</span>
         <input

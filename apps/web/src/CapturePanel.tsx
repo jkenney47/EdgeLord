@@ -160,7 +160,7 @@ export function CapturePanel({
               Go to entry
             </button>
             <button className="secondary compact" disabled={!openTradeEntryLabel} onClick={onGoToOpenTradeExitReview}>
-              Review exit
+              Review exit <kbd>V</kbd>
             </button>
           </div>
         ) : (

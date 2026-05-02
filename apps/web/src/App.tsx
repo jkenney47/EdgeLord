@@ -330,6 +330,9 @@ export function App() {
       } else if (event.key.toLowerCase() === "n") {
         event.preventDefault();
         nextUnlabeled();
+      } else if (event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        goToOpenTradeExitReview();
       } else {
         const action = ({ e: "ENTRY", x: "EXIT", s: "SKIP", i: "INVALID" } as Record<string, LabelAction>)[event.key.toLowerCase()];
         if (action) {
@@ -340,7 +343,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [capture, move, nextUnlabeled, resumeReplay, undo]);
+  }, [capture, goToOpenTradeExitReview, move, nextUnlabeled, resumeReplay, undo]);
 
   return (
     <main className="app-shell">

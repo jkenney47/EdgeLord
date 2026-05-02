@@ -36,8 +36,27 @@ async function barsFor(ticker, timeframe) {
 const missingBars = [];
 const priceMismatches = [];
 const staleIndexes = [];
+const trainingEligibilityMismatches = [];
+const eligibleOrphanExits = [];
+
+function expectedTrainingEligible(label) {
+  if (Number(label.potential_visual_leakage) === 1) return false;
+  return label.label_source === "actual_trade" || (label.label_source === "retrospective_replay" && label.capture_mode === "replay");
+}
 
 for (const label of labels) {
+  const expectedEligible = expectedTrainingEligible(label);
+  if (Number(label.training_eligible) !== (expectedEligible ? 1 : 0)) {
+    trainingEligibilityMismatches.push({ label, expectedEligible });
+  }
+  if (
+    label.action === "EXIT" &&
+    Number(label.training_eligible) === 1 &&
+    (!label.trade_id || !label.parent_entry_label_id)
+  ) {
+    eligibleOrphanExits.push(label);
+  }
+
   const bars = await barsFor(label.ticker, label.timeframe);
   const bar = bars.get(label.timestamp);
   if (!bar) {
@@ -65,6 +84,8 @@ const lines = [
   `missing_bar_labels: ${missingBars.length}`,
   `chart_price_mismatches: ${priceMismatches.length}`,
   `stale_bar_indexes: ${staleIndexes.length}`,
+  `training_eligibility_mismatches: ${trainingEligibilityMismatches.length}`,
+  `eligible_orphan_exits: ${eligibleOrphanExits.length}`,
   "",
   "Missing Bars"
 ];
@@ -95,11 +116,38 @@ if (staleIndexes.length === 0) {
   }
 }
 
+lines.push("", "Training Eligibility Mismatches");
+if (trainingEligibilityMismatches.length === 0) {
+  lines.push("- none");
+} else {
+  for (const item of trainingEligibilityMismatches.slice(0, 25)) {
+    lines.push(
+      `- ${item.label.id} ${item.label.action} ${item.label.label_source} ${item.label.capture_mode} ` +
+      `leakage=${item.label.potential_visual_leakage}: label=${item.label.training_eligible} expected=${item.expectedEligible ? 1 : 0}`
+    );
+  }
+}
+
+lines.push("", "Eligible Orphan Exits");
+if (eligibleOrphanExits.length === 0) {
+  lines.push("- none");
+} else {
+  for (const label of eligibleOrphanExits.slice(0, 25)) {
+    lines.push(`- ${label.id} ${label.ticker} ${label.timeframe} ${label.timestamp}`);
+  }
+}
+
 lines.push("", "Readiness");
-if (missingBars.length || priceMismatches.length || staleIndexes.length) {
+if (
+  missingBars.length ||
+  priceMismatches.length ||
+  staleIndexes.length ||
+  trainingEligibilityMismatches.length ||
+  eligibleOrphanExits.length
+) {
   lines.push("- Label integrity issues exist. Repair or re-label before modeling.");
 } else {
-  lines.push("- Labels match the current bar cache.");
+  lines.push("- Labels match the current bar cache and training eligibility policy.");
 }
 
 const report = `${lines.join("\n")}\n`;

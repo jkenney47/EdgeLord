@@ -107,6 +107,7 @@ For the common local workflow:
 
 ```bash
 pnpm workflow:minimal-labeler
+pnpm slice:minimal-labeler
 pnpm checkpoint:minimal-labeler
 pnpm closeout:minimal-labeler
 pnpm acceptance:minimal-labeler
@@ -127,6 +128,8 @@ pnpm import:csv /path/to/adjusted-bars.csv --replace-bars --force-replace-bars
 pnpm labels:integrity
 pnpm labels:repair
 ```
+
+`slice:minimal-labeler` is the default autonomous development gate. It runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, final git status, and closeout reminders in one command.
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
 

@@ -26,10 +26,10 @@ pnpm verify
 Before closing out backend, labeling-rule, or export changes, run:
 
 ```bash
-pnpm closeout:minimal-labeler
+pnpm slice:minimal-labeler
 ```
 
-That command runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running. The acceptance check uses a temporary SQLite database and verifies the SOXL/SOXS entry/exit/skip state machine plus CSV/JSONL exports without touching local labeling data.
+That command runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, final git status, and closeout reminders. The acceptance check uses a temporary SQLite database and verifies the SOXL/SOXS entry/exit/skip state machine plus CSV/JSONL exports without touching local labeling data.
 
 After importing or replacing historical bars, run:
 

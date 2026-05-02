@@ -434,9 +434,10 @@ async function runAcceptance() {
   }
 }
 
+const shouldSlice = args.has("--slice");
 const shouldCloseout = args.has("--closeout");
-const shouldCheckpoint = args.has("--checkpoint");
-const shouldProceed = args.has("--proceed");
+const shouldCheckpoint = args.has("--checkpoint") || shouldSlice;
+const shouldProceed = args.has("--proceed") || shouldSlice;
 const shouldRunAcceptance = args.has("--acceptance") || shouldCloseout || shouldCheckpoint;
 const shouldRunApiSmoke = args.has("--api-smoke") || shouldCloseout || shouldCheckpoint;
 
@@ -481,4 +482,11 @@ if (shouldCheckpoint) {
   console.log("");
   console.log("Checkpoint git status");
   console.log(output("git", ["status", "--short", "--branch"]));
+  if (shouldSlice) {
+    console.log("");
+    console.log("Slice closeout");
+    console.log("- Review `git diff --stat` and the changed files.");
+    console.log("- Commit/push only a coherent slice; do not add ignored data, exports, or reports.");
+    console.log("- Typical closeout: git add <paths> && git commit -m \"<imperative summary>\" && git push");
+  }
 }

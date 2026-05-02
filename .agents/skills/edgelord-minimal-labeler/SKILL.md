@@ -5,20 +5,26 @@ description: Use when continuing EdgeLord development, checking SOXL/SOXS data r
 
 # EdgeLord Minimal Labeler
 
-## First Commands
+## First Command
 
 From `/Users/JoeyKenney/Documents/EdgeLord`:
+
+```bash
+pnpm slice:minimal-labeler
+```
+
+Use `pnpm slice:minimal-labeler` for the normal autonomous loop. It runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, final git status, and closeout reminders in one command.
+
+If you only need orientation before editing, use:
 
 ```bash
 git status --short --branch
 pnpm proceed:minimal-labeler
 ```
 
-Use `pnpm proceed:minimal-labeler` before implementation to avoid rediscovering the repo state. It prints the current minimal-labeler workflow, local data posture, and expected closeout path.
-
 ## Normal Development Loop
 
-Use this sequence for ordinary slices:
+Use this sequence only when you need a narrower manual loop:
 
 ```bash
 pnpm --filter @edgelord/web test
@@ -27,7 +33,7 @@ pnpm checkpoint:minimal-labeler
 git status --short --branch
 ```
 
-For backend/export/research changes, run `pnpm checkpoint:minimal-labeler` directly after focused tests. It covers lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, and final git status.
+For backend/export/research changes, run `pnpm slice:minimal-labeler` after focused tests unless there is a concrete reason to use the narrower `pnpm checkpoint:minimal-labeler`.
 
 For UI changes, verify in the Codex in-app browser at `http://127.0.0.1:5173/` after code checks. Prefer browser snapshots/clicks for layout and workflow checks.
 
@@ -68,7 +74,7 @@ Only use `--force-replace-bars` after an export backup. `labels:repair` fixes st
 Before claiming completion:
 
 ```bash
-pnpm checkpoint:minimal-labeler
+pnpm slice:minimal-labeler
 git status --short --branch
 ```
 

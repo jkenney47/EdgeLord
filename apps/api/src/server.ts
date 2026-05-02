@@ -5,7 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from "./bars";
-import { parseBarsCsv, readCsvFile } from "./csvImport";
+import { CsvImportValidationError, parseBarsCsv, readCsvFile } from "./csvImport";
 import { repoRoot } from "./db";
 import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
@@ -49,12 +49,24 @@ app.post("/import/csv", async (request, reply) => {
       activeLabels: labelCount
     });
   }
-  const replacedBars = typeof body === "string" ? 0 : body.replaceBars ? clearBars() : 0;
-  const csv = typeof body === "string"
-    ? body
-    : body.csv ?? (body.path ? readCsvFile(path.resolve(repoRoot, body.path)) : "");
-  const result = importRawBars(parseBarsCsv(csv, "csv"));
-  return reply.send({ ...result, replacedBars });
+  try {
+    const csv = typeof body === "string"
+      ? body
+      : body.csv ?? (body.path ? readCsvFile(path.resolve(repoRoot, body.path)) : "");
+    const rawBars = parseBarsCsv(csv, "csv");
+    const replacedBars = typeof body === "string" ? 0 : body.replaceBars ? clearBars() : 0;
+    const result = importRawBars(rawBars);
+    return reply.send({ ...result, replacedBars });
+  } catch (error) {
+    if (error instanceof CsvImportValidationError) {
+      return reply.status(400).send({
+        error: "CSV import failed validation",
+        issues: error.issues.slice(0, 25),
+        issueCount: error.issues.length
+      });
+    }
+    throw error;
+  }
 });
 
 app.get("/bars", async (request) => {

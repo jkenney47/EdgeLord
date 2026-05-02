@@ -31,6 +31,8 @@ It writes:
 - `reports/<timestamp>-time-splits.csv`
 - `reports/<timestamp>-split-rule-eval.md`
 - `reports/<timestamp>-split-rule-eval.csv`
+- `reports/<timestamp>-entry-outcomes.md`
+- `reports/<timestamp>-entry-outcomes.csv`
 - `reports/<timestamp>-strategy-rules.v1.json`
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 
@@ -94,6 +96,18 @@ python3 research/split_rule_eval.py \
 ```
 
 Use validate/test split behavior as an early warning before promoting a candidate rule.
+
+To compare entry-time features on winning vs losing closed trades:
+
+```bash
+python3 research/entry_outcome_analysis.py \
+  --training /path/to/training-features.csv \
+  --trades /path/to/trades.csv \
+  --output /path/to/entry-outcomes.md \
+  --csv-output /path/to/entry-outcomes.csv
+```
+
+This is the first return-optimizer scaffold. It needs closed trades with training-eligible ENTRY labels before it can say anything useful.
 
 To generate only the TradingView-facing scaffold from candidate rules:
 

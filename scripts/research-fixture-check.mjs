@@ -95,6 +95,16 @@ try {
   assert(readFile("split-rule-eval.md").includes("EdgeLord Split Rule Evaluation"), "split rule eval report should be written");
 
   run([
+    "research/entry_outcome_analysis.py",
+    "--training", trainingCsv,
+    "--trades", tradesCsv,
+    "--output", path.join(tempDir, "entry-outcomes.md"),
+    "--csv-output", path.join(tempDir, "entry-outcomes.csv")
+  ]);
+  assert(readFile("entry-outcomes.md").includes("EdgeLord Entry Outcome Analysis"), "entry outcome report should be written");
+  assert(readFile("entry-outcomes.csv").includes("l1,SOXL,4H"), "entry outcome CSV should include the closed entry row");
+
+  run([
     "research/generate_pine_stub.py",
     "--rules-json", path.join(tempDir, "candidate-rules.json"),
     "--rules-output", path.join(tempDir, "strategy-rules.v1.json"),

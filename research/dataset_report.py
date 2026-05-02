@@ -232,6 +232,50 @@ def training_row_issues(labels: list[dict[str, str]], training: list[dict[str, s
     }
 
 
+def target_encoding_issues(training: list[dict[str, str]]) -> list[dict[str, str]]:
+    target_columns = {
+        "ENTRY": "target_entry",
+        "EXIT": "target_exit",
+        "SKIP": "target_skip",
+        "INVALID": "target_invalid",
+    }
+    issues: list[dict[str, str]] = []
+    for row in training:
+        action = row.get("action", "")
+        if action not in target_columns:
+            issues.append({
+                "label_id": row.get("label_id", ""),
+                "action": action,
+                "reason": "unknown action",
+            })
+            continue
+
+        expected = {
+            column: "1" if column == target_columns[action] else "0"
+            for column in target_columns.values()
+        }
+        mismatched = [
+            column for column, expected_value in expected.items()
+            if row.get(column, "") != expected_value
+        ]
+        if mismatched:
+            issues.append({
+                "label_id": row.get("label_id", ""),
+                "action": action,
+                "reason": f"target columns do not match action: {', '.join(mismatched)}",
+            })
+    return issues
+
+
+def format_target_encoding_issues(issues: list[dict[str, str]]) -> list[str]:
+    lines = ["\nTarget Encoding Consistency"]
+    if not issues:
+        return [*lines, "  actions match target columns"]
+    for issue in issues[:25]:
+        lines.append(f"  {issue['label_id']} {issue['action']}: {issue['reason']}")
+    return lines
+
+
 def has_training_row_issues(issues: dict[str, list[str]]) -> bool:
     return any(issues.values())
 
@@ -263,6 +307,7 @@ def dataset_summary(
     entries_without_trade: list[dict[str, str]],
     state_sequence_issues: list[dict[str, str]],
     training_issues: dict[str, list[str]],
+    target_issues: list[dict[str, str]],
 ) -> dict[str, object]:
     training_actions = count_by(training, "action")
     entry_count = training_actions.get("ENTRY", 0)
@@ -276,6 +321,7 @@ def dataset_summary(
         len(entries_without_trade) == 0 and
         len(state_sequence_issues) == 0 and
         not has_training_row_issues(training_issues) and
+        len(target_issues) == 0 and
         entry_count > 0 and
         skip_count > 0
     )
@@ -309,6 +355,7 @@ def dataset_summary(
             "missingEligibleTrainingRows": len(training_issues["missingEligibleLabelIds"]),
             "extraTrainingRows": len(training_issues["extraTrainingLabelIds"]),
             "duplicateTrainingRows": len(training_issues["duplicateTrainingLabelIds"]),
+            "targetEncodingIssues": len(target_issues),
         },
         "actions": counter_dict(labels, "action"),
         "trainingActions": counter_dict(training, "action"),
@@ -331,6 +378,7 @@ def dataset_summary(
             ],
             "sequenceIssues": state_sequence_issues[:25],
             "trainingRows": training_issues,
+            "targetEncoding": target_issues[:25],
         },
         "readiness": {
             "readyForRuleMining": ready_for_rule_mining,
@@ -360,6 +408,7 @@ def next_label_recommendations(
     entries_without_trade: list[dict[str, str]],
     state_sequence_issues: list[dict[str, str]],
     training_issues: dict[str, list[str]],
+    target_issues: list[dict[str, str]],
 ) -> list[str]:
     training_actions = count_by(training, "action")
     training_tickers = count_by(training, "ticker")
@@ -371,7 +420,7 @@ def next_label_recommendations(
     excluded = len([label for label in labels if label.get("training_eligible") != "1"])
 
     lines = ["\nWhat To Label Next"]
-    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues):
+    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues) or target_issues:
         lines.append("  1. Fix dataset consistency, state-machine, or orphan trade-link issues before adding modeling labels.")
         return lines
     if entries == 0:
@@ -425,6 +474,7 @@ def main() -> None:
     ]
     state_sequence_issues = sequence_issues(labels)
     training_issues = training_row_issues(labels, training)
+    target_issues = target_encoding_issues(training)
 
     lines = [
         "EdgeLord Dataset Report",
@@ -440,6 +490,7 @@ def main() -> None:
         f"missing_eligible_training_rows: {len(training_issues['missingEligibleLabelIds'])}",
         f"extra_training_rows: {len(training_issues['extraTrainingLabelIds'])}",
         f"duplicate_training_rows: {len(training_issues['duplicateTrainingLabelIds'])}",
+        f"target_encoding_issues: {len(target_issues)}",
     ]
 
     lines.extend(format_counts("Actions", count_by(labels, "action")))
@@ -453,6 +504,7 @@ def main() -> None:
     lines.extend(format_return_summary(trades))
     lines.extend(format_sequence_issues(state_sequence_issues))
     lines.extend(format_training_row_issues(training_issues))
+    lines.extend(format_target_encoding_issues(target_issues))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
 
@@ -479,12 +531,12 @@ def main() -> None:
         lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
     if closed_count < CLOSED_TRADE_ROUGH_TARGET:
         lines.append(f"  closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
-    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues):
+    if orphan_exits or entries_without_trade or state_sequence_issues or has_training_row_issues(training_issues) or target_issues:
         lines.append("  fix dataset consistency/state-machine/orphan trade-link issues before modeling")
     if excluded_labels:
         lines.append("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
 
-    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues))
+    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues))
 
     report = "\n".join(lines) + "\n"
     print(report, end="")
@@ -493,7 +545,7 @@ def main() -> None:
         args.output.write_text(report)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues)
+        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues)
         args.json_output.write_text(f"{json.dumps(summary, indent=2)}\n")
 
 

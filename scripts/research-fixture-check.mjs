@@ -103,6 +103,8 @@ try {
   assert(readFile("dataset-report.md").includes("State Machine Sequence Issues"), "dataset report should include state-machine sequence diagnostics");
   assert(readFile("dataset-report.md").includes("Training Row Consistency"), "dataset report should include training row consistency diagnostics");
   assert(readFile("dataset-report.md").includes("eligible labels match training rows"), "fixture training rows should match eligible labels");
+  assert(readFile("dataset-report.md").includes("Target Encoding Consistency"), "dataset report should include target encoding diagnostics");
+  assert(readFile("dataset-report.md").includes("actions match target columns"), "fixture targets should match actions");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
@@ -110,7 +112,9 @@ try {
   assert(datasetReport.counts.missingEligibleTrainingRows === 0, "dataset report should count missing eligible training rows");
   assert(datasetReport.counts.extraTrainingRows === 0, "dataset report should count extra training rows");
   assert(datasetReport.counts.duplicateTrainingRows === 0, "dataset report should count duplicate training rows");
+  assert(datasetReport.counts.targetEncodingIssues === 0, "dataset report should count target encoding issues");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
+  assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");
   assert(datasetReport.readiness.targets.roughRuleMiningDecisionRows === 300, "dataset report JSON should include rough decision target");

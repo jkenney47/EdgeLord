@@ -103,6 +103,12 @@ if (!summaryRows.some((item) => item.timeframe === "RAW")) {
 
 const allRowsHaveData = rows.every((row) => row.bars > 0);
 const shortestSpan = Math.min(...rows.map((row) => row.spanDays));
+const earliestChartTimestamp = rows
+  .map((row) => row.first)
+  .filter(Boolean)
+  .sort()[0] ?? "";
+const targetStart = "2011-01-01T00:00:00.000Z";
+const alpacaKnownStart = "2016-01-04T14:30:00.000Z";
 const rawSources = sourceSet(summaryRows, "RAW");
 const chartSources = sourceSet(summaryRows, "1D");
 const onlySampleData = rawSources.size === 1 && rawSources.has("sample");
@@ -135,6 +141,10 @@ if (!allRowsHaveData) {
   readinessCode = "below_target";
   readinessMessages.push(`Data is usable for early tests, but below the 2011-present target. Shortest span is ${shortestSpan.toFixed(1)} days.`);
   readinessMessages.push("Recommended: keep this for smoke testing only; use `--research-ready` for the real backfill.");
+} else if (earliestChartTimestamp > targetStart) {
+  readinessCode = "alpaca_era_ready";
+  readinessMessages.push(`Data span is ready for Alpaca-era research, starting ${earliestChartTimestamp.slice(0, 10)}.`);
+  readinessMessages.push(`The 2011-2015 SOXL/SOXS history gap remains unresolved; current Alpaca SIP minute coverage starts around ${alpacaKnownStart.slice(0, 10)}.`);
 } else {
   readinessMessages.push(`Data span is ready for broader research. Shortest span is ${shortestSpan.toFixed(1)} days.`);
 }
@@ -157,7 +167,9 @@ if (process.argv.includes("--write")) {
     apiBaseUrl: baseUrl,
     readiness: {
       code: readinessCode,
-      readyForResearch: readinessCode === "ready",
+      readyForResearch: readinessCode === "ready" || readinessCode === "alpaca_era_ready",
+      targetStart,
+      earliestChartTimestamp,
       shortestSpanDays: shortestSpan,
       messages: readinessMessages
     },

@@ -56,8 +56,9 @@ export function tradesCsv(trades: Trade[]): string {
 
 export function trainingFeaturesCsv(labels: Label[]): string {
   const columns = [
-    "label_id", "label_source", "capture_mode", "action", "ticker", "timeframe", "timestamp", "trade_id", "parent_entry_label_id",
-    "chart_price", "visible_until_timestamp",
+    "label_id", "label_source", "capture_mode", "action", "target_entry", "target_exit", "target_skip", "target_invalid",
+    "ticker", "timeframe", "timestamp", "trade_id", "parent_entry_label_id", "chart_price", "execution_price", "decision_price",
+    "visible_until_timestamp",
     ...featureColumns.map(([, column]) => column)
   ];
   const rows = labels.filter((label) => label.training_eligible === 1).map((label) => {
@@ -67,12 +68,18 @@ export function trainingFeaturesCsv(labels: Label[]): string {
       label_source: label.label_source,
       capture_mode: label.capture_mode,
       action: label.action,
+      target_entry: label.action === "ENTRY" ? 1 : 0,
+      target_exit: label.action === "EXIT" ? 1 : 0,
+      target_skip: label.action === "SKIP" ? 1 : 0,
+      target_invalid: label.action === "INVALID" ? 1 : 0,
       ticker: label.ticker,
       timeframe: label.timeframe,
       timestamp: label.timestamp,
       trade_id: label.trade_id,
       parent_entry_label_id: label.parent_entry_label_id,
       chart_price: label.chart_price,
+      execution_price: label.execution_price,
+      decision_price: label.execution_price ?? label.chart_price,
       visible_until_timestamp: label.visible_until_timestamp,
       ...Object.fromEntries(featureColumns.map(([featureKey, column]) => [
         column,

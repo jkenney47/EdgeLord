@@ -94,7 +94,7 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 - `GET /export/labels.jsonl`
 - `GET /export/manifest.json`
 
-Training features include only training-eligible labels by default and carry label source / capture mode metadata so research can segment actual trades from replay labels.
+Training features include only training-eligible labels by default and carry label source / capture mode metadata, explicit `target_entry` / `target_exit` / `target_skip` / `target_invalid` columns, and both chart/execution decision prices so research can segment actual trades from replay labels without joining back to the label export.
 Trade candidates include HOLD/EXIT rows between training-eligible entry/exit pairs so exit-rule research can compare in-trade bars instead of only labeled decision rows.
 
 ## Verify

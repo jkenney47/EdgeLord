@@ -10,6 +10,8 @@ Goal:
 
 This folder is intentionally only scaffolding. Do not build strategy mining UI into the app.
 
+`training-features.csv` is the primary model table. It includes one row per training-eligible label, explicit target columns for ENTRY/EXIT/SKIP/INVALID, chart price, optional execution price, and `decision_price` using execution price when available.
+
 ## First Report
 
 With the API running, use the repo command:

@@ -72,7 +72,7 @@ async function apiSmoke() {
   }
 
   const csv = await fetch(`${baseUrl}/export/training-features.csv`).then((response) => response.text());
-  if (!csv.startsWith("label_id,label_source,capture_mode,action,ticker,timeframe,timestamp")) {
+  if (!csv.startsWith("label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp")) {
     throw new Error("training-features.csv header is unexpected");
   }
   console.log("ok /export/training-features.csv");
@@ -347,8 +347,11 @@ async function runAcceptance() {
 
     const trainingCsv = await fetch(`${baseUrl}/export/training-features.csv`).then((response) => response.text());
     const trainingRows = trainingCsv.trim().split("\n");
-    assert(trainingRows[0].startsWith("label_id,label_source,capture_mode,action,ticker,timeframe,timestamp"), "training-features.csv header is unexpected");
+    assert(trainingRows[0].startsWith("label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp"), "training-features.csv header is unexpected");
     assert(trainingRows.length === 4, `Expected 3 training rows plus header, got ${trainingRows.length}`);
+    assert(trainingRows[0].includes("execution_price,decision_price"), "training-features.csv should expose execution and decision prices");
+    assert(trainingCsv.includes(",ENTRY,1,0,0,0,"), "training-features.csv should include explicit ENTRY target columns");
+    assert(trainingCsv.includes(",SKIP,0,0,1,0,"), "training-features.csv should include explicit SKIP target columns");
     assert(!trainingCsv.includes(hindsight.label.id), "training-features.csv should exclude hindsight label");
     assert(!trainingCsv.includes(exit.label.id), "training-features.csv should exclude deleted labels");
     console.log("ok /export/training-features.csv excludes ineligible labels");

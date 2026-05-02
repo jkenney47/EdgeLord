@@ -152,6 +152,11 @@ if (failures.length === 0) {
     const tradeCandidates = readiness.research.exportManifest.tradeCandidates;
     console.log(`- Trade candidates export: ${tradeCandidates.rows} rows (${tradeCandidates.closedTradesWithCandidates}/${tradeCandidates.closedTrades} eligible closed trades covered)`);
   }
+  if (readiness.research?.promotion) {
+    const promotion = readiness.research.promotion;
+    const warningCount = Array.isArray(promotion.warnings) ? promotion.warnings.length : 0;
+    console.log(`- Pine promotion: ${promotion.status ?? "unknown"} (${warningCount} warnings)`);
+  }
   if (readiness.app?.nextTarget) {
     const appTarget = readiness.app.nextTarget;
     console.log(`- App focus target: ${appTarget.kind} (${appTarget.current}/${appTarget.target}, ${appTarget.remaining} remaining)`);

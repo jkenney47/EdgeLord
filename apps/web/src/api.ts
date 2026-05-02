@@ -40,6 +40,7 @@ export type DatasetPulse = {
     eligibleOrphanExits: number;
     entriesWithoutTrade: number;
     sameCandleDecisionConflicts: number;
+    tradeConsistencyIssues: number;
     ready: boolean;
   };
   labels: {

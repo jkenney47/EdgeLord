@@ -41,6 +41,7 @@ export function App() {
   const [index, setIndex] = useState(0);
   const [jumpDate, setJumpDate] = useState("");
   const [labelSource, setLabelSource] = useState<LabelSource>("retrospective_replay");
+  const [executionPrice, setExecutionPrice] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [labels, setLabels] = useState<Label[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -154,6 +155,12 @@ export function App() {
     }
     const activeBar = selected;
     if (!activeBar) return;
+    const trimmedExecutionPrice = executionPrice.trim();
+    const parsedExecutionPrice = trimmedExecutionPrice === "" ? null : Number(trimmedExecutionPrice);
+    if (trimmedExecutionPrice !== "" && !Number.isFinite(parsedExecutionPrice)) {
+      setError("Execution price must be a number.");
+      return;
+    }
     setError(null);
     setCaptureStatus(null);
     try {
@@ -164,6 +171,7 @@ export function App() {
         timeframe,
         timestamp: activeBar.timestamp,
         chartPrice: activeBar.close,
+        executionPrice: labelSource === "actual_trade" ? parsedExecutionPrice : null,
         captureMode: mode,
         visibleUntilTimestamp: mode === "replay" ? activeBar.timestamp : bars.at(-1)?.timestamp ?? activeBar.timestamp,
         potentialVisualLeakage: mode === "regular" && labelSource !== "actual_trade"
@@ -174,10 +182,13 @@ export function App() {
       if (shouldAdvance) {
         move(1);
       }
+      if (labelSource === "actual_trade") {
+        setExecutionPrice("");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [autoAdvance, bars.length, index, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
+  }, [autoAdvance, bars, executionPrice, index, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     setError(null);
@@ -342,8 +353,10 @@ export function App() {
           error={error}
           captureStatus={captureStatus}
           autoAdvance={autoAdvance}
+          executionPrice={executionPrice}
           onLabelSource={setLabelSource}
           onAutoAdvance={setAutoAdvance}
+          onExecutionPrice={setExecutionPrice}
           onCapture={capture}
           onUndo={undo}
           onGoToOpenTradeEntry={goToOpenTradeEntry}

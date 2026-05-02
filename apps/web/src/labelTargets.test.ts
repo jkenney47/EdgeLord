@@ -14,6 +14,7 @@ function label(action: Label["action"], trainingEligible = 1): Label {
     timestamp: "2024-01-02T14:30:00.000Z",
     bar_index: 0,
     chart_price: 10,
+    execution_price: null,
     trade_id: null,
     parent_entry_label_id: null,
     capture_mode: "replay",

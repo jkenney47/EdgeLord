@@ -12,6 +12,7 @@ export function getOpenTrade(): Trade | null {
 }
 
 function insertOpenTrade(entry: Label, createdAt = nowIso()): Trade {
+  const entryPrice = entry.execution_price ?? entry.chart_price;
   const trade: Trade = {
     id: entry.trade_id ?? `trade-${nanoid(10)}`,
     ticker: entry.ticker,
@@ -19,7 +20,7 @@ function insertOpenTrade(entry: Label, createdAt = nowIso()): Trade {
     exit_label_id: null,
     entry_timestamp: entry.timestamp,
     exit_timestamp: null,
-    entry_price: entry.chart_price,
+    entry_price: entryPrice,
     exit_price: null,
     return_pct: null,
     status: "open",
@@ -47,12 +48,13 @@ export function closeTrade(exit: Label, updatedAt = nowIso()): Trade {
     throw new Error(`Exit candle ${exit.timestamp} is before open ${openTrade.ticker} entry ${openTrade.entry_timestamp}.`);
   }
 
-  const returnPct = ((exit.chart_price - openTrade.entry_price) / openTrade.entry_price) * 100;
+  const exitPrice = exit.execution_price ?? exit.chart_price;
+  const returnPct = ((exitPrice - openTrade.entry_price) / openTrade.entry_price) * 100;
   db.prepare(`
     update trades
     set exit_label_id = ?, exit_timestamp = ?, exit_price = ?, return_pct = ?, status = 'closed', updated_at = ?
     where id = ?
-  `).run(exit.id, exit.timestamp, exit.chart_price, returnPct, updatedAt, openTrade.id);
+  `).run(exit.id, exit.timestamp, exitPrice, returnPct, updatedAt, openTrade.id);
 
   return db.prepare("select * from trades where id = ?").get(openTrade.id) as Trade;
 }

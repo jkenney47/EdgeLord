@@ -27,6 +27,7 @@ function label(timestamp: string, overrides: Partial<Label> = {}): Label {
     timestamp,
     bar_index: 0,
     chart_price: 10,
+    execution_price: null,
     trade_id: null,
     parent_entry_label_id: null,
     capture_mode: "replay",

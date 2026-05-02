@@ -73,6 +73,7 @@ export type Label = {
   timestamp: string;
   bar_index: number;
   chart_price: number;
+  execution_price: number | null;
   trade_id: string | null;
   parent_entry_label_id: string | null;
   capture_mode: CaptureMode;
@@ -153,6 +154,7 @@ export async function createLabel(input: {
   timeframe: Timeframe;
   timestamp: string;
   chartPrice: number;
+  executionPrice?: number | null;
   captureMode: CaptureMode;
   visibleUntilTimestamp: string;
   potentialVisualLeakage: boolean;

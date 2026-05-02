@@ -12,8 +12,10 @@ type Props = {
   error: string | null;
   captureStatus: string | null;
   autoAdvance: boolean;
+  executionPrice: string;
   onLabelSource: (source: LabelSource) => void;
   onAutoAdvance: (enabled: boolean) => void;
+  onExecutionPrice: (value: string) => void;
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
   onGoToOpenTradeEntry: () => void;
@@ -44,8 +46,10 @@ export function CapturePanel({
   error,
   captureStatus,
   autoAdvance,
+  executionPrice,
   onLabelSource,
   onAutoAdvance,
+  onExecutionPrice,
   onCapture,
   onUndo,
   onGoToOpenTradeEntry,
@@ -103,6 +107,17 @@ export function CapturePanel({
             ? "Training eligible"
             : "Excluded by default"}
         </span>
+        {labelSource === "actual_trade" ? (
+          <label className="field">
+            <span>Execution price</span>
+            <input
+              inputMode="decimal"
+              placeholder={selected ? selected.close.toFixed(2) : "Optional"}
+              value={executionPrice}
+              onChange={(event) => onExecutionPrice(event.target.value)}
+            />
+          </label>
+        ) : null}
         <label className="toggle-row">
           <input type="checkbox" checked={autoAdvance} onChange={(event) => onAutoAdvance(event.target.checked)} />
           <span>Auto-advance</span>

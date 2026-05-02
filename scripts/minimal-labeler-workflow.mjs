@@ -403,6 +403,40 @@ async function runAcceptance() {
     assert(tradesAfterEntryDelete.length === 0, "Deleting an entry should remove the paired trade");
     console.log("ok deleting entry clears dependent exit state");
 
+    const actualEntry = await postLabel(baseUrl, {
+      labelSource: "actual_trade",
+      action: "ENTRY",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[0].timestamp,
+      chartPrice: soxsBars[0].close,
+      executionPrice: 100,
+      captureMode: "regular",
+      visibleUntilTimestamp: soxsBars[0].timestamp
+    });
+    assert(actualEntry.label.training_eligible === 1, "Actual entry should be training eligible");
+    const actualExit = await postLabel(baseUrl, {
+      labelSource: "actual_trade",
+      action: "EXIT",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[1].timestamp,
+      chartPrice: soxsBars[1].close,
+      executionPrice: 110,
+      captureMode: "regular",
+      visibleUntilTimestamp: soxsBars[1].timestamp
+    });
+    assert(actualExit.label.training_eligible === 1, "Actual exit should be training eligible");
+    const actualTrades = await fetchJson(baseUrl, "/trades").then(({ response, body }) => {
+      assert(response.ok, `/trades returned ${response.status}`);
+      return body.trades;
+    });
+    const actualTrade = actualTrades.find((trade) => trade.entry_label_id === actualEntry.label.id);
+    assert(actualTrade?.entry_price === 100, "Actual trade should use execution entry price");
+    assert(actualTrade.exit_price === 110, "Actual trade should use execution exit price");
+    assert(Math.abs(actualTrade.return_pct - 10) < 0.0001, "Actual trade return should use execution prices");
+    console.log("ok actual trade execution prices drive returns");
+
     const csv = fs.readFileSync(path.join(root, "data", "sample-bars.csv"), "utf8");
     const guardedImport = await importCsv(baseUrl, { csv, replaceBars: true }, 409);
     assert(guardedImport.activeLabels > 0, "Replace-bars guard should report active labels");

@@ -123,6 +123,12 @@ function inspectSequence(items) {
           reason: `EXIT ${label.ticker} while open trade is ${open.ticker}`,
           openLabel: open
         });
+      } else if (String(label.timestamp) < String(open.timestamp)) {
+        sequenceIssues.push({
+          label,
+          reason: `EXIT before entry label ${open.id}`,
+          openLabel: open
+        });
       } else {
         open = null;
       }

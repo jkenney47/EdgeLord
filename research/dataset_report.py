@@ -177,6 +177,15 @@ def sequence_issues(labels: list[dict[str, str]]) -> list[dict[str, str]]:
                     "reason": f"EXIT {label.get('ticker', '')} while open trade is {open_label.get('ticker', '')}",
                     "open_label_id": open_label.get("id", ""),
                 })
+            elif label.get("timestamp", "") < open_label.get("timestamp", ""):
+                issues.append({
+                    "label_id": label.get("id", ""),
+                    "action": action,
+                    "ticker": label.get("ticker", ""),
+                    "timestamp": label.get("timestamp", ""),
+                    "reason": f"EXIT before entry label {open_label.get('id', '')}",
+                    "open_label_id": open_label.get("id", ""),
+                })
             else:
                 open_label = None
     return issues

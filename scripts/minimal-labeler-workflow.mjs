@@ -212,6 +212,20 @@ async function runAcceptance() {
     assert(entry.openTrade?.ticker === "SOXL", "SOXL entry should open a SOXL trade");
     console.log("ok entry opens trade");
 
+    const canonicalSkip = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[0].timestamp,
+      chartPrice: soxsBars[0].close + 999,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxsBars[0].timestamp
+    });
+    assert(canonicalSkip.label.chart_price === soxsBars[0].close, "Label chart price should come from the stored candle");
+    await deleteLabel(baseUrl, canonicalSkip.label.id);
+    console.log("ok labels canonicalize chart price");
+
     const blockedEntry = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "ENTRY",

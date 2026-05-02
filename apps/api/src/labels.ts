@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
 
-import { getBarIndex } from "./bars";
+import { getBars } from "./bars";
 import { db, nowIso } from "./db";
 import { buildFeatures } from "./indicators";
 import type { CaptureMode, Label, LabelSource } from "./schema";
@@ -31,12 +31,16 @@ function trainingEligible(labelSource: LabelSource, captureMode: CaptureMode, le
   return labelSource === "actual_trade" || (labelSource === "retrospective_replay" && captureMode === "replay");
 }
 
-function requireBarIndex(input: { ticker: Label["ticker"]; timeframe: Label["timeframe"]; timestamp: string }): number {
-  const barIndex = getBarIndex(input.ticker, input.timeframe, input.timestamp);
+function requireBarSnapshot(input: { ticker: Label["ticker"]; timeframe: Label["timeframe"]; timestamp: string }): {
+  barIndex: number;
+  chartPrice: number;
+} {
+  const bars = getBars(input.ticker, input.timeframe);
+  const barIndex = bars.findIndex((bar) => bar.timestamp === input.timestamp);
   if (barIndex < 0) {
     throw new Error(`No ${input.ticker} ${input.timeframe} bar exists at ${input.timestamp}`);
   }
-  return barIndex;
+  return { barIndex, chartPrice: bars[barIndex].close };
 }
 
 function hasPatchKey<K extends keyof z.infer<typeof patchLabelSchema>>(
@@ -79,7 +83,7 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
       : null;
   const parentEntryLabelId = input.action === "EXIT" ? openTrade?.entry_label_id ?? null : null;
   const leakage = input.potentialVisualLeakage ?? (input.captureMode === "regular" && input.labelSource !== "actual_trade");
-  const barIndex = requireBarIndex(input);
+  const { barIndex, chartPrice } = requireBarSnapshot(input);
   const features = buildFeatures(input.ticker, input.timeframe, input.timestamp);
   const label: Label = {
     id: `label-${nanoid(12)}`,
@@ -90,7 +94,7 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
     timeframe: input.timeframe,
     timestamp: input.timestamp,
     bar_index: barIndex,
-    chart_price: input.chartPrice,
+    chart_price: chartPrice,
     execution_price: input.executionPrice ?? null,
     trade_id: tradeId,
     parent_entry_label_id: parentEntryLabelId,
@@ -148,7 +152,9 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
     updated_at: nowIso()
   };
   next.training_eligible = trainingEligible(next.label_source, next.capture_mode, Boolean(next.potential_visual_leakage)) ? 1 : 0;
-  next.bar_index = requireBarIndex(next);
+  const barSnapshot = requireBarSnapshot(next);
+  next.bar_index = barSnapshot.barIndex;
+  next.chart_price = barSnapshot.chartPrice;
   next.features_json = JSON.stringify(buildFeatures(next.ticker, next.timeframe, next.timestamp));
 
   const proposedLabels = getLabels().map((label) => label.id === id ? next as Label : label);

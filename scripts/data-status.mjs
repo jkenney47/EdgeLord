@@ -116,7 +116,9 @@ if (failures.length === 0) {
   if (readiness.research?.dataset?.readiness) {
     const datasetReadiness = readiness.research.dataset.readiness;
     console.log(`- Rule mining: ${datasetReadiness.readyForRuleMining ? "ready" : "not ready"} (${datasetReadiness.entryRows} entries / ${datasetReadiness.skipRows} skips)`);
+    console.log(`- Rough rule mining: ${datasetReadiness.readyForRoughRuleMining ? "ready" : "not ready"} (${datasetReadiness.decisionRows} decisions / ${datasetReadiness.targets?.roughRuleMiningDecisionRows ?? 300} target)`);
     console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
+    console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
   }
   console.log(`status: ${path.relative(root, summaryPath)}`);
   process.exit(0);

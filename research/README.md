@@ -40,7 +40,7 @@ It writes:
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 - `reports/<timestamp>-research-summary.json`
 
-`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact, embeds the dataset readiness counts/issues, and includes the top human-mimic and return-optimized rules when available. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, Pine feature support status, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
+`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact, embeds the dataset readiness counts/issues, and includes the top human-mimic and return-optimized rules when available. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, Pine feature support status, rough dataset targets, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
 
 Or export CSV files manually and run:
 
@@ -139,4 +139,4 @@ python3 research/generate_pine_stub.py \
   --pine-output /path/to/strategy-soxl-soxs.pine
 ```
 
-The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. `strategy-rules.v1.json` records dataset readiness, promotion warnings, and whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.
+The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. `strategy-rules.v1.json` records dataset readiness, rough label-count targets, promotion warnings, and whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.

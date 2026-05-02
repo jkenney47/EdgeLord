@@ -9,6 +9,12 @@ from pathlib import Path
 from typing import Iterable
 
 
+ENTRY_ROUGH_TARGET = 100
+DECISION_ROUGH_TARGET = 300
+SKIP_ROUGH_TARGET = 100
+CLOSED_TRADE_ROUGH_TARGET = 30
+
+
 def read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="") as handle:
         return list(csv.DictReader(handle))
@@ -218,6 +224,8 @@ def dataset_summary(
     entry_count = training_actions.get("ENTRY", 0)
     skip_count = training_actions.get("SKIP", 0)
     exit_count = training_actions.get("EXIT", 0)
+    decision_count = len(training)
+    closed_trade_count = count_by(trades, "status").get("closed", 0)
     excluded_labels = [label for label in labels if label.get("training_eligible") != "1"]
     ready_for_rule_mining = (
         len(orphan_exits) == 0 and
@@ -228,8 +236,19 @@ def dataset_summary(
     )
     ready_for_return_analysis = (
         ready_for_rule_mining and
-        count_by(trades, "status").get("closed", 0) > 0 and
+        closed_trade_count > 0 and
         exit_count > 0
+    )
+    ready_for_rough_rule_mining = (
+        ready_for_rule_mining and
+        entry_count >= ENTRY_ROUGH_TARGET and
+        skip_count >= SKIP_ROUGH_TARGET and
+        decision_count >= DECISION_ROUGH_TARGET
+    )
+    ready_for_rough_return_analysis = (
+        ready_for_rough_rule_mining and
+        closed_trade_count >= CLOSED_TRADE_ROUGH_TARGET and
+        exit_count >= ENTRY_ROUGH_TARGET
     )
     return {
         "version": "edgelord.dataset_report.v1",
@@ -267,10 +286,19 @@ def dataset_summary(
         "readiness": {
             "readyForRuleMining": ready_for_rule_mining,
             "readyForReturnAnalysis": ready_for_return_analysis,
+            "readyForRoughRuleMining": ready_for_rough_rule_mining,
+            "readyForRoughReturnAnalysis": ready_for_rough_return_analysis,
+            "decisionRows": decision_count,
             "entryRows": entry_count,
             "skipRows": skip_count,
             "exitRows": exit_count,
-            "closedTrades": count_by(trades, "status").get("closed", 0),
+            "closedTrades": closed_trade_count,
+            "targets": {
+                "roughRuleMiningDecisionRows": DECISION_ROUGH_TARGET,
+                "roughRuleMiningEntryRows": ENTRY_ROUGH_TARGET,
+                "roughRuleMiningSkipRows": SKIP_ROUGH_TARGET,
+                "roughReturnAnalysisClosedTrades": CLOSED_TRADE_ROUGH_TARGET,
+            },
         },
     }
 
@@ -375,16 +403,25 @@ def main() -> None:
     entry_count = count_by(training, "action").get("ENTRY", 0)
     skip_count = count_by(training, "action").get("SKIP", 0)
     exit_count = count_by(training, "action").get("EXIT", 0)
-    if entry_count < 100:
-        lines.append(f"  entry labels are still early: {entry_count}/100 rough-mining target")
+    closed_count = count_by(trades, "status").get("closed", 0)
+    if len(training) < DECISION_ROUGH_TARGET:
+        lines.append(f"  decision rows are still early: {len(training)}/{DECISION_ROUGH_TARGET} rough-mining target")
+    else:
+        lines.append(f"  decision rows reached rough-mining target: {len(training)}")
+    if entry_count < ENTRY_ROUGH_TARGET:
+        lines.append(f"  entry labels are still early: {entry_count}/{ENTRY_ROUGH_TARGET} rough-mining target")
     else:
         lines.append(f"  entry labels reached rough-mining target: {entry_count}")
-    if skip_count < entry_count:
+    if skip_count < SKIP_ROUGH_TARGET:
+        lines.append(f"  skip labels are still early: {skip_count}/{SKIP_ROUGH_TARGET} rough-mining target")
+    elif skip_count < entry_count:
         lines.append(f"  add more SKIP examples near tempting setups: {skip_count} skips vs {entry_count} entries")
     else:
         lines.append(f"  skip coverage is at least entry-sized: {skip_count} skips vs {entry_count} entries")
     if exit_count < entry_count:
         lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
+    if closed_count < CLOSED_TRADE_ROUGH_TARGET:
+        lines.append(f"  closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
     if orphan_exits or entries_without_trade or state_sequence_issues:
         lines.append("  fix state-machine/orphan trade-link issues before modeling")
     if excluded_labels:

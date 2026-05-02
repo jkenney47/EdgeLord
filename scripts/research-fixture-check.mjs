@@ -96,6 +96,8 @@ try {
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.sequenceIssues === 0, "dataset report JSON should count sequence issues");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
+  assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");
+  assert(datasetReport.readiness.targets.roughRuleMiningDecisionRows === 300, "dataset report JSON should include rough decision target");
 
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));
@@ -163,11 +165,13 @@ try {
   assert(strategyRules.humanMimicTopRule, "strategy rules JSON should include the human rule");
   assert(strategyRules.returnOptimizedTopRule, "strategy rules JSON should include the return rule");
   assert(strategyRules.datasetReadiness?.readiness?.readyForRuleMining === true, "strategy rules JSON should include dataset rule-mining readiness");
-  assert(strategyRules.promotion?.status === "review_ready", "strategy rules JSON should mark the fixture scaffold review-ready");
+  assert(strategyRules.datasetReadiness?.readiness?.readyForRoughRuleMining === false, "strategy rules JSON should include rough dataset readiness");
+  assert(strategyRules.promotion?.status === "scaffold_only", "strategy rules JSON should block promotion below rough targets");
   assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Rough rule-mining target: not ready"), "Pine scaffold should include rough rule-mining readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   writeResearchSummaryFixture();
   const summary = JSON.parse(readFile("research-summary.json"));

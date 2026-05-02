@@ -61,7 +61,54 @@ describe("buildDatasetPulse", () => {
     const pulse = buildDatasetPulse(barSummary, labels, trades);
 
     expect(pulse.nextTarget.kind).toBe("skip_coverage");
+    expect(pulse.nextTarget.target).toBe(1);
+    expect(pulse.nextTarget.remaining).toBe(1);
+    expect(pulse.targets.find((target) => target.key === "skips")?.target).toBe(100);
     expect(pulse.nextActions[0]).toContain("SKIP labels");
+  });
+
+  it("keeps skip focus balanced with entries while preserving rough skip target", () => {
+    const labels = [
+      label("ENTRY", { id: "entry-1", trade_id: "trade-1", training_eligible: 1 }),
+      label("EXIT", {
+        id: "exit-1",
+        trade_id: "trade-1",
+        parent_entry_label_id: "entry-1",
+        training_eligible: 1,
+        timestamp: "2024-01-03T14:30:00.000Z"
+      }),
+      label("ENTRY", {
+        id: "entry-2",
+        trade_id: "trade-2",
+        training_eligible: 1,
+        timestamp: "2024-01-04T14:30:00.000Z"
+      }),
+      label("EXIT", {
+        id: "exit-2",
+        trade_id: "trade-2",
+        parent_entry_label_id: "entry-2",
+        training_eligible: 1,
+        timestamp: "2024-01-05T14:30:00.000Z"
+      }),
+      label("SKIP", {
+        id: "skip-1",
+        training_eligible: 1,
+        timestamp: "2024-01-06T14:30:00.000Z"
+      })
+    ];
+    const trades = [trade("closed"), {
+      ...trade("closed"),
+      id: "trade-2",
+      entry_label_id: "entry-2",
+      exit_label_id: "exit-2"
+    }];
+    const pulse = buildDatasetPulse(barSummary, labels, trades);
+
+    expect(pulse.nextTarget.kind).toBe("skip_coverage");
+    expect(pulse.nextTarget.current).toBe(1);
+    expect(pulse.nextTarget.target).toBe(2);
+    expect(pulse.nextTarget.remaining).toBe(1);
+    expect(pulse.targets.find((target) => target.key === "skips")?.target).toBe(100);
   });
 
   it("pushes integrity repair before new labeling targets", () => {

@@ -118,8 +118,9 @@ function nextLabelingTarget(input: {
   if (input.exits < input.entries) {
     return target("exit_coverage", "Add EXIT labels for completed trade ideas.", input.exits, Math.max(input.entries, 1));
   }
-  if (input.skips < Math.min(input.entries, targets.skips)) {
-    return target("skip_coverage", "Add SKIP labels near tempting setups so the model has negative examples.", input.skips, Math.max(input.entries, targets.skips));
+  const immediateSkipTarget = Math.min(Math.max(input.entries, 1), targets.skips);
+  if (input.skips < immediateSkipTarget) {
+    return target("skip_coverage", "Add SKIP labels near tempting setups so the model has negative examples.", input.skips, immediateSkipTarget);
   }
   if (input.closedTrades < targets.closedTrades) {
     return target("closed_trade_coverage", "Build more closed trades for return analysis.", input.closedTrades, targets.closedTrades);

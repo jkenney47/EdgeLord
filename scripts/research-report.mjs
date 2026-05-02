@@ -35,6 +35,9 @@ const slug = timestampSlug();
 const backupDir = path.join(exportsDir, slug);
 const reportPath = path.join(reportsDir, `${slug}-dataset-report.md`);
 const rulesPath = path.join(reportsDir, `${slug}-candidate-rules.md`);
+const rulesJsonPath = path.join(reportsDir, `${slug}-candidate-rules.json`);
+const comparisonPath = path.join(reportsDir, `${slug}-human-vs-rule.md`);
+const comparisonCsvPath = path.join(reportsDir, `${slug}-human-vs-rule.csv`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -49,7 +52,10 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   apiBaseUrl: baseUrl,
   files,
   report: path.relative(root, reportPath),
-  candidateRules: path.relative(root, rulesPath)
+  candidateRules: path.relative(root, rulesPath),
+  candidateRulesJson: path.relative(root, rulesJsonPath),
+  humanVsRule: path.relative(root, comparisonPath),
+  humanVsRuleCsv: path.relative(root, comparisonCsvPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -66,12 +72,42 @@ execFileSync("python3", [
 execFileSync("python3", [
   "research/discover_rules.py",
   "--training", path.join(backupDir, "training-features.csv"),
-  "--output", rulesPath
+  "--output", rulesPath,
+  "--json-output", rulesJsonPath
 ], {
   cwd: root,
   stdio: "inherit"
 });
 
+const rules = JSON.parse(fs.readFileSync(rulesJsonPath, "utf8"));
+const topRule = rules.candidates?.[0];
+if (topRule) {
+  execFileSync("python3", [
+    "research/compare_rule.py",
+    "--training", path.join(backupDir, "training-features.csv"),
+    "--feature", topRule.feature,
+    "--direction", topRule.direction,
+    "--threshold", String(topRule.threshold),
+    "--output", comparisonPath,
+    "--csv-output", comparisonCsvPath
+  ], {
+    cwd: root,
+    stdio: "inherit"
+  });
+} else {
+  const report = [
+    "EdgeLord Human vs Rule Comparison",
+    "=================================",
+    "No candidate rule is available yet.",
+    "",
+    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+  ].join("\n") + "\n";
+  fs.writeFileSync(comparisonPath, report);
+  fs.writeFileSync(comparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,feature,direction,threshold,feature_value\n");
+  console.log(report);
+}
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
+console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);

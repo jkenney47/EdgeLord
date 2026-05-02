@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 
@@ -125,14 +126,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate simple EdgeLord ENTRY-vs-SKIP rule candidates.")
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
     parser.add_argument("--output", type=Path, help="Optional path to write candidate rules markdown")
+    parser.add_argument("--json-output", type=Path, help="Optional path to write candidate rules JSON")
     args = parser.parse_args()
 
     training = read_csv(args.training)
-    report = format_report(training, discover(training))
+    candidates = discover(training)
+    report = format_report(training, candidates)
     print(report, end="")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report)
+    if args.json_output:
+        args.json_output.parent.mkdir(parents=True, exist_ok=True)
+        args.json_output.write_text(f"{json.dumps({'candidates': candidates}, indent=2)}\n")
 
 
 if __name__ == "__main__":

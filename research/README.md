@@ -24,6 +24,9 @@ It writes:
 
 - `reports/<timestamp>-dataset-report.md`
 - `reports/<timestamp>-candidate-rules.md`
+- `reports/<timestamp>-candidate-rules.json`
+- `reports/<timestamp>-human-vs-rule.md`
+- `reports/<timestamp>-human-vs-rule.csv`
 
 Or export CSV files manually and run:
 
@@ -40,7 +43,8 @@ To generate only the simple rule-candidate report from a training export:
 
 ```bash
 python3 research/discover_rules.py \
-  --training /path/to/training-features.csv
+  --training /path/to/training-features.csv \
+  --json-output /path/to/candidate-rules.json
 ```
 
 Candidate rules are one-feature threshold prompts for research, not a tested strategy.

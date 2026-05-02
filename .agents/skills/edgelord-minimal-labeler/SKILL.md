@@ -15,6 +15,16 @@ pnpm slice:minimal-labeler
 
 Use `pnpm slice:minimal-labeler` for the normal autonomous loop. It runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, final git status, and closeout reminders in one command.
 
+## Goal Tracking
+
+For long autonomous development runs, use Codex goals to keep the broader objective explicit across slices. If no active goal exists and the user has asked to continue development broadly, create one like:
+
+```text
+Continue EdgeLord minimal-labeler development through coherent backend/export/research/UI slices, validating with the repo workflow and committing/pushing natural checkpoints until the labeling and research pipeline is materially stronger.
+```
+
+Do not mark the goal complete after a single slice. Mark it complete only when the broader development objective has actually been achieved or the user explicitly narrows/closes the run.
+
 ## Proceed Turn Macro
 
 When the user says `Proceed`, `Proceed with development`, or `Do whatever you recommend`, use this exact loop:

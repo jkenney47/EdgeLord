@@ -4,6 +4,8 @@ EdgeLord is now a minimal SOXL/SOXS trade labeler. Do not rebuild the old Tradin
 
 When continuing EdgeLord development, use the repo-local skill at `.agents/skills/edgelord-minimal-labeler/SKILL.md` first. It captures the preferred command sequence for proceed/checkpoint/data/import/browser-verification work so future turns do not rediscover it.
 
+For broad "proceed with development" runs, use Codex goals to track the larger objective across multiple coherent slices. Do not mark a goal complete merely because one slice was committed; complete it only when the broader run is actually finished or the user closes/narrows it.
+
 Allowed scope:
 
 - Load adjusted SOXL/SOXS OHLCV CSV data.

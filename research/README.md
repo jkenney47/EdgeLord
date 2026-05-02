@@ -44,3 +44,17 @@ python3 research/discover_rules.py \
 ```
 
 Candidate rules are one-feature threshold prompts for research, not a tested strategy.
+
+To compare one simple rule against human ENTRY/SKIP labels:
+
+```bash
+python3 research/compare_rule.py \
+  --training /path/to/training-features.csv \
+  --feature feature_distance_to_ema25_pct \
+  --direction ">=" \
+  --threshold 1.5 \
+  --output /path/to/human-vs-rule.md \
+  --csv-output /path/to/human-vs-rule.csv
+```
+
+The comparison buckets labels into human/model agreement, model-rejected human entries, and model-added entries on human skips.

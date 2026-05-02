@@ -166,15 +166,18 @@ try {
   ]);
   const strategyRules = JSON.parse(readFile("strategy-rules.v1.json"));
   assert(strategyRules.humanMimicTopRule, "strategy rules JSON should include the human rule");
+  assert(strategyRules.humanMimicTopPairRule, "strategy rules JSON should include the human pair rule");
   assert(strategyRules.returnOptimizedTopRule, "strategy rules JSON should include the return rule");
   assert(strategyRules.datasetReadiness?.readiness?.readyForRuleMining === true, "strategy rules JSON should include dataset rule-mining readiness");
   assert(strategyRules.datasetReadiness?.readiness?.readyForRoughRuleMining === false, "strategy rules JSON should include rough dataset readiness");
   assert(strategyRules.promotion?.status === "scaffold_only", "strategy rules JSON should block promotion below rough targets");
   assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
+  assert(strategyRules.pineSupport?.humanMimicTopPairRule, "strategy rules JSON should include Pine feature support for the human pair rule");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Rough rule-mining target: not ready"), "Pine scaffold should include rough rule-mining readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Human-mimic pair candidate"), "Pine scaffold should mention the human pair candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   writeResearchSummaryFixture();
   const summary = JSON.parse(readFile("research-summary.json"));

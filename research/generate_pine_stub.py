@@ -53,6 +53,16 @@ def top_candidate(payload: dict[str, Any]) -> dict[str, Any] | None:
     return first
 
 
+def top_pair_candidate(payload: dict[str, Any]) -> dict[str, Any] | None:
+    candidates = payload.get("pairCandidates", [])
+    if not isinstance(candidates, list) or not candidates:
+        return None
+    first = candidates[0]
+    if not isinstance(first, dict):
+        return None
+    return first
+
+
 def pine_feature_support(candidate: dict[str, Any] | None) -> dict[str, Any]:
     if not candidate:
         return {
@@ -83,6 +93,47 @@ def pine_feature_support(candidate: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def pine_pair_support(candidate: dict[str, Any] | None) -> dict[str, Any]:
+    if not candidate:
+        return {
+            "supported": False,
+            "conditions": [],
+            "warnings": ["No pair candidate rule is available yet."],
+        }
+
+    conditions = candidate.get("conditions", [])
+    if not isinstance(conditions, list) or not conditions:
+        return {
+            "supported": False,
+            "conditions": [],
+            "warnings": ["Pair candidate has no conditions."],
+        }
+
+    mapped_conditions: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    for condition in conditions:
+        if not isinstance(condition, dict):
+            warnings.append("Pair candidate contains a non-object condition.")
+            continue
+        feature = str(condition.get("feature", ""))
+        expression = PINE_FEATURE_EXPRESSIONS.get(feature)
+        if not expression:
+            warnings.append(f"Feature `{feature}` is not mapped to Pine yet.")
+        mapped_conditions.append({
+            "feature": feature,
+            "direction": comparison_operator(condition.get("direction")),
+            "threshold": condition.get("threshold"),
+            "pineExpression": expression,
+            "supported": expression is not None,
+        })
+
+    return {
+        "supported": bool(mapped_conditions) and not warnings,
+        "conditions": mapped_conditions,
+        "warnings": warnings,
+    }
+
+
 def dataset_readiness_payload(dataset_report: dict[str, Any] | None) -> dict[str, Any] | None:
     if not dataset_report:
         return None
@@ -96,6 +147,7 @@ def dataset_readiness_payload(dataset_report: dict[str, Any] | None) -> dict[str
 
 def promotion_status(
     human_candidate: dict[str, Any] | None,
+    human_pair_candidate: dict[str, Any] | None,
     return_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -122,9 +174,12 @@ def promotion_status(
         warnings.append("No return-optimized candidate rule is available yet.")
 
     human_support = pine_feature_support(human_candidate)
+    human_pair_support = pine_pair_support(human_pair_candidate)
     return_support = pine_feature_support(return_candidate)
     if human_candidate and not human_support["supported"]:
         warnings.extend(human_support["warnings"])
+    if human_pair_candidate and not human_pair_support["supported"]:
+        warnings.extend(human_pair_support["warnings"])
     if return_candidate and not return_support["supported"]:
         warnings.extend(return_support["warnings"])
 
@@ -137,6 +192,7 @@ def promotion_status(
 def strategy_rules_payload(
     human_source: Path,
     human_candidate: dict[str, Any] | None,
+    human_pair_candidate: dict[str, Any] | None,
     return_source: Path | None,
     return_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
@@ -154,14 +210,16 @@ def strategy_rules_payload(
         "humanMimicSource": str(human_source),
         "returnOptimizedSource": str(return_source) if return_source else None,
         "humanMimicTopRule": human_candidate,
+        "humanMimicTopPairRule": human_pair_candidate,
         "returnOptimizedTopRule": return_candidate,
-        "topRule": human_candidate,
+        "topRule": human_pair_candidate if pine_pair_support(human_pair_candidate)["supported"] else human_candidate,
         "datasetReadiness": dataset_readiness_payload(dataset_report),
         "pineSupport": {
             "humanMimicTopRule": pine_feature_support(human_candidate),
+            "humanMimicTopPairRule": pine_pair_support(human_pair_candidate),
             "returnOptimizedTopRule": pine_feature_support(return_candidate),
         },
-        "promotion": promotion_status(human_candidate, return_candidate, dataset_report),
+        "promotion": promotion_status(human_candidate, human_pair_candidate, return_candidate, dataset_report),
         "promotionChecklist": [
             "Confirm the rule was generated from replay-safe training rows only.",
             "Confirm the dataset readiness report is clean enough for the intended use.",
@@ -216,6 +274,72 @@ def rule_comment(prefix: str, candidate: dict[str, Any] | None) -> list[str]:
     return [f"// {prefix}: {feature} {direction} {threshold}{suffix}"]
 
 
+def pine_condition_lines(variable_prefix: str, candidate: dict[str, Any]) -> tuple[list[str], str]:
+    feature = str(candidate.get("feature", ""))
+    direction = comparison_operator(candidate.get("direction"))
+    threshold = numeric_literal(candidate.get("threshold"))
+    expression, comments = pine_expression(feature)
+    lines = [f"// {comment}" for comment in comments]
+    feature_variable = f"{variable_prefix}Feature"
+    signal_variable = f"{variable_prefix}Signal"
+    lines.extend([
+        f"{feature_variable} = {expression}",
+        f"{signal_variable} = not na({feature_variable}) and {feature_variable} {direction} {threshold}",
+    ])
+    return lines, signal_variable
+
+
+def pine_pair_condition_lines(variable_prefix: str, candidate: dict[str, Any]) -> tuple[list[str], str]:
+    conditions = candidate.get("conditions", [])
+    if not isinstance(conditions, list) or not conditions:
+        return ["// Pair candidate has no conditions.", f"{variable_prefix}Signal = false"], f"{variable_prefix}Signal"
+
+    lines: list[str] = []
+    condition_signals: list[str] = []
+    for index, condition in enumerate(conditions, start=1):
+        if not isinstance(condition, dict):
+            lines.append("// Pair candidate contains a non-object condition.")
+            continue
+        feature = str(condition.get("feature", ""))
+        direction = comparison_operator(condition.get("direction"))
+        threshold = numeric_literal(condition.get("threshold"))
+        expression, comments = pine_expression(feature)
+        lines.extend(f"// {comment}" for comment in comments)
+        feature_variable = f"{variable_prefix}Feature{index}"
+        signal_variable = f"{variable_prefix}Condition{index}"
+        lines.extend([
+            f"{feature_variable} = {expression}",
+            f"{signal_variable} = not na({feature_variable}) and {feature_variable} {direction} {threshold}",
+        ])
+        condition_signals.append(signal_variable)
+
+    signal_variable = f"{variable_prefix}Signal"
+    lines.append(f"{signal_variable} = {' and '.join(condition_signals) if condition_signals else 'false'}")
+    return lines, signal_variable
+
+
+def pair_rule_comment(prefix: str, candidate: dict[str, Any] | None) -> list[str]:
+    if not candidate:
+        return [f"// {prefix}: no candidate available"]
+    conditions = candidate.get("conditions", [])
+    if not isinstance(conditions, list) or not conditions:
+        return [f"// {prefix}: no conditions available"]
+    condition_text = " AND ".join(
+        f"{condition.get('feature', '')} {comparison_operator(condition.get('direction'))} {numeric_literal(condition.get('threshold'))}"
+        for condition in conditions
+        if isinstance(condition, dict)
+    )
+    details: list[str] = []
+    if "precision" in candidate:
+        details.append(f"precision={float(candidate.get('precision', 0)):.4f}")
+    if "recall" in candidate:
+        details.append(f"recall={float(candidate.get('recall', 0)):.4f}")
+    if "lift" in candidate:
+        details.append(f"lift={float(candidate.get('lift', 0)):.4f}")
+    suffix = f" ({', '.join(details)})" if details else ""
+    return [f"// {prefix}: {condition_text}{suffix}"]
+
+
 def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
     if not dataset_report:
         return ["// Dataset readiness: no dataset report provided"]
@@ -253,6 +377,7 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
 
 def pine_stub(
     human_candidate: dict[str, Any] | None,
+    human_pair_candidate: dict[str, Any] | None,
     return_candidate: dict[str, Any] | None,
     dataset_report: dict[str, Any] | None,
 ) -> str:
@@ -268,24 +393,23 @@ def pine_stub(
     lines.extend(readiness_comments(dataset_report))
     lines.append("")
     lines.extend(rule_comment("Human-mimic candidate", human_candidate))
+    lines.extend(pair_rule_comment("Human-mimic pair candidate", human_pair_candidate))
     lines.extend(rule_comment("Return-optimized candidate", return_candidate))
     lines.append("")
 
-    if not human_candidate:
+    if human_pair_candidate and pine_pair_support(human_pair_candidate)["supported"]:
+        pair_lines, signal_variable = pine_pair_condition_lines("candidatePair", human_pair_candidate)
+        lines.extend(pair_lines)
+        lines.append(f"candidateSignal = {signal_variable}")
+    elif human_candidate:
+        condition_lines, signal_variable = pine_condition_lines("candidate", human_candidate)
+        lines.extend(condition_lines)
+        lines.append(f"candidateSignal = {signal_variable}")
+    else:
         lines.extend([
             "// No human-mimic candidate rule is available yet.",
             "// Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`.",
             "candidateSignal = false",
-        ])
-    else:
-        feature = str(human_candidate.get("feature", ""))
-        direction = comparison_operator(human_candidate.get("direction"))
-        threshold = numeric_literal(human_candidate.get("threshold"))
-        expression, comments = pine_expression(feature)
-        lines.extend(f"// {comment}" for comment in comments)
-        lines.extend([
-            f"candidateFeature = {expression}",
-            f"candidateSignal = not na(candidateFeature) and candidateFeature {direction} {threshold}",
         ])
 
     lines.extend([
@@ -311,16 +435,17 @@ def main() -> None:
 
     candidate_rules = read_rules(args.rules_json)
     human_candidate = top_candidate(candidate_rules)
+    human_pair_candidate = top_pair_candidate(candidate_rules)
     return_candidate = top_candidate(read_rules(args.return_rules_json)) if args.return_rules_json else None
     dataset_report = read_optional_object(args.dataset_report_json, "dataset report")
 
     args.rules_output.parent.mkdir(parents=True, exist_ok=True)
     args.rules_output.write_text(
-        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, args.return_rules_json, return_candidate, dataset_report), indent=2)}\n"
+        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, human_pair_candidate, args.return_rules_json, return_candidate, dataset_report), indent=2)}\n"
     )
 
     args.pine_output.parent.mkdir(parents=True, exist_ok=True)
-    args.pine_output.write_text(pine_stub(human_candidate, return_candidate, dataset_report))
+    args.pine_output.write_text(pine_stub(human_candidate, human_pair_candidate, return_candidate, dataset_report))
 
 
 if __name__ == "__main__":

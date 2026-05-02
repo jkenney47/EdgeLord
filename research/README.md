@@ -12,7 +12,13 @@ This folder is intentionally only scaffolding. Do not build strategy mining UI i
 
 ## First Report
 
-Export the current app data, then run:
+With the API running, use the repo command:
+
+```bash
+pnpm research:report
+```
+
+Or export CSV files manually and run:
 
 ```bash
 python3 research/dataset_report.py \

@@ -19,6 +19,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   const trainingExits = trainingLabels.filter((label) => label.action === "EXIT").length;
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
   const dataReadiness = summarizeDataReadiness(barSummary);
+  const integrity = summarizeLabelIntegrity(activeLabels);
   const exitTarget = Math.max(trainingEntries, 1);
   const targetProgress = [
     { key: "decisions", label: "Decisions", current: trainingLabels.length, target: targets.decisions },
@@ -29,6 +30,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   ].map((item) => ({ ...item, complete: item.current >= item.target }));
   const nextTarget = nextLabelingTarget({
     dataReady: dataReadiness.code === "ready",
+    integrityIssueCount: integrity.issueCount,
     openTrade,
     decisions: trainingLabels.length,
     entries: trainingEntries,
@@ -40,6 +42,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   return {
     version: "edgelord.dataset_pulse.v1",
     dataReadiness,
+    integrity,
     labels: {
       total: activeLabels.length,
       trainingEligible: trainingLabels.length,
@@ -95,6 +98,7 @@ function readiness(code: string, tone: "good" | "warn", text: string, shortestSp
 
 function nextLabelingTarget(input: {
   dataReady: boolean;
+  integrityIssueCount: number;
   openTrade: Trade | null;
   decisions: number;
   entries: number;
@@ -104,6 +108,9 @@ function nextLabelingTarget(input: {
 }) {
   if (!input.dataReady) {
     return target("data_ready", "Import adjusted SOXL/SOXS data before serious labeling.", 0, 1);
+  }
+  if (input.integrityIssueCount > 0) {
+    return target("fix_integrity", "Fix label integrity issues before adding modeling labels.", 0, input.integrityIssueCount);
   }
   if (input.openTrade) {
     return target("exit_coverage", `Close or continue the open ${input.openTrade.ticker} trade when the replay reaches your exit.`, input.exits, Math.max(input.entries, 1));
@@ -121,6 +128,39 @@ function nextLabelingTarget(input: {
     return target("decision_coverage", "Keep labeling replay-safe decisions toward the rough mining target.", input.decisions, targets.decisions);
   }
   return target("rule_review_ready", "Dataset is ready for first-pass rule review.", input.decisions, targets.decisions);
+}
+
+function summarizeLabelIntegrity(labels: Label[]) {
+  const eligibleOrphanExits = labels.filter((label) =>
+    label.action === "EXIT" &&
+    label.training_eligible === 1 &&
+    (!label.trade_id || !label.parent_entry_label_id)
+  );
+  const entriesWithoutTrade = labels.filter((label) => label.action === "ENTRY" && !label.trade_id);
+  const sameCandleDecisionConflicts = countSameCandleDecisionConflicts(labels);
+  const issueCount = eligibleOrphanExits.length + entriesWithoutTrade.length + sameCandleDecisionConflicts;
+
+  return {
+    issueCount,
+    eligibleOrphanExits: eligibleOrphanExits.length,
+    entriesWithoutTrade: entriesWithoutTrade.length,
+    sameCandleDecisionConflicts,
+    ready: issueCount === 0
+  };
+}
+
+function countSameCandleDecisionConflicts(labels: Label[]): number {
+  const counts = new Map<string, number>();
+  for (const label of labels) {
+    const key = [
+      label.label_source,
+      label.ticker,
+      label.timeframe,
+      label.timestamp
+    ].join("|");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.values()].filter((count) => count > 1).length;
 }
 
 function target(kind: string, action: string, current: number, targetValue: number) {

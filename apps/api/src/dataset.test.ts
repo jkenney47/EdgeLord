@@ -19,8 +19,8 @@ describe("buildDatasetPulse", () => {
   it("summarizes data, target progress, and the next labeling action", () => {
     const labels = [
       label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
-      label("SKIP", { id: "skip", training_eligible: 1 }),
-      label("ENTRY", { id: "hindsight", label_source: "retrospective_hindsight", training_eligible: 0 })
+      label("SKIP", { id: "skip", training_eligible: 1, timestamp: "2024-01-02T18:30:00.000Z" }),
+      label("SKIP", { id: "hindsight", label_source: "retrospective_hindsight", training_eligible: 0 })
     ];
     const trades = [trade("open")];
 
@@ -30,6 +30,7 @@ describe("buildDatasetPulse", () => {
     expect(pulse.labels.total).toBe(3);
     expect(pulse.labels.trainingEligible).toBe(2);
     expect(pulse.labels.excluded).toBe(1);
+    expect(pulse.integrity.ready).toBe(true);
     expect(pulse.targets.find((target) => target.key === "decisions")?.current).toBe(2);
     expect(pulse.targets.find((target) => target.key === "exits")?.target).toBe(1);
     expect(pulse.trades.openTrade?.ticker).toBe("SOXL");
@@ -38,7 +39,7 @@ describe("buildDatasetPulse", () => {
   });
 
   it("pushes exit coverage before skip collection when entries are unpaired", () => {
-    const labels = [label("ENTRY", { training_eligible: 1 })];
+    const labels = [label("ENTRY", { trade_id: "trade", training_eligible: 1 })];
     const pulse = buildDatasetPulse(barSummary, labels, []);
 
     expect(pulse.nextTarget.kind).toBe("exit_coverage");
@@ -48,13 +49,34 @@ describe("buildDatasetPulse", () => {
   it("pushes skip collection after exit coverage is caught up", () => {
     const labels = [
       label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
-      label("EXIT", { id: "exit", trade_id: "trade", parent_entry_label_id: "entry", training_eligible: 1 })
+      label("EXIT", {
+        id: "exit",
+        trade_id: "trade",
+        parent_entry_label_id: "entry",
+        training_eligible: 1,
+        timestamp: "2024-01-03T14:30:00.000Z"
+      })
     ];
     const trades = [trade("closed")];
     const pulse = buildDatasetPulse(barSummary, labels, trades);
 
     expect(pulse.nextTarget.kind).toBe("skip_coverage");
     expect(pulse.nextActions[0]).toContain("SKIP labels");
+  });
+
+  it("pushes integrity repair before new labeling targets", () => {
+    const labels = [
+      label("ENTRY", { id: "entry", trade_id: null, training_eligible: 1 }),
+      label("SKIP", { id: "skip", training_eligible: 1 }),
+      label("INVALID", { id: "invalid", training_eligible: 1 })
+    ];
+
+    const pulse = buildDatasetPulse(barSummary, labels, []);
+
+    expect(pulse.integrity.ready).toBe(false);
+    expect(pulse.integrity.entriesWithoutTrade).toBe(1);
+    expect(pulse.integrity.sameCandleDecisionConflicts).toBe(1);
+    expect(pulse.nextTarget.kind).toBe("fix_integrity");
   });
 });
 

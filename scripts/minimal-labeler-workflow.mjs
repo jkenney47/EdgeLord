@@ -454,6 +454,7 @@ async function runAcceptance() {
       return body;
     });
     assert(datasetPulse.version === "edgelord.dataset_pulse.v1", "dataset pulse version is unexpected");
+    assert(datasetPulse.integrity?.ready === true, "dataset pulse should report clean integrity for the acceptance flow");
     assert(datasetPulse.labels.trainingEligible === 3, "dataset pulse should count training-eligible labels");
     assert(datasetPulse.trades.closed === 1, "dataset pulse should count closed trades");
     assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 1), "dataset pulse should include skip target progress");

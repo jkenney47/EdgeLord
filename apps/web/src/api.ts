@@ -34,6 +34,13 @@ export type DatasetPulse = {
     text: string;
     shortestSpanDays: number;
   };
+  integrity: {
+    issueCount: number;
+    eligibleOrphanExits: number;
+    entriesWithoutTrade: number;
+    sameCandleDecisionConflicts: number;
+    ready: boolean;
+  };
   labels: {
     total: number;
     trainingEligible: number;

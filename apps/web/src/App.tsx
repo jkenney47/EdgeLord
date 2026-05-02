@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createLabel,
@@ -62,6 +62,7 @@ export function App() {
   const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureSnapshot | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
+  const autoExitFocusTradeId = useRef<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
   const labelStats = useMemo(() => ({
@@ -318,6 +319,24 @@ export function App() {
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
   }, [labels, openTrade]);
+
+  useEffect(() => {
+    if (nextTarget?.kind !== "exit_coverage" || !openTrade || pendingSelection) return;
+    if (autoExitFocusTradeId.current === openTrade.id) return;
+    const entryLabel = labels.find((label) => label.id === openTrade.entry_label_id);
+    if (!entryLabel) return;
+    autoExitFocusTradeId.current = openTrade.id;
+    setLabelSource(entryLabel.label_source);
+    setPendingSelection({
+      ticker: entryLabel.ticker,
+      timeframe: entryLabel.timeframe,
+      unlabeledAfterTimestamp: entryLabel.timestamp,
+      status: `Auto-focused exit review after ${entryLabel.timestamp.slice(0, 10)}.`
+    });
+    setMode("replay");
+    setTicker(entryLabel.ticker);
+    setTimeframe(entryLabel.timeframe);
+  }, [labels, nextTarget?.kind, openTrade, pendingSelection]);
 
   const goToLabel = useCallback((label: Label) => {
     setError(null);

@@ -303,8 +303,21 @@ async function runAcceptance() {
       captureMode: "replay",
       visibleUntilTimestamp: soxlBars[0].timestamp
     }, 400);
-    assert(/Duplicate .* SKIP label already exists/i.test(duplicateSkip.error ?? ""), "Duplicate label intents should be rejected");
+    assert(/label already exists/i.test(duplicateSkip.error ?? ""), "Duplicate label intents should be rejected");
     console.log("ok duplicate label intents are blocked");
+
+    const conflictingEntry = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "ENTRY",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    }, 400);
+    assert(/conflicting ENTRY label/i.test(conflictingEntry.error ?? ""), "Conflicting same-candle decisions should be rejected");
+    console.log("ok conflicting same-candle decisions are blocked");
 
     const hindsight = await postLabel(baseUrl, {
       labelSource: "retrospective_hindsight",

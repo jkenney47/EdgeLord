@@ -28,4 +28,12 @@ pnpm closeout:minimal-labeler
 
 That command runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running. The acceptance check uses a temporary SQLite database and verifies the SOXL/SOXS entry/exit/skip state machine plus CSV/JSONL exports without touching local labeling data.
 
+After importing or replacing historical bars, run:
+
+```bash
+pnpm data:status
+```
+
+That command writes coverage, label-integrity, export-backup, and dataset-readiness reports. Use it to confirm the local database is on real adjusted data before serious labeling.
+
 For browser/UI verification, use the Codex in-app browser at `http://127.0.0.1:5173/`.

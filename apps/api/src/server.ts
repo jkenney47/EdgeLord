@@ -8,7 +8,7 @@ import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from 
 import { parseBarsCsv, readCsvFile } from "./csvImport";
 import { repoRoot } from "./db";
 import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
-import { createLabel, createLabelSchema, deleteLabel, getLabels, patchLabel, patchLabelSchema } from "./labels";
+import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
 import type { ChartTimeframe, Ticker } from "./schema";
 import { getOpenTrade, getTrades } from "./trades";
 
@@ -34,9 +34,21 @@ app.get("/health", async () => ({ ok: true }));
 app.post("/import/csv", async (request, reply) => {
   const bodySchema = z.union([
     z.string(),
-    z.object({ csv: z.string().optional(), path: z.string().optional(), replaceBars: z.boolean().optional() })
+    z.object({
+      csv: z.string().optional(),
+      path: z.string().optional(),
+      replaceBars: z.boolean().optional(),
+      forceReplaceBars: z.boolean().optional()
+    })
   ]);
   const body = bodySchema.parse(request.body);
+  const labelCount = getActiveLabelCount();
+  if (typeof body !== "string" && body.replaceBars && labelCount > 0 && !body.forceReplaceBars) {
+    return reply.status(409).send({
+      error: "Refusing to replace bars while active labels exist. Run pnpm labels:integrity first, export a backup, then retry with forceReplaceBars only if you intend to revalidate labels.",
+      activeLabels: labelCount
+    });
+  }
   const replacedBars = typeof body === "string" ? 0 : body.replaceBars ? clearBars() : 0;
   const csv = typeof body === "string"
     ? body

@@ -36,4 +36,6 @@ pnpm data:status
 
 That command writes coverage, label-integrity, export-backup, and dataset-readiness reports. Use it to confirm the local database is on real adjusted data before serious labeling.
 
+Do not replace cached bars when active labels exist unless the user explicitly accepts the revalidation risk. The API and `pnpm import:csv --replace-bars` guard this by default; only use `--force-replace-bars` after an export backup and follow-up `pnpm labels:integrity`.
+
 For browser/UI verification, use the Codex in-app browser at `http://127.0.0.1:5173/`.

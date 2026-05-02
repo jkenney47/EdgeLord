@@ -35,6 +35,11 @@ export function getLabels(): Label[] {
   return db.prepare("select * from labels where deleted_at is null order by created_at asc").all() as Label[];
 }
 
+export function getActiveLabelCount(): number {
+  const row = db.prepare("select count(*) as count from labels where deleted_at is null").get() as { count: number };
+  return row.count;
+}
+
 export function getLabel(id: string): Label | null {
   return db.prepare("select * from labels where id = ? and deleted_at is null").get(id) as Label | undefined ?? null;
 }

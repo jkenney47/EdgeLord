@@ -98,6 +98,18 @@ async function patchLabel(baseUrl, id, payload, expectedStatus = 200) {
   return result.body;
 }
 
+async function importCsv(baseUrl, payload, expectedStatus = 200) {
+  const result = await fetchJson(baseUrl, "/import/csv", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  assert(
+    result.response.status === expectedStatus,
+    `POST /import/csv expected ${expectedStatus}, got ${result.response.status}: ${JSON.stringify(result.body)}`
+  );
+  return result.body;
+}
+
 async function waitForApi(baseUrl, child) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 20_000) {
@@ -319,6 +331,12 @@ async function runAcceptance() {
     });
     assert(tradesAfterEntryDelete.length === 0, "Deleting an entry should remove the paired trade");
     console.log("ok deleting entry clears dependent exit state");
+
+    const csv = fs.readFileSync(path.join(root, "data", "sample-bars.csv"), "utf8");
+    const guardedImport = await importCsv(baseUrl, { csv, replaceBars: true }, 409);
+    assert(guardedImport.activeLabels > 0, "Replace-bars guard should report active labels");
+    assert(/Refusing to replace bars/i.test(guardedImport.error ?? ""), "Replace-bars guard should explain the refusal");
+    console.log("ok replace-bars refuses to strand existing labels");
   } catch (error) {
     const output = api.getOutput().trim();
     if (output) {

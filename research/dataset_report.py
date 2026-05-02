@@ -184,6 +184,48 @@ def format_sequence_issues(issues: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def same_candle_decision_conflicts(labels: list[dict[str, str]]) -> list[dict[str, object]]:
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for label in labels:
+        key = "|".join([
+            label.get("label_source", ""),
+            label.get("ticker", ""),
+            label.get("timeframe", ""),
+            label.get("timestamp", ""),
+        ])
+        grouped.setdefault(key, []).append(label)
+
+    conflicts: list[dict[str, object]] = []
+    for group in grouped.values():
+        if len(group) <= 1:
+            continue
+        first = group[0]
+        conflicts.append({
+            "labelSource": first.get("label_source", ""),
+            "ticker": first.get("ticker", ""),
+            "timeframe": first.get("timeframe", ""),
+            "timestamp": first.get("timestamp", ""),
+            "actions": sorted({label.get("action", "") for label in group}),
+            "labelIds": [label.get("id", "") for label in group],
+        })
+    return conflicts
+
+
+def format_same_candle_decision_conflicts(conflicts: list[dict[str, object]]) -> list[str]:
+    lines = ["\nSame-Candle Decision Conflicts"]
+    if not conflicts:
+        return [*lines, "  none"]
+    for conflict in conflicts[:25]:
+        actions = conflict.get("actions", [])
+        label_ids = conflict.get("labelIds", [])
+        lines.append(
+            f"  {conflict['labelSource']} {conflict['ticker']} {conflict['timeframe']} {conflict['timestamp']}: "
+            f"actions={'|'.join(actions) if isinstance(actions, list) else actions} "
+            f"ids={'|'.join(label_ids) if isinstance(label_ids, list) else label_ids}"
+        )
+    return lines
+
+
 def counter_dict(rows: Iterable[dict[str, str]], key: str) -> dict[str, int]:
     return dict(count_by(rows, key).most_common())
 
@@ -217,6 +259,7 @@ def labeling_target_plan(
     orphan_exits: list[dict[str, str]],
     entries_without_trade: list[dict[str, str]],
     state_sequence_issues: list[dict[str, str]],
+    decision_conflicts: list[dict[str, object]],
     training_issues: dict[str, list[str]],
     target_issues: list[dict[str, str]],
     trade_candidate_status: dict[str, object],
@@ -232,6 +275,7 @@ def labeling_target_plan(
         len(orphan_exits) +
         len(entries_without_trade) +
         len(state_sequence_issues) +
+        len(decision_conflicts) +
         len(training_issues["missingEligibleLabelIds"]) +
         len(training_issues["extraTrainingLabelIds"]) +
         len(training_issues["duplicateTrainingLabelIds"]) +
@@ -461,6 +505,7 @@ def dataset_summary(
     orphan_exits: list[dict[str, str]],
     entries_without_trade: list[dict[str, str]],
     state_sequence_issues: list[dict[str, str]],
+    decision_conflicts: list[dict[str, object]],
     training_issues: dict[str, list[str]],
     target_issues: list[dict[str, str]],
     trade_candidate_status: dict[str, object],
@@ -476,6 +521,7 @@ def dataset_summary(
         len(orphan_exits) == 0 and
         len(entries_without_trade) == 0 and
         len(state_sequence_issues) == 0 and
+        len(decision_conflicts) == 0 and
         not has_training_row_issues(training_issues) and
         len(target_issues) == 0 and
         entry_count > 0 and
@@ -510,6 +556,7 @@ def dataset_summary(
         orphan_exits,
         entries_without_trade,
         state_sequence_issues,
+        decision_conflicts,
         training_issues,
         target_issues,
         trade_candidate_status,
@@ -525,6 +572,7 @@ def dataset_summary(
             "orphanExits": len(orphan_exits),
             "entriesWithoutTrade": len(entries_without_trade),
             "sequenceIssues": len(state_sequence_issues),
+            "sameCandleDecisionConflicts": len(decision_conflicts),
             "missingEligibleTrainingRows": len(training_issues["missingEligibleLabelIds"]),
             "extraTrainingRows": len(training_issues["extraTrainingLabelIds"]),
             "duplicateTrainingRows": len(training_issues["duplicateTrainingLabelIds"]),
@@ -558,6 +606,7 @@ def dataset_summary(
                 for label in entries_without_trade[:25]
             ],
             "sequenceIssues": state_sequence_issues[:25],
+            "sameCandleDecisionConflicts": decision_conflicts[:25],
             "trainingRows": training_issues,
             "targetEncoding": target_issues[:25],
             "tradeCandidates": {
@@ -597,6 +646,7 @@ def next_label_recommendations(
     orphan_exits: list[dict[str, str]],
     entries_without_trade: list[dict[str, str]],
     state_sequence_issues: list[dict[str, str]],
+    decision_conflicts: list[dict[str, object]],
     training_issues: dict[str, list[str]],
     target_issues: list[dict[str, str]],
     trade_candidate_status: dict[str, object],
@@ -612,7 +662,7 @@ def next_label_recommendations(
 
     lines = ["\nWhat To Label Next"]
     if (
-        orphan_exits or entries_without_trade or state_sequence_issues or
+        orphan_exits or entries_without_trade or state_sequence_issues or decision_conflicts or
         has_training_row_issues(training_issues) or target_issues or
         trade_candidate_has_issues(trade_candidate_status)
     ):
@@ -670,6 +720,7 @@ def main() -> None:
         if label.get("action") == "ENTRY" and not label.get("trade_id")
     ]
     state_sequence_issues = sequence_issues(labels)
+    decision_conflicts = same_candle_decision_conflicts(labels)
     training_issues = training_row_issues(labels, training)
     target_issues = target_encoding_issues(training)
     trade_candidate_status = trade_candidate_summary(trades, trade_candidates)
@@ -685,6 +736,7 @@ def main() -> None:
         f"orphan_exits: {len(orphan_exits)}",
         f"entries_without_trade: {len(entries_without_trade)}",
         f"sequence_issues: {len(state_sequence_issues)}",
+        f"same_candle_decision_conflicts: {len(decision_conflicts)}",
         f"missing_eligible_training_rows: {len(training_issues['missingEligibleLabelIds'])}",
         f"extra_training_rows: {len(training_issues['extraTrainingLabelIds'])}",
         f"duplicate_training_rows: {len(training_issues['duplicateTrainingLabelIds'])}",
@@ -703,6 +755,7 @@ def main() -> None:
     lines.extend(format_counts("Trade Status", count_by(trades, "status")))
     lines.extend(format_return_summary(trades))
     lines.extend(format_sequence_issues(state_sequence_issues))
+    lines.extend(format_same_candle_decision_conflicts(decision_conflicts))
     lines.extend(format_training_row_issues(training_issues))
     lines.extend(format_target_encoding_issues(target_issues))
     lines.extend(format_trade_candidate_summary(trade_candidate_status))
@@ -715,6 +768,7 @@ def main() -> None:
         orphan_exits,
         entries_without_trade,
         state_sequence_issues,
+        decision_conflicts,
         training_issues,
         target_issues,
         trade_candidate_status,
@@ -744,7 +798,7 @@ def main() -> None:
     if closed_count < CLOSED_TRADE_ROUGH_TARGET:
         lines.append(f"  closed trades are still early: {closed_count}/{CLOSED_TRADE_ROUGH_TARGET} return-analysis target")
     if (
-        orphan_exits or entries_without_trade or state_sequence_issues or
+        orphan_exits or entries_without_trade or state_sequence_issues or decision_conflicts or
         has_training_row_issues(training_issues) or target_issues or
         trade_candidate_has_issues(trade_candidate_status)
     ):
@@ -752,7 +806,18 @@ def main() -> None:
     if excluded_labels:
         lines.append("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
 
-    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues, trade_candidate_status))
+    lines.extend(next_label_recommendations(
+        labels,
+        training,
+        trades,
+        orphan_exits,
+        entries_without_trade,
+        state_sequence_issues,
+        decision_conflicts,
+        training_issues,
+        target_issues,
+        trade_candidate_status,
+    ))
 
     report = "\n".join(lines) + "\n"
     print(report, end="")
@@ -761,7 +826,18 @@ def main() -> None:
         args.output.write_text(report)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        summary = dataset_summary(labels, training, trades, orphan_exits, entries_without_trade, state_sequence_issues, training_issues, target_issues, trade_candidate_status)
+        summary = dataset_summary(
+            labels,
+            training,
+            trades,
+            orphan_exits,
+            entries_without_trade,
+            state_sequence_issues,
+            decision_conflicts,
+            training_issues,
+            target_issues,
+            trade_candidate_status,
+        )
         args.json_output.write_text(f"{json.dumps(summary, indent=2)}\n")
 
 

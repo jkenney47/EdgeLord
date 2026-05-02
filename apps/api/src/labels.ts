@@ -5,7 +5,7 @@ import { getBars } from "./bars";
 import { db, nowIso } from "./db";
 import { buildFeatures } from "./indicators";
 import type { CaptureMode, Label, LabelSource } from "./schema";
-import { canEnter, canExit, closeTrade, createTrade, getOpenTrade, rebuildTrades, validateLabelSequence } from "./trades";
+import { canEnter, canExit, canSkip, closeTrade, createTrade, getOpenTrade, rebuildTrades, validateLabelSequence } from "./trades";
 
 export const createLabelSchema = z.object({
   labelSource: z.enum(["actual_trade", "retrospective_replay", "retrospective_hindsight"]),
@@ -94,6 +94,11 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
 
   if (input.action === "EXIT") {
     const allowed = canExit(input.ticker, input.timestamp);
+    if (!allowed.ok) throw new Error(allowed.reason);
+  }
+
+  if (input.action === "SKIP") {
+    const allowed = canSkip();
     if (!allowed.ok) throw new Error(allowed.reason);
   }
 

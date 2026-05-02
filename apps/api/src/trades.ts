@@ -106,6 +106,11 @@ export function validateLabelSequence(labels: Label[]): { ok: true } | { ok: fal
         };
       }
       open = label;
+    } else if (label.action === "SKIP" && open && label.training_eligible === 1) {
+      return {
+        ok: false,
+        reason: `Label ${label.id} would record SKIP while ${open.ticker} trade ${open.id} is still open.`
+      };
     } else if (label.action === "EXIT") {
       if (!open) {
         return { ok: false, reason: `Label ${label.id} would exit ${label.ticker} with no open trade.` };
@@ -143,4 +148,10 @@ export function canExit(ticker: Ticker, timestamp?: string): { ok: true } | { ok
     return { ok: false, reason: `Exit candle ${timestamp} is before open ${open.ticker} entry ${open.entry_timestamp}.` };
   }
   return { ok: true };
+}
+
+export function canSkip(): { ok: true } | { ok: false; reason: string } {
+  const open = getOpenTrade();
+  if (!open) return { ok: true };
+  return { ok: false, reason: `Exit or continue open ${open.ticker} trade before recording SKIP.` };
 }

@@ -63,8 +63,14 @@ describe("capture rules", () => {
     );
   });
 
-  it("allows skip and invalid whenever a candle is selected", () => {
-    expect(canCapture("SKIP", selected, "SOXS", openSoxlTrade)).toBe(true);
+  it("blocks skip while a trade is open", () => {
+    expect(canCapture("SKIP", selected, "SOXS", openSoxlTrade)).toBe(false);
+    expect(getCaptureBlockReason("SKIP", selected, "SOXS", openSoxlTrade)).toBe(
+      "Exit or continue open SOXL trade before recording SKIP."
+    );
+  });
+
+  it("allows invalid whenever a candle is selected", () => {
     expect(canCapture("INVALID", selected, "SOXS", openSoxlTrade)).toBe(true);
   });
 });

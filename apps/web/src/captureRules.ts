@@ -10,6 +10,9 @@ export function getCaptureBlockReason(
   if (action === "ENTRY" && openTrade) {
     return `Exit open ${openTrade.ticker} trade before entering ${ticker}.`;
   }
+  if (action === "SKIP" && openTrade) {
+    return `Exit or continue open ${openTrade.ticker} trade before recording SKIP.`;
+  }
   if (action === "EXIT") {
     if (!openTrade) return "No open trade to exit.";
     if (openTrade.ticker !== ticker) {

@@ -108,6 +108,12 @@ function inspectSequence(items) {
       } else {
         open = label;
       }
+    } else if (label.action === "SKIP" && open && Number(label.training_eligible) === 1) {
+      sequenceIssues.push({
+        label,
+        reason: `SKIP while ${open.ticker} trade ${open.id} is still open`,
+        openLabel: open
+      });
     } else if (label.action === "EXIT") {
       if (!open) {
         sequenceIssues.push({ label, reason: "EXIT with no open trade", openLabel: null });

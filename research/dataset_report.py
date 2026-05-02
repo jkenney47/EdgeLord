@@ -149,6 +149,15 @@ def sequence_issues(labels: list[dict[str, str]]) -> list[dict[str, str]]:
                 })
             else:
                 open_label = label
+        elif action == "SKIP" and open_label and label.get("training_eligible") == "1":
+            issues.append({
+                "label_id": label.get("id", ""),
+                "action": action,
+                "ticker": label.get("ticker", ""),
+                "timestamp": label.get("timestamp", ""),
+                "reason": f"SKIP while {open_label.get('ticker', '')} trade {open_label.get('id', '')} is still open",
+                "open_label_id": open_label.get("id", ""),
+            })
         elif action == "EXIT":
             if not open_label:
                 issues.append({

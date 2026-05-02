@@ -211,6 +211,20 @@ async function runAcceptance() {
     });
     console.log("ok seeded SOXL/SOXS bars");
 
+    const canonicalSkip = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[0].timestamp,
+      chartPrice: soxsBars[0].close + 999,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxsBars[0].timestamp
+    });
+    assert(canonicalSkip.label.chart_price === soxsBars[0].close, "Label chart price should come from the stored candle");
+    await deleteLabel(baseUrl, canonicalSkip.label.id);
+    console.log("ok labels canonicalize chart price");
+
     const entry = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "ENTRY",
@@ -225,19 +239,18 @@ async function runAcceptance() {
     assert(entry.openTrade?.ticker === "SOXL", "SOXL entry should open a SOXL trade");
     console.log("ok entry opens trade");
 
-    const canonicalSkip = await postLabel(baseUrl, {
+    const blockedOpenSkip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "SKIP",
       ticker: "SOXS",
       timeframe: "4H",
-      timestamp: soxsBars[0].timestamp,
-      chartPrice: soxsBars[0].close + 999,
+      timestamp: soxsBars[1].timestamp,
+      chartPrice: soxsBars[1].close,
       captureMode: "replay",
-      visibleUntilTimestamp: soxsBars[0].timestamp
-    });
-    assert(canonicalSkip.label.chart_price === soxsBars[0].close, "Label chart price should come from the stored candle");
-    await deleteLabel(baseUrl, canonicalSkip.label.id);
-    console.log("ok labels canonicalize chart price");
+      visibleUntilTimestamp: soxsBars[1].timestamp
+    }, 400);
+    assert(/before recording SKIP/i.test(blockedOpenSkip.error ?? ""), "SKIP should be blocked while a trade is open");
+    console.log("ok open-trade skip blocked");
 
     const blockedEntry = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
@@ -279,45 +292,6 @@ async function runAcceptance() {
     assert(exit.label.parent_entry_label_id === entry.label.id, "Exit should link to entry label");
     assert(exit.openTrade === null, "Exit should close the open trade");
     console.log("ok exit closes trade");
-
-    const skip = await postLabel(baseUrl, {
-      labelSource: "retrospective_replay",
-      action: "SKIP",
-      ticker: "SOXL",
-      timeframe: "4H",
-      timestamp: soxlBars[0].timestamp,
-      chartPrice: soxlBars[0].close,
-      captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[0].timestamp
-    });
-    assert(skip.label.training_eligible === 1, "Replay skip should be a training-eligible negative example");
-    console.log("ok replay skip is eligible");
-
-    const duplicateSkip = await postLabel(baseUrl, {
-      labelSource: "retrospective_replay",
-      action: "SKIP",
-      ticker: "SOXL",
-      timeframe: "4H",
-      timestamp: soxlBars[0].timestamp,
-      chartPrice: soxlBars[0].close,
-      captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[0].timestamp
-    }, 400);
-    assert(/label already exists/i.test(duplicateSkip.error ?? ""), "Duplicate label intents should be rejected");
-    console.log("ok duplicate label intents are blocked");
-
-    const conflictingEntry = await postLabel(baseUrl, {
-      labelSource: "retrospective_replay",
-      action: "ENTRY",
-      ticker: "SOXL",
-      timeframe: "4H",
-      timestamp: soxlBars[0].timestamp,
-      chartPrice: soxlBars[0].close,
-      captureMode: "replay",
-      visibleUntilTimestamp: soxlBars[0].timestamp
-    }, 400);
-    assert(/conflicting ENTRY label/i.test(conflictingEntry.error ?? ""), "Conflicting same-candle decisions should be rejected");
-    console.log("ok conflicting same-candle decisions are blocked");
 
     const hindsight = await postLabel(baseUrl, {
       labelSource: "retrospective_hindsight",
@@ -364,29 +338,72 @@ async function runAcceptance() {
     assert(secondExit.label.parent_entry_label_id === entry.label.id, "Second exit should relink to the entry label");
     console.log("ok exit can be recaptured after undo");
 
-    const patchedSkip = await patchLabel(baseUrl, secondExit.label.id, { action: "SKIP" });
-    assert(patchedSkip.label.trade_id === null, "Patching exit to skip should clear the label trade id");
-    assert(patchedSkip.label.parent_entry_label_id === null, "Patching exit to skip should clear the parent entry link");
+    const patchedInvalid = await patchLabel(baseUrl, secondExit.label.id, { action: "INVALID" });
+    assert(patchedInvalid.label.trade_id === null, "Patching exit to invalid should clear the label trade id");
+    assert(patchedInvalid.label.parent_entry_label_id === null, "Patching exit to invalid should clear the parent entry link");
     const reopenedAfterPatch = await fetchJson(baseUrl, "/state/open-trade").then(({ response, body }) => {
       assert(response.ok, `/state/open-trade returned ${response.status}`);
       return body.openTrade;
     });
-    assert(reopenedAfterPatch?.ticker === "SOXL", "Patching exit to skip should reopen the trade");
-    console.log("ok patch exit to skip rebuilds trade state");
+    assert(reopenedAfterPatch?.ticker === "SOXL", "Patching exit to invalid should reopen the trade");
+    console.log("ok patch exit to invalid rebuilds trade state");
 
-    const blockedPatchEntry = await patchLabel(baseUrl, patchedSkip.label.id, { action: "ENTRY" }, 404);
-    assert(/would enter .* while .* is still open/i.test(blockedPatchEntry.error ?? ""), "Patching skip to entry should not create overlapping trades");
+    const blockedPatchSkip = await patchLabel(baseUrl, patchedInvalid.label.id, { action: "SKIP" }, 404);
+    assert(/would record SKIP .* still open/i.test(blockedPatchSkip.error ?? ""), "Patching invalid to skip should not create a negative example inside an open trade");
+    console.log("ok patch cannot create open-trade skip");
+
+    const blockedPatchEntry = await patchLabel(baseUrl, patchedInvalid.label.id, { action: "ENTRY" }, 404);
+    assert(/would enter .* while .* is still open/i.test(blockedPatchEntry.error ?? ""), "Patching invalid to entry should not create overlapping trades");
     console.log("ok patch cannot create overlapping entry state");
 
     const patchedExit = await patchLabel(baseUrl, secondExit.label.id, { action: "EXIT" });
-    assert(patchedExit.label.trade_id === entry.label.trade_id, "Patching skip back to exit should relink the trade id");
-    assert(patchedExit.label.parent_entry_label_id === entry.label.id, "Patching skip back to exit should relink the parent entry");
+    assert(patchedExit.label.trade_id === entry.label.trade_id, "Patching invalid back to exit should relink the trade id");
+    assert(patchedExit.label.parent_entry_label_id === entry.label.id, "Patching invalid back to exit should relink the parent entry");
     const closedAfterPatch = await fetchJson(baseUrl, "/state/open-trade").then(({ response, body }) => {
       assert(response.ok, `/state/open-trade returned ${response.status}`);
       return body.openTrade;
     });
-    assert(closedAfterPatch === null, "Patching skip back to exit should close the trade again");
-    console.log("ok patch skip back to exit rebuilds trade state");
+    assert(closedAfterPatch === null, "Patching invalid back to exit should close the trade again");
+    console.log("ok patch invalid back to exit rebuilds trade state");
+
+    const skip = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    });
+    assert(skip.label.training_eligible === 1, "Replay skip should be a training-eligible negative example");
+    console.log("ok replay skip is eligible");
+
+    const duplicateSkip = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    }, 400);
+    assert(/label already exists/i.test(duplicateSkip.error ?? ""), "Duplicate label intents should be rejected");
+    console.log("ok duplicate label intents are blocked");
+
+    const conflictingEntry = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "ENTRY",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    }, 400);
+    assert(/conflicting ENTRY label/i.test(conflictingEntry.error ?? ""), "Conflicting same-candle decisions should be rejected");
+    console.log("ok conflicting same-candle decisions are blocked");
 
     const labelsCsv = await fetch(`${baseUrl}/export/labels.csv`).then((response) => response.text());
     assert(labelsCsv.startsWith("id,label_source,training_eligible,action"), "labels.csv header is unexpected");

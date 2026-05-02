@@ -70,6 +70,7 @@ export function CapturePanel({
     reason: getCaptureBlockReason(action, selected, ticker, openTrade)
   }));
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
+  const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
   return (
     <aside className="capture-panel">
       {nextTarget && nextAction ? (
@@ -79,6 +80,11 @@ export function CapturePanel({
             <strong>{nextTarget.kind.replace(/_/g, " ")}</strong>
             <span>{nextTarget.current}/{nextTarget.target} complete · {nextTarget.remaining} remaining</span>
             <p>{nextAction}</p>
+            {showExitFocusAction ? (
+              <button className="secondary compact" onClick={onGoToOpenTradeExitReview}>
+                Review exit <kbd>V</kbd>
+              </button>
+            ) : null}
           </div>
         </section>
       ) : null}

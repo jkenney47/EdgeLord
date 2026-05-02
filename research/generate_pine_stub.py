@@ -25,18 +25,27 @@ def top_candidate(payload: dict[str, Any]) -> dict[str, Any] | None:
     return first
 
 
-def strategy_rules_payload(source: Path, candidate: dict[str, Any] | None) -> dict[str, Any]:
+def strategy_rules_payload(
+    human_source: Path,
+    human_candidate: dict[str, Any] | None,
+    return_source: Path | None,
+    return_candidate: dict[str, Any] | None,
+) -> dict[str, Any]:
     warnings = [
         "Research scaffold only. Do not use for live trading.",
-        "Candidate rules are one-feature ENTRY-vs-SKIP thresholds, not a complete strategy.",
+        "Human-mimic rules are one-feature ENTRY-vs-SKIP thresholds, not a complete strategy.",
+        "Return-optimized rules are closed-label filters, not full-history backtests.",
         "Feature-to-Pine expression mapping must be reviewed before TradingView testing.",
     ]
     return {
         "version": "strategy_rules.v1",
         "generatedAt": datetime.now(UTC).isoformat(),
         "status": "research_scaffold",
-        "source": str(source),
-        "topRule": candidate,
+        "humanMimicSource": str(human_source),
+        "returnOptimizedSource": str(return_source) if return_source else None,
+        "humanMimicTopRule": human_candidate,
+        "returnOptimizedTopRule": return_candidate,
+        "topRule": human_candidate,
         "warnings": warnings,
     }
 
@@ -83,7 +92,28 @@ def comparison_operator(direction: Any) -> str:
     return ">=" if direction == ">=" else "<="
 
 
-def pine_stub(candidate: dict[str, Any] | None) -> str:
+def rule_comment(prefix: str, candidate: dict[str, Any] | None) -> list[str]:
+    if not candidate:
+        return [f"// {prefix}: no candidate available"]
+    feature = str(candidate.get("feature", ""))
+    direction = comparison_operator(candidate.get("direction"))
+    threshold = numeric_literal(candidate.get("threshold"))
+    details: list[str] = []
+    if "precision" in candidate:
+        details.append(f"precision={float(candidate.get('precision', 0)):.4f}")
+    if "recall" in candidate:
+        details.append(f"recall={float(candidate.get('recall', 0)):.4f}")
+    if "lift" in candidate:
+        details.append(f"lift={float(candidate.get('lift', 0)):.4f}")
+    if "avg_return_pct" in candidate:
+        details.append(f"avg_return={float(candidate.get('avg_return_pct', 0)):.4f}%")
+    if "lift_vs_baseline_pct" in candidate:
+        details.append(f"lift_vs_baseline={float(candidate.get('lift_vs_baseline_pct', 0)):.4f}%")
+    suffix = f" ({', '.join(details)})" if details else ""
+    return [f"// {prefix}: {feature} {direction} {threshold}{suffix}"]
+
+
+def pine_stub(human_candidate: dict[str, Any] | None, return_candidate: dict[str, Any] | None) -> str:
     lines = [
         "//@version=5",
         'strategy("EdgeLord SOXL/SOXS Candidate Scaffold", overlay=true, pyramiding=0)',
@@ -93,22 +123,21 @@ def pine_stub(candidate: dict[str, Any] | None) -> str:
         "// This is not a live-trading strategy.",
         "",
     ]
+    lines.extend(rule_comment("Human-mimic candidate", human_candidate))
+    lines.extend(rule_comment("Return-optimized candidate", return_candidate))
+    lines.append("")
 
-    if not candidate:
+    if not human_candidate:
         lines.extend([
-            "// No candidate rule is available yet.",
+            "// No human-mimic candidate rule is available yet.",
             "// Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`.",
             "candidateSignal = false",
         ])
     else:
-        feature = str(candidate.get("feature", ""))
-        direction = comparison_operator(candidate.get("direction"))
-        threshold = numeric_literal(candidate.get("threshold"))
+        feature = str(human_candidate.get("feature", ""))
+        direction = comparison_operator(human_candidate.get("direction"))
+        threshold = numeric_literal(human_candidate.get("threshold"))
         expression, comments = pine_expression(feature)
-        lines.extend([
-            f"// Top candidate: {feature} {direction} {threshold}",
-            f"// precision={float(candidate.get('precision', 0)):.4f} recall={float(candidate.get('recall', 0)):.4f} lift={float(candidate.get('lift', 0)):.4f}",
-        ])
         lines.extend(f"// {comment}" for comment in comments)
         lines.extend([
             f"candidateFeature = {expression}",
@@ -130,18 +159,22 @@ def pine_stub(candidate: dict[str, Any] | None) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate EdgeLord strategy-rules JSON and a Pine Script scaffold.")
     parser.add_argument("--rules-json", required=True, type=Path, help="Path to candidate-rules.json")
+    parser.add_argument("--return-rules-json", type=Path, help="Optional path to return-rules.json")
     parser.add_argument("--rules-output", required=True, type=Path, help="Path to write strategy_rules.v1.json")
     parser.add_argument("--pine-output", required=True, type=Path, help="Path to write strategy_soxl_soxs.pine")
     args = parser.parse_args()
 
     candidate_rules = read_rules(args.rules_json)
-    candidate = top_candidate(candidate_rules)
+    human_candidate = top_candidate(candidate_rules)
+    return_candidate = top_candidate(read_rules(args.return_rules_json)) if args.return_rules_json else None
 
     args.rules_output.parent.mkdir(parents=True, exist_ok=True)
-    args.rules_output.write_text(f"{json.dumps(strategy_rules_payload(args.rules_json, candidate), indent=2)}\n")
+    args.rules_output.write_text(
+        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, args.return_rules_json, return_candidate), indent=2)}\n"
+    )
 
     args.pine_output.parent.mkdir(parents=True, exist_ok=True)
-    args.pine_output.write_text(pine_stub(candidate))
+    args.pine_output.write_text(pine_stub(human_candidate, return_candidate))
 
 
 if __name__ == "__main__":

@@ -189,6 +189,7 @@ execFileSync("python3", [
 execFileSync("python3", [
   "research/generate_pine_stub.py",
   "--rules-json", rulesJsonPath,
+  "--return-rules-json", returnRulesJsonPath,
   "--rules-output", strategyRulesPath,
   "--pine-output", pineStrategyPath
 ], {

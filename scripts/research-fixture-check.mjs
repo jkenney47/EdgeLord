@@ -122,11 +122,14 @@ try {
   run([
     "research/generate_pine_stub.py",
     "--rules-json", path.join(tempDir, "candidate-rules.json"),
+    "--return-rules-json", path.join(tempDir, "return-rules.json"),
     "--rules-output", path.join(tempDir, "strategy-rules.v1.json"),
     "--pine-output", path.join(tempDir, "strategy-soxl-soxs.pine")
   ]);
-  assert(readFile("strategy-rules.v1.json").includes('"version": "strategy_rules.v1"'), "strategy rules JSON should be written");
+  assert(readFile("strategy-rules.v1.json").includes('"humanMimicTopRule"'), "strategy rules JSON should include the human rule");
+  assert(readFile("strategy-rules.v1.json").includes('"returnOptimizedTopRule"'), "strategy rules JSON should include the return rule");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
 
   runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv"]);
   try {

@@ -151,11 +151,12 @@ To generate rough exit-rule candidates:
 ```bash
 python3 research/discover_exit_rules.py \
   --training /path/to/training-features.csv \
+  --candidates /path/to/trade-candidates.csv \
   --output /path/to/exit-rules.md \
   --json-output /path/to/exit-rules.json
 ```
 
-This is only an EXIT-vs-non-EXIT scaffold over labeled decision rows. It is not a proper in-trade HOLD-vs-EXIT model until EdgeLord exports held candidate bars.
+When `trade-candidates.csv` is present, this uses in-trade HOLD-vs-EXIT rows from closed training-eligible trades. Without that file, it falls back to the weaker EXIT-vs-non-EXIT scaffold over labeled decision rows.
 
 To generate only the TradingView-facing scaffold from candidate rules:
 

@@ -8,7 +8,7 @@ import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from 
 import { CsvImportValidationError, parseBarsCsv, readCsvFile } from "./csvImport";
 import { buildDatasetPulse } from "./dataset";
 import { repoRoot } from "./db";
-import { exportManifest, labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
+import { exportManifest, labelsCsv, labelsJsonl, tradeCandidatesCsv, tradesCsv, trainingFeaturesCsv } from "./export";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
 import type { ChartTimeframe, Ticker } from "./schema";
 import { getOpenTrade, getTrades } from "./trades";
@@ -112,6 +112,7 @@ app.get("/state/dataset", async () => buildDatasetPulse(getBarsSummary(), getLab
 app.get("/export/labels.csv", async (_request, reply) => reply.type("text/csv").send(labelsCsv(getLabels())));
 app.get("/export/trades.csv", async (_request, reply) => reply.type("text/csv").send(tradesCsv(getTrades())));
 app.get("/export/training-features.csv", async (_request, reply) => reply.type("text/csv").send(trainingFeaturesCsv(getLabels())));
+app.get("/export/trade-candidates.csv", async (_request, reply) => reply.type("text/csv").send(tradeCandidatesCsv(getLabels(), getTrades())));
 app.get("/export/labels.jsonl", async (_request, reply) => reply.type("application/x-ndjson").send(labelsJsonl(getLabels())));
 app.get("/export/manifest.json", async () => exportManifest(getLabels(), getTrades()));
 

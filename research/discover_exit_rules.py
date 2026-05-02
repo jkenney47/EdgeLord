@@ -68,8 +68,8 @@ def score_rule(rows: list[dict[str, str]], column: str, threshold: float, direct
     }
 
 
-def discover(training: list[dict[str, str]]) -> list[Rule]:
-    rows = [row for row in training if row.get("action") in {"ENTRY", "EXIT", "SKIP"}]
+def discover(input_rows: list[dict[str, str]], non_exit_actions: set[str]) -> list[Rule]:
+    rows = [row for row in input_rows if row.get("action") in non_exit_actions | {"EXIT"}]
     if not rows:
         return []
 
@@ -92,20 +92,31 @@ def discover(training: list[dict[str, str]]) -> list[Rule]:
     )
 
 
-def format_report(training: list[dict[str, str]], candidates: list[Rule]) -> str:
-    rows = [row for row in training if row.get("action") in {"ENTRY", "EXIT", "SKIP"}]
+def format_report(input_rows: list[dict[str, str]], candidates: list[Rule], source: str, non_exit_actions: set[str]) -> str:
+    rows = [row for row in input_rows if row.get("action") in non_exit_actions | {"EXIT"}]
     exit_count = sum(1 for row in rows if row.get("action") == "EXIT")
-    non_exit_count = sum(1 for row in rows if row.get("action") in {"ENTRY", "SKIP"})
+    non_exit_count = sum(1 for row in rows if row.get("action") in non_exit_actions)
+    if source == "trade_candidates":
+        notes = [
+            "- These are rough EXIT-vs-HOLD thresholds over in-trade candidate bars.",
+            "- Candidate bars are generated from closed training-eligible trades only.",
+            "- Use them as a scaffold until the dataset has many closed trades across market regimes.",
+        ]
+    else:
+        notes = [
+            "- These are rough EXIT-vs-non-EXIT thresholds over labeled decision rows.",
+            "- They are not a true in-trade HOLD-vs-EXIT model because no trade-candidate export was provided.",
+            "- Use them as a Pine scaffold prompt only until more explicit EXIT labels and candidate bars exist.",
+        ]
     lines = [
         "EdgeLord Exit Rule Candidates",
         "============================",
+        f"source: {source}",
         f"exit_rows: {exit_count}",
         f"non_exit_rows: {non_exit_count}",
         "",
         "Notes",
-        "- These are rough EXIT-vs-non-EXIT thresholds over labeled decision rows.",
-        "- They are not a true in-trade HOLD-vs-EXIT model yet because EdgeLord does not export every held bar as a candidate row.",
-        "- Use them as a Pine scaffold prompt only until more explicit EXIT labels and candidate bars exist.",
+        *notes,
         "",
         "Top Candidates",
     ]
@@ -129,20 +140,28 @@ def format_report(training: list[dict[str, str]], candidates: list[Rule]) -> str
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate rough EdgeLord EXIT-vs-non-EXIT rule candidates.")
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
+    parser.add_argument("--candidates", type=Path, help="Optional trade-candidates.csv export for true HOLD-vs-EXIT rows")
     parser.add_argument("--output", type=Path, help="Optional path to write exit-rule markdown")
     parser.add_argument("--json-output", type=Path, help="Optional path to write exit-rule JSON")
     args = parser.parse_args()
 
-    training = read_csv(args.training)
-    candidates = discover(training)
-    report = format_report(training, candidates)
+    if args.candidates and args.candidates.exists():
+        rows = read_csv(args.candidates)
+        source = "trade_candidates"
+        non_exit_actions = {"HOLD"}
+    else:
+        rows = read_csv(args.training)
+        source = "training_features"
+        non_exit_actions = {"ENTRY", "SKIP"}
+    candidates = discover(rows, non_exit_actions)
+    report = format_report(rows, candidates, source, non_exit_actions)
     print(report, end="")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        args.json_output.write_text(f"{json.dumps({'candidates': candidates}, indent=2)}\n")
+        args.json_output.write_text(f"{json.dumps({'source': source, 'candidates': candidates}, indent=2)}\n")
 
 
 if __name__ == "__main__":

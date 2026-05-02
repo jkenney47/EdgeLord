@@ -87,6 +87,7 @@ export function ReplayControls({
           <a href={exportUrl("labels.csv")}>Labels CSV</a>
           <a href={exportUrl("trades.csv")}>Trades CSV</a>
           <a href={exportUrl("training-features.csv")}>Training CSV</a>
+          <a href={exportUrl("trade-candidates.csv")}>Trade Candidates CSV</a>
           <a href={exportUrl("labels.jsonl")}>Labels JSONL</a>
         </div>
       </details>

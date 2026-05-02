@@ -12,7 +12,7 @@ Allowed scope:
 - Show one focused chart.
 - Capture `ENTRY`, `EXIT`, `SKIP`, and `INVALID` labels.
 - Enforce the long-only SOXL/SOXS state machine.
-- Export labels, trades, training features, and JSONL.
+- Export labels, trades, training features, in-trade candidates, and JSONL.
 - Keep a small research scaffold for later Pine Script strategy work.
 
 Do not add drawing tools, trendlines, dashboards, dense review panels, broker integrations, alerts, watchlists, strategy mining UI, backtesting UI, or new indicators until the minimal labeler is working and useful.

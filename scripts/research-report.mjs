@@ -11,6 +11,7 @@ const exportFiles = [
   ["labels.csv", "/export/labels.csv"],
   ["trades.csv", "/export/trades.csv"],
   ["training-features.csv", "/export/training-features.csv"],
+  ["trade-candidates.csv", "/export/trade-candidates.csv"],
   ["labels.jsonl", "/export/labels.jsonl"],
   ["manifest.api.json", "/export/manifest.json"]
 ];
@@ -257,6 +258,7 @@ execFileSync("python3", [
 execFileSync("python3", [
   "research/discover_exit_rules.py",
   "--training", path.join(backupDir, "training-features.csv"),
+  "--candidates", path.join(backupDir, "trade-candidates.csv"),
   "--output", exitRulesPath,
   "--json-output", exitRulesJsonPath
 ], {

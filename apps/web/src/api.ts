@@ -167,6 +167,6 @@ export async function deleteLabel(id: string): Promise<void> {
   await request(`/labels/${id}`, { method: "DELETE" });
 }
 
-export function exportUrl(name: "labels.csv" | "trades.csv" | "training-features.csv" | "labels.jsonl"): string {
+export function exportUrl(name: "labels.csv" | "trades.csv" | "training-features.csv" | "trade-candidates.csv" | "labels.jsonl"): string {
   return `${API_BASE}/export/${name}`;
 }

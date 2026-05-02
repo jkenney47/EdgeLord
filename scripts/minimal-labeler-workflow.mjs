@@ -353,6 +353,14 @@ async function runAcceptance() {
     assert(!trainingCsv.includes(exit.label.id), "training-features.csv should exclude deleted labels");
     console.log("ok /export/training-features.csv excludes ineligible labels");
 
+    const tradeCandidatesCsv = await fetch(`${baseUrl}/export/trade-candidates.csv`).then((response) => response.text());
+    assert(
+      tradeCandidatesCsv.startsWith("candidate_id,trade_id,entry_label_id,exit_label_id,action,target_exit,target_hold"),
+      "trade-candidates.csv header is unexpected"
+    );
+    assert(tradeCandidatesCsv.includes("EXIT,1,0"), "trade-candidates.csv should include exit candidate rows for closed trades");
+    console.log("ok /export/trade-candidates.csv");
+
     const labelsJsonl = await fetch(`${baseUrl}/export/labels.jsonl`).then((response) => response.text());
     const jsonlRows = labelsJsonl.trim().split("\n").map((line) => JSON.parse(line));
     assert(jsonlRows.length === 4, "labels.jsonl should include all labels");

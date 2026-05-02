@@ -80,6 +80,14 @@ const tradesCsv = writeFile("trades.csv", [
   "t2,SOXS,closed,l5,l6,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10"
 ].join("\n") + "\n");
 
+const tradeCandidatesCsv = writeFile("trade-candidates.csv", [
+  "candidate_id,trade_id,entry_label_id,exit_label_id,action,target_exit,target_hold,ticker,timeframe,timestamp,bar_index,in_trade_bar_index,chart_price,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
+  "t1:hold,t1,l1,l2,HOLD,0,1,SOXL,4H,2024-01-02T18:30:00.000Z,1,1,10.5,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,10.5,9.2,8.2,0.5,35,38,true,true,14.1,28,3,6,9,10.5,7,0.87,SOXS,89,0.118,10.5,true,10.5,true,10.5,true",
+  "t1:exit,t1,l1,l2,EXIT,1,0,SOXL,4H,2024-01-03T14:30:00.000Z,2,2,11,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
+  "t2:hold,t2,l5,l6,HOLD,0,1,SOXS,4H,2024-01-06T18:30:00.000Z,5,1,19,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,19,20.5,19,0.8,55,58,false,true,-7.3,0,-2,-1,0,22,18,0.25,SOXL,10.5,1.81,19,false,19,false,19,false",
+  "t2:exit,t2,l5,l6,EXIT,1,0,SOXS,4H,2024-01-07T14:30:00.000Z,6,2,18,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+].join("\n") + "\n");
+
 try {
   run([
     "research/dataset_report.py",
@@ -179,10 +187,12 @@ try {
   run([
     "research/discover_exit_rules.py",
     "--training", trainingCsv,
+    "--candidates", tradeCandidatesCsv,
     "--output", path.join(tempDir, "exit-rules.md"),
     "--json-output", path.join(tempDir, "exit-rules.json")
   ]);
   assert(readFile("exit-rules.md").includes("EdgeLord Exit Rule Candidates"), "exit rules report should be written");
+  assert(readFile("exit-rules.md").includes("source: trade_candidates"), "exit rules should prefer in-trade candidates");
   assert(JSON.parse(readFile("exit-rules.json")).candidates.length > 0, "exit rules JSON should include candidates");
 
   run([

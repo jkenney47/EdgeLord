@@ -1,6 +1,8 @@
+import { getBars } from "./bars";
+import { buildFeatures } from "./indicators";
 import type { Label, Trade } from "./schema";
 
-const featureColumns = [
+export const featureColumns = [
   ["close", "feature_close"],
   ["ema25", "feature_ema25"],
   ["sma100", "feature_sma100"],
@@ -81,6 +83,60 @@ export function trainingFeaturesCsv(labels: Label[]): string {
   return toCsv(rows, columns);
 }
 
+export function tradeCandidatesCsv(labels: Label[], trades: Trade[]): string {
+  const columns = [
+    "candidate_id", "trade_id", "entry_label_id", "exit_label_id", "action", "target_exit", "target_hold",
+    "ticker", "timeframe", "timestamp", "bar_index", "in_trade_bar_index", "chart_price",
+    "entry_timestamp", "exit_timestamp", "entry_price", "exit_price", "return_pct",
+    ...featureColumns.map(([, column]) => column)
+  ];
+  const labelById = new Map(labels.filter((label) => label.deleted_at === null).map((label) => [label.id, label]));
+  const rows: Array<Record<string, unknown>> = [];
+
+  for (const trade of trades.filter((item) => item.status === "closed" && item.exit_label_id)) {
+    const entry = labelById.get(trade.entry_label_id);
+    const exit = trade.exit_label_id ? labelById.get(trade.exit_label_id) : null;
+    if (!entry || !exit || entry.training_eligible !== 1 || exit.training_eligible !== 1) continue;
+
+    const bars = getBars(entry.ticker, entry.timeframe);
+    const entryIndex = bars.findIndex((bar) => bar.timestamp === entry.timestamp);
+    const exitIndex = bars.findIndex((bar) => bar.timestamp === exit.timestamp);
+    if (entryIndex < 0 || exitIndex <= entryIndex) continue;
+
+    for (let index = entryIndex + 1; index <= exitIndex; index += 1) {
+      const bar = bars[index];
+      const action = bar.timestamp === exit.timestamp ? "EXIT" : "HOLD";
+      const features = buildFeatures(entry.ticker, entry.timeframe, bar.timestamp);
+      rows.push({
+        candidate_id: `${trade.id}:${bar.timestamp}`,
+        trade_id: trade.id,
+        entry_label_id: entry.id,
+        exit_label_id: exit.id,
+        action,
+        target_exit: action === "EXIT" ? 1 : 0,
+        target_hold: action === "HOLD" ? 1 : 0,
+        ticker: entry.ticker,
+        timeframe: entry.timeframe,
+        timestamp: bar.timestamp,
+        bar_index: index,
+        in_trade_bar_index: index - entryIndex,
+        chart_price: bar.close,
+        entry_timestamp: trade.entry_timestamp,
+        exit_timestamp: trade.exit_timestamp,
+        entry_price: trade.entry_price,
+        exit_price: trade.exit_price,
+        return_pct: trade.return_pct,
+        ...Object.fromEntries(featureColumns.map(([featureKey, column]) => [
+          column,
+          features[featureKey]
+        ]))
+      });
+    }
+  }
+
+  return toCsv(rows, columns);
+}
+
 export function labelsJsonl(labels: Label[]): string {
   return labels.map((label) => JSON.stringify({
     ...label,
@@ -99,6 +155,7 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
       "labels.csv",
       "trades.csv",
       "training-features.csv",
+      "trade-candidates.csv",
       "labels.jsonl"
     ],
     labels: {

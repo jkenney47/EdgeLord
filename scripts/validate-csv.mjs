@@ -47,6 +47,7 @@ if (!csvArg || csvArg === "--help" || csvArg === "-h") {
   console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--min-paired-overlap-pct N] [--json-output reports/import-check.json]");
   console.log("");
   console.log(`Required columns: ${requiredColumns.join(",")}`);
+  console.log("Optional column: adjusted. If present, every row must be truthy: 1, true, yes, y, or adjusted.");
   console.log("");
   console.log("--research-ready fails the check when duplicate rows exist, SOXL/SOXS coverage is below target, or paired ticker timestamp overlap is too low.");
   process.exit(rawArgs.some((arg) => arg === "--help" || arg === "-h") ? 0 : 1);

@@ -26,6 +26,7 @@ if (!csvArg || csvArg === "--help" || csvArg === "-h") {
   console.log("Usage: pnpm import:csv /path/to/adjusted-bars.csv [--replace-bars] [--force-replace-bars] [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--min-paired-overlap-pct N]");
   console.log("");
   console.log("CSV columns: ticker,timestamp,open,high,low,close,volume");
+  console.log("Optional column: adjusted. If present, every row must be truthy: 1, true, yes, y, or adjusted.");
   console.log("--replace-bars deletes existing cached bars before importing.");
   console.log("--force-replace-bars allows replacement when active labels exist. Run pnpm export:backup and pnpm labels:integrity first.");
   console.log("--research-ready requires SOXL/SOXS coverage and paired timestamp overlap suitable for strategy research before importing.");

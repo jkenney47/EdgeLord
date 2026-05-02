@@ -199,6 +199,8 @@ def main() -> None:
     lines.extend(format_counts("Actions", count_by(labels, "action")))
     lines.extend(format_counts("Training Actions", count_by(training, "action")))
     lines.extend(format_counts("Label Sources", count_by(labels, "label_source")))
+    lines.extend(format_counts("Training Label Sources", count_by(training, "label_source")))
+    lines.extend(format_counts("Training Capture Modes", count_by(training, "capture_mode")))
     lines.extend(format_counts("Tickers", count_by(labels, "ticker")))
     lines.extend(format_counts("Timeframes", count_by(labels, "timeframe")))
     lines.extend(format_counts("Trade Status", count_by(trades, "status")))

@@ -29,6 +29,8 @@ It writes:
 - `reports/<timestamp>-human-vs-rule.csv`
 - `reports/<timestamp>-time-splits.md`
 - `reports/<timestamp>-time-splits.csv`
+- `reports/<timestamp>-split-rule-eval.md`
+- `reports/<timestamp>-split-rule-eval.csv`
 
 Or export CSV files manually and run:
 
@@ -75,3 +77,18 @@ python3 research/time_splits.py \
 ```
 
 The split scaffold uses chronological 60/20/20 row assignment. It is a research guardrail, not a claim that the dataset is large enough yet.
+
+To evaluate one simple rule by split:
+
+```bash
+python3 research/split_rule_eval.py \
+  --training /path/to/training-features.csv \
+  --splits /path/to/time-splits.csv \
+  --feature feature_distance_to_ema25_pct \
+  --direction ">=" \
+  --threshold 1.5 \
+  --output /path/to/split-rule-eval.md \
+  --csv-output /path/to/split-rule-eval.csv
+```
+
+Use validate/test split behavior as an early warning before promoting a candidate rule.

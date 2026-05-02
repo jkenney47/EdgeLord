@@ -40,6 +40,8 @@ const comparisonPath = path.join(reportsDir, `${slug}-human-vs-rule.md`);
 const comparisonCsvPath = path.join(reportsDir, `${slug}-human-vs-rule.csv`);
 const timeSplitsPath = path.join(reportsDir, `${slug}-time-splits.md`);
 const timeSplitsCsvPath = path.join(reportsDir, `${slug}-time-splits.csv`);
+const splitRuleEvalPath = path.join(reportsDir, `${slug}-split-rule-eval.md`);
+const splitRuleEvalCsvPath = path.join(reportsDir, `${slug}-split-rule-eval.csv`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -59,7 +61,9 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   humanVsRule: path.relative(root, comparisonPath),
   humanVsRuleCsv: path.relative(root, comparisonCsvPath),
   timeSplits: path.relative(root, timeSplitsPath),
-  timeSplitsCsv: path.relative(root, timeSplitsCsvPath)
+  timeSplitsCsv: path.relative(root, timeSplitsCsvPath),
+  splitRuleEval: path.relative(root, splitRuleEvalPath),
+  splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -121,8 +125,36 @@ execFileSync("python3", [
   stdio: "inherit"
 });
 
+if (topRule) {
+  execFileSync("python3", [
+    "research/split_rule_eval.py",
+    "--training", path.join(backupDir, "training-features.csv"),
+    "--splits", timeSplitsCsvPath,
+    "--feature", topRule.feature,
+    "--direction", topRule.direction,
+    "--threshold", String(topRule.threshold),
+    "--output", splitRuleEvalPath,
+    "--csv-output", splitRuleEvalCsvPath
+  ], {
+    cwd: root,
+    stdio: "inherit"
+  });
+} else {
+  const report = [
+    "EdgeLord Split Rule Evaluation",
+    "==============================",
+    "No candidate rule is available yet.",
+    "",
+    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+  ].join("\n") + "\n";
+  fs.writeFileSync(splitRuleEvalPath, report);
+  fs.writeFileSync(splitRuleEvalCsvPath, "split,rows,human_entries,model_entries,precision,recall,agreement,true_positive,false_positive,false_negative,true_negative\n");
+  console.log(report);
+}
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
 console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
 console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);
+console.log(`split_rule_eval: ${path.relative(root, splitRuleEvalPath)}`);

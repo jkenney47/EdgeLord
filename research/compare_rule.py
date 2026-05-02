@@ -2,54 +2,19 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
-def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="") as handle:
-        return list(csv.DictReader(handle))
-
-
-def numeric_value(row: dict[str, str], column: str) -> float | None:
-    raw = row.get(column, "")
-    if raw == "":
-        return None
-    try:
-        return float(raw)
-    except ValueError:
-        return None
-
-
-def rule_matches(row: dict[str, str], feature: str, direction: str, threshold: float) -> bool:
-    value = numeric_value(row, feature)
-    if value is None:
-        return False
-    if direction == ">=":
-        return value >= threshold
-    if direction == "<=":
-        return value <= threshold
-    raise ValueError("direction must be >= or <=")
-
-
-def conditions_match(row: dict[str, str], conditions: list[dict[str, Any]]) -> bool:
-    return all(
-        rule_matches(row, str(condition["feature"]), str(condition["direction"]), float(condition["threshold"]))
-        for condition in conditions
-    )
-
-
-def condition_label(conditions: list[dict[str, Any]]) -> str:
-    return " AND ".join(
-        f"{condition['feature']} {condition['direction']} {float(condition['threshold']):.4f}"
-        for condition in conditions
-    )
-
-
-def condition_values(row: dict[str, str], conditions: list[dict[str, Any]]) -> str:
-    return "; ".join(f"{condition['feature']}={row.get(str(condition['feature']), '')}" for condition in conditions)
+from rule_utils import (
+    condition_label,
+    condition_values,
+    conditions_match,
+    numeric_value,
+    parse_conditions,
+    read_csv,
+    rule_matches,
+)
 
 
 def category_for(action: str, model_enters: bool) -> str:
@@ -263,9 +228,7 @@ def main() -> None:
 
     training = read_csv(args.training)
     if args.conditions_json:
-        conditions = json.loads(args.conditions_json)
-        if not isinstance(conditions, list) or not conditions:
-            raise ValueError("--conditions-json must be a non-empty JSON array")
+        conditions = parse_conditions(args.conditions_json)
         compared = compare_conditions(training, conditions)
         report = format_conditions_report(training, compared, conditions)
     else:

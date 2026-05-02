@@ -83,6 +83,7 @@ For the common local workflow:
 
 ```bash
 pnpm workflow:minimal-labeler
+pnpm checkpoint:minimal-labeler
 pnpm closeout:minimal-labeler
 pnpm acceptance:minimal-labeler
 pnpm workflow:minimal-labeler -- --acceptance
@@ -102,6 +103,8 @@ pnpm labels:integrity
 ```
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
+
+`checkpoint:minimal-labeler` is the heavier end-of-slice command for backend/data/export/research work. It runs the closeout gate, then `data:status`, then prints final git status. Use it when the local API is already running and you want one command to verify code plus current dataset readiness.
 
 `export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 

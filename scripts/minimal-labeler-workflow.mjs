@@ -399,9 +399,10 @@ async function runAcceptance() {
 }
 
 const shouldCloseout = args.has("--closeout");
+const shouldCheckpoint = args.has("--checkpoint");
 const shouldProceed = args.has("--proceed");
-const shouldRunAcceptance = args.has("--acceptance") || shouldCloseout;
-const shouldRunApiSmoke = args.has("--api-smoke") || shouldCloseout;
+const shouldRunAcceptance = args.has("--acceptance") || shouldCloseout || shouldCheckpoint;
+const shouldRunApiSmoke = args.has("--api-smoke") || shouldCloseout || shouldCheckpoint;
 
 if (args.has("--reset-db")) {
   for (const file of ["edgelord.sqlite", "edgelord.sqlite-shm", "edgelord.sqlite-wal"]) {
@@ -417,7 +418,7 @@ if (shouldProceed) {
   scanProceedContext();
 }
 
-if (shouldCloseout) {
+if (shouldCloseout || shouldCheckpoint) {
   run("pnpm", ["lint"]);
 }
 
@@ -437,4 +438,11 @@ if (shouldRunApiSmoke) {
   } else {
     throw new Error(`Live API is not running at ${baseUrl}`);
   }
+}
+
+if (shouldCheckpoint) {
+  run("pnpm", ["data:status"]);
+  console.log("");
+  console.log("Checkpoint git status");
+  console.log(output("git", ["status", "--short", "--branch"]));
 }

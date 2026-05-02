@@ -12,10 +12,10 @@ For a plain `proceed` request, use this reusable checkpoint loop without asking 
 1. Run `pnpm proceed:minimal-labeler`.
 2. Pick the next smallest useful slice in this order: data/import safety, label integrity, exports, research reports, Pine scaffold, then UI only if visible behavior changed or the user asks.
 3. Make the scoped edit.
-4. Run `pnpm closeout:minimal-labeler`.
+4. Run `pnpm checkpoint:minimal-labeler` when the local API is running; otherwise run `pnpm closeout:minimal-labeler`.
 5. Commit and push when the tree is cleanly verified and the change is a coherent checkpoint.
 
-Do not split the first two commands into separate manual rediscovery steps unless the workflow script itself is being changed. `pnpm proceed:minimal-labeler` already includes the scan and baseline verification; `pnpm closeout:minimal-labeler` already includes lint, tests, typecheck, build, acceptance, research fixture, and live API smoke when available.
+Do not split the first two commands into separate manual rediscovery steps unless the workflow script itself is being changed. `pnpm proceed:minimal-labeler` already includes the scan and baseline verification; `pnpm closeout:minimal-labeler` already includes lint, tests, typecheck, build, acceptance, research fixture, and live API smoke when available. `pnpm checkpoint:minimal-labeler` extends closeout with `pnpm data:status` plus a final git status, so prefer it after backend/data/export/research slices when the API is already running.
 
 Run this from `/Users/JoeyKenney/Documents/EdgeLord` at the start of every labeler, state-machine, capture, import, or export loop:
 
@@ -41,6 +41,14 @@ pnpm closeout:minimal-labeler
 ```
 
 That command runs lint, tests, typecheck, web build, a temporary API acceptance check, and a live API smoke check when the dev API is already running. The temporary acceptance check uses a temporary SQLite database, seeds sample bars, creates entry/exit/skip/hindsight labels, checks that opposite ETF entry is blocked while a trade is open, verifies exit pairing, and checks all export endpoints. It does not touch local labeling data.
+
+Use the full checkpoint command when the local API is running and the slice affects data, exports, labels, research, or readiness:
+
+```bash
+pnpm checkpoint:minimal-labeler
+```
+
+That command runs the closeout gate, then `pnpm data:status`, then prints final git status.
 
 Use the narrower acceptance-only check when you do not need lint or live API smoke:
 
@@ -82,6 +90,6 @@ Default labeler loop:
 ```bash
 pnpm workflow:minimal-labeler
 # edit the scoped slice
-pnpm closeout:minimal-labeler
+pnpm checkpoint:minimal-labeler
 # if UI changed, inspect http://127.0.0.1:5173/ in the Codex in-app browser; add Playwright only when repeatable automation is useful
 ```

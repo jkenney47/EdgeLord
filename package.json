@@ -13,6 +13,7 @@
     "lint": "pnpm --recursive lint",
     "verify": "pnpm test && pnpm typecheck && pnpm --filter @edgelord/web build",
     "acceptance:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --acceptance",
+    "checkpoint:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --checkpoint",
     "closeout:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --closeout",
     "data:coverage": "node scripts/data-coverage.mjs --write",
     "data:status": "node scripts/data-status.mjs",

@@ -15,6 +15,8 @@ type Props = {
   onNext: () => void;
   onJumpDate: (value: string) => void;
   onJump: () => void;
+  onImportCsv: (file: File) => void;
+  importStatus: string | null;
 };
 
 export function ReplayControls({
@@ -30,7 +32,9 @@ export function ReplayControls({
   onPrev,
   onNext,
   onJumpDate,
-  onJump
+  onJump,
+  onImportCsv,
+  importStatus
 }: Props) {
   return (
     <header className="topbar">
@@ -59,6 +63,18 @@ export function ReplayControls({
         <input value={jumpDate} placeholder="YYYY-MM-DD" onChange={(event) => onJumpDate(event.target.value)} />
       </label>
       <button onClick={onJump}>Jump</button>
+      <label className="file-import">
+        <span>Import CSV</span>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            if (file) onImportCsv(file);
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
       <details className="export-menu">
         <summary>Export</summary>
         <div>
@@ -68,6 +84,7 @@ export function ReplayControls({
           <a href={exportUrl("labels.jsonl")}>Labels JSONL</a>
         </div>
       </details>
+      {importStatus ? <span className="import-status">{importStatus}</span> : null}
       <span className="progress">{total === 0 ? "0 / 0" : `${index + 1} / ${total}`}</span>
     </header>
   );

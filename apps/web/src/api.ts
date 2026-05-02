@@ -69,6 +69,14 @@ export async function fetchBars(ticker: Ticker, timeframe: Timeframe): Promise<B
   return data.bars;
 }
 
+export async function importCsv(csv: string): Promise<{ rawInserted: number; aggregateInserted: number }> {
+  return request("/import/csv", {
+    method: "POST",
+    headers: { "content-type": "text/csv" },
+    body: csv
+  });
+}
+
 export async function fetchLabels(): Promise<Label[]> {
   return (await request<{ labels: Label[] }>("/labels")).labels;
 }

@@ -7,6 +7,7 @@ import {
   fetchLabels,
   fetchOpenTrade,
   fetchTrades,
+  importCsv,
   type Bar,
   type CaptureMode,
   type Label,
@@ -33,6 +34,7 @@ export function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [openTrade, setOpenTrade] = useState<Trade | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
 
@@ -43,17 +45,22 @@ export function App() {
     setOpenTrade(nextOpenTrade);
   }, []);
 
-  useEffect(() => {
+  const loadBars = useCallback(async () => {
     setError(null);
-    fetchBars(ticker, timeframe)
-      .then((nextBars) => {
-        setBars(nextBars);
-        const nextIndex = Math.max(0, nextBars.length - 1);
-        setIndex(mode === "replay" ? 0 : nextIndex);
-        setSelected(nextBars[mode === "replay" ? 0 : nextIndex] ?? null);
-      })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load bars"));
+    try {
+      const nextBars = await fetchBars(ticker, timeframe);
+      setBars(nextBars);
+      const nextIndex = Math.max(0, nextBars.length - 1);
+      setIndex(mode === "replay" ? 0 : nextIndex);
+      setSelected(nextBars[mode === "replay" ? 0 : nextIndex] ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load bars");
+    }
   }, [mode, ticker, timeframe]);
+
+  useEffect(() => {
+    void loadBars();
+  }, [loadBars]);
 
   useEffect(() => {
     void refreshState();
@@ -117,6 +124,22 @@ export function App() {
     }
   }, [bars, jumpDate]);
 
+  const handleImportCsv = useCallback(async (file: File) => {
+    setError(null);
+    setImportStatus(`Importing ${file.name}`);
+    try {
+      const csv = await file.text();
+      const result = await importCsv(csv);
+      setImportStatus(`Imported ${result.rawInserted} raw / ${result.aggregateInserted} chart bars`);
+      await loadBars();
+      await refreshState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not import CSV";
+      setError(message);
+      setImportStatus("Import failed");
+    }
+  }, [loadBars, refreshState]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
@@ -165,6 +188,8 @@ export function App() {
         onNext={() => move(1)}
         onJumpDate={setJumpDate}
         onJump={jump}
+        onImportCsv={(file) => void handleImportCsv(file)}
+        importStatus={importStatus}
       />
       <div className="workspace">
         <ChartView bars={bars} visibleBars={visibleBars} selected={selected} onSelect={selectBar} />

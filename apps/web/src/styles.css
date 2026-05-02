@@ -87,6 +87,40 @@ a {
   width: 128px;
 }
 
+.file-import {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border: 1px solid #2c3745;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #151c26;
+  color: #e7edf6;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.file-import span {
+  font-size: 14px;
+}
+
+.file-import input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-status {
+  max-width: 260px;
+  color: #8d98a8;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .export-menu {
   position: relative;
 }

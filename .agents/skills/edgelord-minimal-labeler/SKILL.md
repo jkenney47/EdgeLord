@@ -15,6 +15,37 @@ pnpm slice:minimal-labeler
 
 Use `pnpm slice:minimal-labeler` for the normal autonomous loop. It runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, live API smoke, research fixture, `data:status`, final git status, and closeout reminders in one command.
 
+## Proceed Turn Macro
+
+When the user says `Proceed`, `Proceed with development`, or `Do whatever you recommend`, use this exact loop:
+
+```bash
+git status --short --branch
+```
+
+If the tree is clean, pick the next slice in this order unless the user gave a narrower target:
+
+1. data/import safety
+2. label integrity
+3. exports
+4. research reports
+5. Pine scaffold
+6. UI only when visible behavior changed or the user asks
+
+After edits, run:
+
+```bash
+pnpm slice:minimal-labeler
+git diff --stat
+git diff -- <changed files>
+git add <changed files>
+git commit -m "<imperative summary>"
+git push
+git status --short --branch
+```
+
+Skip the separate `pnpm proceed:minimal-labeler` orientation command unless you need recent checkpoint context before choosing a slice. `pnpm slice:minimal-labeler` already includes the proceed scan.
+
 If you only need orientation before editing, use:
 
 ```bash

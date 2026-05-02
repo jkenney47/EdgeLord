@@ -46,6 +46,27 @@ SOXL,2011-01-03T14:30:00.000Z,1.23,1.25,1.20,1.24,123456
 
 Only adjusted OHLCV should be imported.
 
+### Alpaca Backfill
+
+Alpaca is an optional source for producing the adjusted CSV. EdgeLord still imports through the same local CSV path so downloaded data can be validated before it touches the labeling database.
+
+Set credentials in your shell, not in the repo:
+
+```bash
+export ALPACA_API_KEY_ID=...
+export ALPACA_API_SECRET_KEY=...
+```
+
+Download adjusted bars:
+
+```bash
+pnpm data:alpaca --start 2011-01-01 --end 2026-05-02 --output data/alpaca-soxl-soxs-1min.csv
+pnpm validate:csv data/alpaca-soxl-soxs-1min.csv --research-ready
+pnpm import:csv data/alpaca-soxl-soxs-1min.csv --replace-bars --research-ready
+```
+
+The downloader uses Alpaca's stock bars endpoint with `adjustment=all`, `feed=sip`, `limit=10000`, and pagination by default. If your Alpaca plan does not permit SIP history, the command will fail before writing database changes; rerun with the feed your account supports only if you accept the data-quality tradeoff.
+
 ## State Machine
 
 ```text
@@ -92,6 +113,7 @@ pnpm workflow:minimal-labeler -- --reset-db
 pnpm export:backup
 pnpm data:coverage
 pnpm data:status
+pnpm data:alpaca --start 2011-01-01 --end 2026-05-02 --output data/alpaca-soxl-soxs-1min.csv
 pnpm validate:csv /path/to/adjusted-bars.csv
 pnpm validate:csv /path/to/adjusted-bars.csv --research-ready
 pnpm validate:csv /path/to/adjusted-bars.csv --research-ready --json-output reports/csv-validation.json

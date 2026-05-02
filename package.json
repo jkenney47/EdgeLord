@@ -15,6 +15,7 @@
     "acceptance:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --acceptance",
     "checkpoint:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --checkpoint",
     "closeout:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --closeout",
+    "data:alpaca": "node scripts/alpaca-download-bars.mjs",
     "data:coverage": "node scripts/data-coverage.mjs --write",
     "data:status": "node scripts/data-status.mjs",
     "export:backup": "node scripts/export-backup.mjs",

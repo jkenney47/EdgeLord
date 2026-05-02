@@ -5,6 +5,7 @@ EdgeLord is now a minimal SOXL/SOXS trade labeler. Do not rebuild the old Tradin
 Allowed scope:
 
 - Load adjusted SOXL/SOXS OHLCV CSV data.
+- Optionally download Alpaca adjusted bars into CSV before import.
 - Aggregate `2H`, `4H`, and `1D` bars.
 - Show one focused chart.
 - Capture `ENTRY`, `EXIT`, `SKIP`, and `INVALID` labels.
@@ -35,6 +36,8 @@ pnpm data:status
 ```
 
 That command writes coverage, label-integrity, export-backup, and dataset-readiness reports. Use it to confirm the local database is on real adjusted data before serious labeling.
+
+For Alpaca data, keep secrets in the shell environment only. Use `pnpm data:alpaca --start 2011-01-01 --end YYYY-MM-DD --output data/alpaca-soxl-soxs-1min.csv`, then validate/import that CSV through the normal `validate:csv` and `import:csv` commands.
 
 Do not replace cached bars when active labels exist unless the user explicitly accepts the revalidation risk. The API and `pnpm import:csv --replace-bars` guard this by default; only use `--force-replace-bars` after an export backup and follow-up `pnpm labels:integrity`.
 

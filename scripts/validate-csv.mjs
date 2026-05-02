@@ -3,15 +3,47 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-const csvArg = process.argv[2];
+const rawArgs = process.argv.slice(2);
 const requiredColumns = ["ticker", "timestamp", "open", "high", "low", "close", "volume"];
 const expectedTickers = ["SOXL", "SOXS"];
+const researchReady = rawArgs.includes("--research-ready");
+
+function optionValue(name, fallback) {
+  const equalsArg = rawArgs.find((arg) => arg.startsWith(`${name}=`));
+  if (equalsArg) return equalsArg.slice(name.length + 1);
+  const index = rawArgs.indexOf(name);
+  if (index >= 0 && rawArgs[index + 1] && !rawArgs[index + 1].startsWith("--")) {
+    return rawArgs[index + 1];
+  }
+  return fallback;
+}
+
+const targetStart = optionValue("--target-start", "2011-01-01");
+const minYears = Number(optionValue("--min-years", "10"));
+if (!Number.isFinite(minYears) || minYears < 0) {
+  throw new Error("--min-years must be a non-negative number");
+}
+const optionNamesWithValues = new Set(["--target-start", "--min-years"]);
+let skipNext = false;
+const csvArg = rawArgs.find((arg) => {
+  if (skipNext) {
+    skipNext = false;
+    return false;
+  }
+  if (optionNamesWithValues.has(arg)) {
+    skipNext = true;
+    return false;
+  }
+  return !arg.startsWith("--");
+});
 
 if (!csvArg || csvArg === "--help" || csvArg === "-h") {
-  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv");
+  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N]");
   console.log("");
   console.log(`Required columns: ${requiredColumns.join(",")}`);
-  process.exit(csvArg ? 0 : 1);
+  console.log("");
+  console.log("--research-ready fails the check when duplicate rows exist or SOXL/SOXS coverage is below the configured target.");
+  process.exit(rawArgs.some((arg) => arg === "--help" || arg === "-h") ? 0 : 1);
 }
 
 const csvPath = path.resolve(root, csvArg);
@@ -128,4 +160,46 @@ if (missingTickers.length > 0) {
   throw new Error(`CSV contains no rows for: ${missingTickers.join(", ")}`);
 }
 
+function spanYears(first, last) {
+  if (!first || !last) return 0;
+  return Math.max(0, (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 86_400_000));
+}
+
+const targetStartDate = new Date(`${targetStart}T00:00:00.000Z`);
+if (Number.isNaN(targetStartDate.getTime())) {
+  throw new Error(`Invalid --target-start date: ${targetStart}`);
+}
+
+const readinessWarnings = [];
+for (const ticker of expectedTickers) {
+  const tickerStats = stats.get(ticker);
+  const firstDate = new Date(tickerStats.first);
+  const firstDay = Number.isNaN(firstDate.getTime()) ? "" : firstDate.toISOString().slice(0, 10);
+  const tickerSpanYears = spanYears(tickerStats.first, tickerStats.last);
+  if (firstDay > targetStart) {
+    readinessWarnings.push(`${ticker} starts at ${tickerStats.first}, after target start ${targetStart}`);
+  }
+  if (tickerSpanYears < minYears) {
+    readinessWarnings.push(`${ticker} spans ${tickerSpanYears.toFixed(1)} years, below --min-years ${minYears}`);
+  }
+}
+if (duplicateRows > 0) {
+  readinessWarnings.push(`CSV contains ${duplicateRows} duplicate ticker/timestamp rows`);
+}
+
+if (readinessWarnings.length > 0) {
+  console.log("");
+  console.log("Research readiness warnings");
+  for (const warning of readinessWarnings) {
+    console.log(`- ${warning}`);
+  }
+}
+
+if (researchReady && readinessWarnings.length > 0) {
+  throw new Error("CSV is importable, but not research-ready. Fix warnings above or rerun without --research-ready.");
+}
+
 console.log("ok adjusted CSV shape is importable");
+if (researchReady) {
+  console.log("ok adjusted CSV coverage is research-ready");
+}

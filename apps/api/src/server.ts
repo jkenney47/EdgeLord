@@ -87,12 +87,16 @@ app.get("/bars", async (request) => {
 
 app.get("/bars/summary", async () => ({ rows: getBarsSummary() }));
 
-app.get("/features", async (request) => {
+app.get("/features", async (request, reply) => {
   const query = z.object({
     ticker: z.enum(["SOXL", "SOXS"]),
     timeframe: z.enum(["1D", "4H", "2H"]),
     timestamp: z.string()
   }).parse(request.query);
+  const bars = getBars(query.ticker as Ticker, query.timeframe as ChartTimeframe);
+  if (!bars.some((bar) => bar.timestamp === query.timestamp)) {
+    return reply.status(404).send({ error: `No ${query.ticker} ${query.timeframe} bar exists at ${query.timestamp}` });
+  }
   return { features: buildFeatures(query.ticker as Ticker, query.timeframe as ChartTimeframe, query.timestamp) };
 });
 

@@ -219,6 +219,10 @@ async function runAcceptance() {
     assert(featureSnapshot.pairedTicker === "SOXS", "Feature snapshot should include paired ETF context");
     console.log("ok selected candle feature snapshot");
 
+    const missingFeatureSnapshot = await fetchJson(baseUrl, "/features?ticker=SOXL&timeframe=4H&timestamp=1900-01-01T00%3A00%3A00.000Z");
+    assert(missingFeatureSnapshot.response.status === 404, "Feature snapshots should require an existing candle timestamp");
+    console.log("ok feature snapshots require existing candle");
+
     const canonicalSkip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "SKIP",

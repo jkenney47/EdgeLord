@@ -85,6 +85,38 @@ def format_feature_coverage(training: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def format_feature_contrasts(training: list[dict[str, str]]) -> list[str]:
+    lines = ["\nEntry vs Skip Feature Contrasts"]
+    feature_columns = [column for column in training[0].keys() if column.startswith("feature_")] if training else []
+    entries = [row for row in training if row.get("action") == "ENTRY"]
+    skips = [row for row in training if row.get("action") == "SKIP"]
+    if not feature_columns:
+        return [*lines, "  none"]
+    if not entries or not skips:
+        return [*lines, "  needs at least one ENTRY and one SKIP training row"]
+
+    contrasts: list[tuple[str, float, float, float, int, int]] = []
+    for column in feature_columns:
+        entry_values = numeric_values(entries, column)
+        skip_values = numeric_values(skips, column)
+        if not entry_values or not skip_values:
+            continue
+        entry_mean = statistics.fmean(entry_values)
+        skip_mean = statistics.fmean(skip_values)
+        contrasts.append((column, entry_mean - skip_mean, entry_mean, skip_mean, len(entry_values), len(skip_values)))
+
+    if not contrasts:
+        return [*lines, "  no numeric feature overlap between ENTRY and SKIP rows"]
+
+    lines.append("  top_absolute_mean_differences:")
+    for column, delta, entry_mean, skip_mean, entry_count, skip_count in sorted(contrasts, key=lambda item: abs(item[1]), reverse=True)[:12]:
+        lines.append(
+            f"    {column}: entry_mean={entry_mean:.4f}, skip_mean={skip_mean:.4f}, "
+            f"delta={delta:.4f}, n={entry_count}/{skip_count}"
+        )
+    return lines
+
+
 def next_label_recommendations(
     labels: list[dict[str, str]],
     training: list[dict[str, str]],
@@ -172,6 +204,7 @@ def main() -> None:
     lines.extend(format_counts("Trade Status", count_by(trades, "status")))
     lines.extend(format_return_summary(trades))
     lines.extend(format_feature_coverage(training))
+    lines.extend(format_feature_contrasts(training))
 
     lines.append("\nReadiness")
     entry_count = count_by(training, "action").get("ENTRY", 0)

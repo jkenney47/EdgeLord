@@ -29,4 +29,4 @@ python3 research/dataset_report.py \
   --trades /path/to/trades.csv
 ```
 
-The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, feature coverage, basic closed-trade return stats, and what to label next.
+The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, feature coverage, basic closed-trade return stats, ENTRY-vs-SKIP feature contrasts, and what to label next.

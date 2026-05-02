@@ -37,8 +37,8 @@ pnpm data:status
 
 That command writes coverage, label-integrity, export-backup, and dataset-readiness reports. Use it to confirm the local database is on real adjusted data before serious labeling.
 
-For Alpaca data, keep secrets in the shell environment only. Use `pnpm data:alpaca --start 2011-01-01 --end YYYY-MM-DD --output data/alpaca-soxl-soxs-1min.csv`, then validate/import that CSV through the normal `validate:csv` and `import:csv` commands.
+For Alpaca data, keep secrets in the shell environment only. Use `pnpm data:alpaca --start 2011-01-01 --end YYYY-MM-DD --output data/alpaca-soxl-soxs-1min.csv`, then validate/import that CSV through the normal `validate:csv` and `import:csv` commands. Current Alpaca SIP minute history for this SOXL/SOXS workflow starts at `2016-01-04`; validate that backfill with `--target-start 2016-01-04` and treat 2011-2015 as an unresolved external data-source gap.
 
-Do not replace cached bars when active labels exist unless the user explicitly accepts the revalidation risk. The API and `pnpm import:csv --replace-bars` guard this by default; only use `--force-replace-bars` after an export backup and follow-up `pnpm labels:integrity`.
+Do not replace cached bars when active labels exist unless the user explicitly accepts the revalidation risk. The API and `pnpm import:csv --replace-bars` guard this by default; only use `--force-replace-bars` after an export backup and follow-up `pnpm labels:integrity`. If labels still reference existing candles but have stale indexes or chart prices after replacement, run `pnpm labels:repair` and then rerun `pnpm labels:integrity`.
 
 For browser/UI verification, use the Codex in-app browser at `http://127.0.0.1:5173/`.

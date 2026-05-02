@@ -6,6 +6,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 const reportsDir = path.join(root, "reports");
 const writeReport = process.argv.includes("--write");
+const repairLabels = process.argv.includes("--repair");
 const priceTolerance = 0.0001;
 
 function timestampSlug(date = new Date()) {
@@ -16,6 +17,19 @@ async function fetchJson(route) {
   const response = await fetch(`${baseUrl}${route}`);
   if (!response.ok) {
     throw new Error(`${route} returned ${response.status}. Start the API with pnpm dev or set API_BASE_URL.`);
+  }
+  return response.json();
+}
+
+async function patchJson(route, body) {
+  const response = await fetch(`${baseUrl}${route}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`${route} returned ${response.status}: ${text}`);
   }
   return response.json();
 }
@@ -106,6 +120,31 @@ for (const label of labels) {
   if (expectedIndex >= 0 && Number(label.bar_index) !== expectedIndex) {
     staleIndexes.push({ label, expectedIndex });
   }
+}
+
+if (repairLabels) {
+  const repairable = new Map();
+  for (const item of priceMismatches) {
+    repairable.set(item.label.id, item);
+  }
+  for (const item of staleIndexes) {
+    if (!repairable.has(item.label.id)) {
+      const bars = await barsFor(item.label.ticker, item.label.timeframe);
+      repairable.set(item.label.id, { label: item.label, bar: bars.get(item.label.timestamp) });
+    }
+  }
+
+  for (const item of repairable.values()) {
+    if (!item.bar) continue;
+    await patchJson(`/labels/${item.label.id}`, {
+      timestamp: item.label.timestamp,
+      chartPrice: Number(item.bar.close)
+    });
+  }
+
+  console.log(`repaired_labels: ${repairable.size}`);
+  console.log("rerun `pnpm labels:integrity` or `pnpm data:status` to verify.");
+  process.exit(0);
 }
 
 const lines = [

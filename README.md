@@ -65,7 +65,7 @@ pnpm validate:csv data/alpaca-soxl-soxs-1min.csv --research-ready
 pnpm import:csv data/alpaca-soxl-soxs-1min.csv --replace-bars --research-ready
 ```
 
-The downloader uses Alpaca's stock bars endpoint with `adjustment=all`, `feed=sip`, `limit=10000`, and pagination by default. If your Alpaca plan does not permit SIP history, the command will fail before writing database changes; rerun with the feed your account supports only if you accept the data-quality tradeoff.
+The downloader uses Alpaca's stock bars endpoint with `adjustment=all`, `feed=sip`, `limit=10000`, pagination, and regular-trading-hours filtering by default. If your Alpaca plan does not permit SIP history, the command will fail before writing database changes; rerun with the feed your account supports only if you accept the data-quality tradeoff. Use `--include-extended-hours` only for a separate experiment, not the main EdgeLord labeling dataset.
 
 ## State Machine
 
@@ -122,6 +122,7 @@ pnpm import:csv /path/to/adjusted-bars.csv --research-ready
 pnpm import:csv /path/to/adjusted-bars.csv --replace-bars
 pnpm import:csv /path/to/adjusted-bars.csv --replace-bars --force-replace-bars
 pnpm labels:integrity
+pnpm labels:repair
 ```
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
@@ -134,11 +135,11 @@ pnpm labels:integrity
 
 `data:status` runs coverage, label integrity, export backup, and the dataset readiness report as one post-import health check. Run it after importing real adjusted data and periodically while labeling. It writes `reports/<timestamp>-data-status.json` with command results and pointers to the latest coverage, integrity, and research summary artifacts.
 
-`validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values. Duplicate ticker/timestamps are import errors because the API rejects them too. Add `--research-ready` to fail when either ticker starts after the target start date or has too little history. Defaults: `--target-start 2011-01-01 --min-years 10`. Add `--json-output reports/csv-validation.json` when you want a machine-readable importability and research-readiness verdict.
+`validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values. Duplicate ticker/timestamps are import errors because the API rejects them too. Add `--research-ready` to fail when either ticker starts after the target start date or has too little history. Defaults: `--target-start 2011-01-01 --min-years 10`. Alpaca SIP minute history currently starts at `2016-01-04` for this dataset, so use `--target-start 2016-01-04` for the Alpaca-minute backfill and keep 2011 as an unresolved external data-source gap. Add `--json-output reports/csv-validation.json` when you want a machine-readable importability and research-readiness verdict.
 
-`import:csv` imports a local adjusted OHLCV CSV into the running API, then writes a fresh coverage report. Use `--research-ready` when importing the real backfill so short/incomplete files fail before they touch the database. Use `--replace-bars` when importing a full historical dataset so old sample/cache bars do not remain mixed into the chart cache. Replacement is blocked while active labels exist unless you also pass `--force-replace-bars`; export a backup first, then run `labels:integrity` afterward because labels/trades are not deleted.
+`import:csv` imports a local adjusted OHLCV CSV into the running API by file path, then writes a fresh coverage report. Use `--research-ready` when importing the real backfill so short/incomplete files fail before they touch the database. Use `--replace-bars` when importing a full historical dataset so old sample/cache bars do not remain mixed into the chart cache. Replacement is blocked while active labels exist unless you also pass `--force-replace-bars`; export a backup first, then run `labels:integrity` afterward because labels/trades are not deleted.
 
-`labels:integrity` checks existing labels against the current bar cache and writes a report for missing candles, stale bar indexes, and chart-price mismatches. Run it after replacing bars.
+`labels:integrity` checks existing labels against the current bar cache and writes a report for missing candles, stale bar indexes, and chart-price mismatches. Run it after replacing bars. `labels:repair` updates labels that still point to an existing candle but have stale bar indexes or chart prices after a data replacement; it does not repair labels whose candles are missing.
 
 `--acceptance` starts a temporary API with a temporary SQLite database, seeds the sample bars, creates entry/exit/skip/hindsight labels, verifies the no-reversal state machine, and checks the export endpoints. It does not touch your real local labeling database.
 

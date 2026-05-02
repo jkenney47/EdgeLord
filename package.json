@@ -21,6 +21,7 @@
     "export:backup": "node scripts/export-backup.mjs",
     "import:csv": "node scripts/import-csv.mjs",
     "labels:integrity": "node scripts/label-integrity.mjs --write",
+    "labels:repair": "node scripts/label-integrity.mjs --repair",
     "proceed:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --proceed",
     "research:fixture-check": "node scripts/research-fixture-check.mjs",
     "research:report": "node scripts/research-report.mjs",

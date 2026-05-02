@@ -55,11 +55,14 @@ execFileSync("node", validationArgs, {
   stdio: "inherit"
 });
 
-const csv = fs.readFileSync(csvPath, "utf8");
 const response = await fetch(`${baseUrl}/import/csv`, {
   method: "POST",
   headers: { "content-type": "application/json" },
-  body: JSON.stringify({ csv, replaceBars, forceReplaceBars })
+  body: JSON.stringify({
+    path: path.relative(root, csvPath),
+    replaceBars,
+    forceReplaceBars
+  })
 });
 
 if (!response.ok) {

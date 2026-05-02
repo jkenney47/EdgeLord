@@ -43,13 +43,30 @@ function usage() {
   console.log("  --feed sip                default: sip");
   console.log("  --limit 10000             default: 10000");
   console.log("  --max-pages N             optional safety cap for testing");
+  console.log("  --include-extended-hours  keep premarket/after-hours bars; default is RTH-only");
   console.log("  --dry-run                 print request settings without fetching");
+}
+
+function loadDotEnv(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const body = fs.readFileSync(filePath, "utf8");
+  for (const line of body.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(trimmed);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawValue.trim().replace(/^['"]|['"]$/g, "");
+  }
 }
 
 if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
   usage();
   process.exit(0);
 }
+
+loadDotEnv(path.join(root, ".env"));
 
 let skipNext = false;
 const positional = rawArgs.filter((arg) => {
@@ -83,6 +100,7 @@ const maxPagesRaw = optionValue("--max-pages", "");
 const maxPages = maxPagesRaw ? Number(maxPagesRaw) : null;
 const output = optionValue("--output", `data/alpaca-${symbols.join("-").toLowerCase()}-${timeframe.toLowerCase()}-${start}-to-${end}.csv`);
 const dryRun = rawArgs.includes("--dry-run");
+const rthOnly = !rawArgs.includes("--include-extended-hours");
 
 if (symbols.length === 0) {
   throw new Error("--symbols must include at least one ticker");
@@ -112,6 +130,7 @@ console.log(`start: ${start}`);
 console.log(`end: ${end}`);
 console.log(`adjustment: ${adjustment}`);
 console.log(`feed: ${feed}`);
+console.log(`hours: ${rthOnly ? "regular trading hours only" : "regular + extended hours"}`);
 console.log(`output: ${path.relative(root, path.resolve(root, output))}`);
 
 if (dryRun) {
@@ -131,6 +150,23 @@ function csvValue(value) {
 
 function barTimestamp(bar) {
   return bar.t ?? bar.timestamp ?? "";
+}
+
+const newYorkTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour12: false,
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
+function isRegularTradingHours(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return false;
+  const parts = Object.fromEntries(newYorkTimeFormatter.formatToParts(date).map((part) => [part.type, part.value]));
+  if (parts.weekday === "Sat" || parts.weekday === "Sun") return false;
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
 }
 
 function normalizeBar(symbol, bar) {
@@ -164,20 +200,34 @@ async function fetchPage(pageUrl, attempt = 1) {
   }
   if (!response.ok) {
     const body = await response.text();
+    if (response.status === 403 && body.toLowerCase().includes("sip")) {
+      throw new Error([
+        `Alpaca returned ${response.status}: ${body}`,
+        "",
+        "This account cannot query the requested SIP range.",
+        "Recommended options:",
+        "  1. Use a paid Alpaca market-data plan that permits SIP history for the requested dates.",
+        "  2. Rerun with --feed iex for a lower-quality smoke/backfill only if you accept the data-quality tradeoff.",
+        "  3. Set --end to an older date if the account only blocks recent SIP data."
+      ].join("\n"));
+    }
     throw new Error(`Alpaca returned ${response.status}: ${body}`);
   }
   return response.json();
 }
 
 const targetPath = path.resolve(root, output);
+const partialPath = `${targetPath}.partial`;
 fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-const stream = fs.createWriteStream(targetPath, { encoding: "utf8" });
+fs.rmSync(partialPath, { force: true });
+const stream = fs.createWriteStream(partialPath, { encoding: "utf8" });
 stream.write("ticker,timestamp,open,high,low,close,volume\n");
 
 let pageToken = "";
 let pageCount = 0;
 let rowCount = 0;
 const rowsBySymbol = Object.fromEntries(symbols.map((symbol) => [symbol, 0]));
+let skippedExtendedHours = 0;
 
 try {
   while (true) {
@@ -190,6 +240,10 @@ try {
     for (const symbol of symbols) {
       const symbolBars = Array.isArray(bars[symbol]) ? bars[symbol] : [];
       for (const bar of symbolBars) {
+        if (rthOnly && !isRegularTradingHours(barTimestamp(bar))) {
+          skippedExtendedHours += 1;
+          continue;
+        }
         const row = normalizeBar(symbol, bar);
         if (row.some((value) => value === "" || value === undefined || Number.isNaN(value))) {
           throw new Error(`Alpaca returned an incomplete ${symbol} bar on page ${pageCount}`);
@@ -213,9 +267,13 @@ try {
   await once(stream, "finish");
 }
 
+fs.renameSync(partialPath, targetPath);
 console.log("");
 for (const symbol of symbols) {
   console.log(`${symbol}: ${rowsBySymbol[symbol]} rows`);
+}
+if (rthOnly) {
+  console.log(`skipped_extended_hours: ${skippedExtendedHours}`);
 }
 console.log(`wrote: ${path.relative(root, targetPath)}`);
 console.log("Next:");

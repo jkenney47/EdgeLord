@@ -5,7 +5,7 @@ import { getBarIndex } from "./bars";
 import { db, nowIso } from "./db";
 import { buildFeatures } from "./indicators";
 import type { CaptureMode, Label, LabelSource } from "./schema";
-import { canEnter, canExit, closeTrade, createTrade, getOpenTrade, rebuildTrades } from "./trades";
+import { canEnter, canExit, closeTrade, createTrade, getOpenTrade, rebuildTrades, validateLabelSequence } from "./trades";
 
 export const createLabelSchema = z.object({
   labelSource: z.enum(["actual_trade", "retrospective_replay", "retrospective_hindsight"]),
@@ -143,6 +143,12 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
   next.training_eligible = trainingEligible(next.label_source, next.capture_mode, Boolean(next.potential_visual_leakage)) ? 1 : 0;
   next.bar_index = requireBarIndex(next);
   next.features_json = JSON.stringify(buildFeatures(next.ticker, next.timeframe, next.timestamp));
+
+  const proposedLabels = getLabels().map((label) => label.id === id ? next as Label : label);
+  const sequenceValidation = validateLabelSequence(proposedLabels);
+  if (!sequenceValidation.ok) {
+    throw new Error(sequenceValidation.reason);
+  }
 
   db.prepare(`
     update labels set

@@ -80,6 +80,38 @@ export function rebuildTrades(labels: Label[]): void {
   rebuild(labels.filter((label) => label.deleted_at === null));
 }
 
+export function validateLabelSequence(labels: Label[]): { ok: true } | { ok: false; reason: string } {
+  let open: Label | null = null;
+  const sorted = labels
+    .filter((label) => label.deleted_at === null)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  for (const label of sorted) {
+    if (label.action === "ENTRY") {
+      if (open) {
+        return {
+          ok: false,
+          reason: `Label ${label.id} would enter ${label.ticker} while ${open.ticker} trade ${open.id} is still open.`
+        };
+      }
+      open = label;
+    } else if (label.action === "EXIT") {
+      if (!open) {
+        return { ok: false, reason: `Label ${label.id} would exit ${label.ticker} with no open trade.` };
+      }
+      if (open.ticker !== label.ticker) {
+        return {
+          ok: false,
+          reason: `Label ${label.id} would exit ${label.ticker}, but the open trade is ${open.ticker}.`
+        };
+      }
+      open = null;
+    }
+  }
+
+  return { ok: true };
+}
+
 export function canEnter(ticker: Ticker): { ok: true } | { ok: false; reason: string } {
   const open = getOpenTrade();
   if (!open) return { ok: true };

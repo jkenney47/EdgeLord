@@ -307,6 +307,10 @@ async function runAcceptance() {
     assert(reopenedAfterPatch?.ticker === "SOXL", "Patching exit to skip should reopen the trade");
     console.log("ok patch exit to skip rebuilds trade state");
 
+    const blockedPatchEntry = await patchLabel(baseUrl, patchedSkip.label.id, { action: "ENTRY" }, 404);
+    assert(/would enter .* while .* is still open/i.test(blockedPatchEntry.error ?? ""), "Patching skip to entry should not create overlapping trades");
+    console.log("ok patch cannot create overlapping entry state");
+
     const patchedExit = await patchLabel(baseUrl, secondExit.label.id, { action: "EXIT" });
     assert(patchedExit.label.trade_id === entry.label.trade_id, "Patching skip back to exit should relink the trade id");
     assert(patchedExit.label.parent_entry_label_id === entry.label.id, "Patching skip back to exit should relink the parent entry");

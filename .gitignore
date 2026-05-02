@@ -7,6 +7,8 @@ data/*
 !data/sample-bars.csv
 exports/*
 !exports/.gitkeep
+reports/*
+!reports/.gitkeep
 apps/*/data/
 coverage/
 playwright-report/

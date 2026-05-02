@@ -17,13 +17,13 @@ def count_by(rows: Iterable[dict[str, str]], key: str) -> Counter[str]:
     return Counter(row.get(key, "") or "(blank)" for row in rows)
 
 
-def print_counts(title: str, counts: Counter[str]) -> None:
-    print(f"\n{title}")
+def format_counts(title: str, counts: Counter[str]) -> list[str]:
+    lines = [f"\n{title}"]
     if not counts:
-        print("  none")
-        return
+        return [*lines, "  none"]
     for value, count in counts.most_common():
-        print(f"  {value}: {count}")
+        lines.append(f"  {value}: {count}")
+    return lines
 
 
 def pct(value: int, total: int) -> str:
@@ -45,19 +45,88 @@ def numeric_values(rows: Iterable[dict[str, str]], key: str) -> list[float]:
     return values
 
 
-def print_return_summary(trades: list[dict[str, str]]) -> None:
+def format_return_summary(trades: list[dict[str, str]]) -> list[str]:
     returns = numeric_values((trade for trade in trades if trade.get("status") == "closed"), "return_pct")
-    print("\nClosed Trade Returns")
+    lines = ["\nClosed Trade Returns"]
     if not returns:
-        print("  none")
-        return
+        return [*lines, "  none"]
     wins = sum(1 for value in returns if value > 0)
-    print(f"  count: {len(returns)}")
-    print(f"  win_rate: {pct(wins, len(returns))}")
-    print(f"  avg_return_pct: {statistics.fmean(returns):.2f}")
-    print(f"  median_return_pct: {statistics.median(returns):.2f}")
-    print(f"  min_return_pct: {min(returns):.2f}")
-    print(f"  max_return_pct: {max(returns):.2f}")
+    lines.append(f"  count: {len(returns)}")
+    lines.append(f"  win_rate: {pct(wins, len(returns))}")
+    lines.append(f"  avg_return_pct: {statistics.fmean(returns):.2f}")
+    lines.append(f"  median_return_pct: {statistics.median(returns):.2f}")
+    lines.append(f"  min_return_pct: {min(returns):.2f}")
+    lines.append(f"  max_return_pct: {max(returns):.2f}")
+    return lines
+
+
+def missing_count(rows: Iterable[dict[str, str]], key: str) -> int:
+    return sum(1 for row in rows if row.get(key, "") == "")
+
+
+def format_feature_coverage(training: list[dict[str, str]]) -> list[str]:
+    feature_columns = [column for column in training[0].keys() if column.startswith("feature_")] if training else []
+    lines = ["\nFeature Coverage"]
+    if not feature_columns:
+        return [*lines, "  none"]
+
+    missing = [(column, missing_count(training, column)) for column in feature_columns]
+    fully_populated = sum(1 for _column, count in missing if count == 0)
+    lines.append(f"  feature_columns: {len(feature_columns)}")
+    lines.append(f"  fully_populated: {fully_populated}")
+
+    sparse = [(column, count) for column, count in missing if count > 0]
+    if sparse:
+        lines.append("  most_missing:")
+        for column, count in sorted(sparse, key=lambda item: item[1], reverse=True)[:10]:
+            lines.append(f"    {column}: {count} missing ({pct(count, len(training))})")
+    else:
+        lines.append("  missing_values: none")
+    return lines
+
+
+def next_label_recommendations(
+    labels: list[dict[str, str]],
+    training: list[dict[str, str]],
+    trades: list[dict[str, str]],
+    orphan_exits: list[dict[str, str]],
+    entries_without_trade: list[dict[str, str]],
+) -> list[str]:
+    training_actions = count_by(training, "action")
+    training_tickers = count_by(training, "ticker")
+    training_timeframes = count_by(training, "timeframe")
+    entries = training_actions.get("ENTRY", 0)
+    exits = training_actions.get("EXIT", 0)
+    skips = training_actions.get("SKIP", 0)
+    closed = count_by(trades, "status").get("closed", 0)
+    excluded = len([label for label in labels if label.get("training_eligible") != "1"])
+
+    lines = ["\nWhat To Label Next"]
+    if orphan_exits or entries_without_trade:
+        lines.append("  1. Fix orphan trade links before adding modeling labels.")
+        return lines
+    if entries == 0:
+        lines.append("  1. Start with replay-safe ENTRY labels on SOXL/SOXS 4H setups.")
+        lines.append("  2. Add explicit SKIP labels near setups you considered but rejected.")
+        lines.append("  3. Pair every ENTRY with an explicit EXIT when the trade idea ends.")
+        return lines
+    if exits < entries:
+        lines.append(f"  1. Add EXIT labels for open/unfinished ideas: {exits} exits vs {entries} entries.")
+    if skips < entries:
+        lines.append(f"  2. Add SKIP labels near tempting setups: {skips} skips vs {entries} entries.")
+    if closed < max(1, entries // 2):
+        lines.append(f"  3. Complete more closed trades for return analysis: {closed} closed trades.")
+    if training_tickers:
+        weakest_ticker = min(training_tickers.items(), key=lambda item: item[1])
+        lines.append(f"  4. Balance ticker coverage if relevant: {weakest_ticker[0]} has {weakest_ticker[1]} training rows.")
+    if training_timeframes:
+        weakest_timeframe = min(training_timeframes.items(), key=lambda item: item[1])
+        lines.append(f"  5. Balance timeframe coverage if relevant: {weakest_timeframe[0]} has {weakest_timeframe[1]} training rows.")
+    if excluded:
+        lines.append(f"  6. Review excluded labels before modeling: {excluded} excluded rows.")
+    if len(lines) == 1:
+        lines.append("  1. Keep labeling replay-safe entries, exits, and skips until at least 300 decision rows exist.")
+    return lines
 
 
 def main() -> None:
@@ -65,6 +134,7 @@ def main() -> None:
     parser.add_argument("--labels", required=True, type=Path, help="Path to labels.csv export")
     parser.add_argument("--training", required=True, type=Path, help="Path to training-features.csv export")
     parser.add_argument("--trades", required=True, type=Path, help="Path to trades.csv export")
+    parser.add_argument("--output", type=Path, help="Optional path to write the report as markdown/plain text")
     args = parser.parse_args()
 
     labels = read_csv(args.labels)
@@ -82,42 +152,53 @@ def main() -> None:
         if label.get("action") == "ENTRY" and not label.get("trade_id")
     ]
 
-    print("EdgeLord Dataset Report")
-    print("=======================")
-    print(f"labels: {len(labels)}")
-    print(f"training_rows: {len(training)}")
-    print(f"training_eligible_labels: {len(eligible_labels)}")
-    print(f"excluded_labels: {len(excluded_labels)}")
-    print(f"trades: {len(trades)}")
-    print(f"orphan_exits: {len(orphan_exits)}")
-    print(f"entries_without_trade: {len(entries_without_trade)}")
+    lines = [
+        "EdgeLord Dataset Report",
+        "=======================",
+        f"labels: {len(labels)}",
+        f"training_rows: {len(training)}",
+        f"training_eligible_labels: {len(eligible_labels)}",
+        f"excluded_labels: {len(excluded_labels)}",
+        f"trades: {len(trades)}",
+        f"orphan_exits: {len(orphan_exits)}",
+        f"entries_without_trade: {len(entries_without_trade)}",
+    ]
 
-    print_counts("Actions", count_by(labels, "action"))
-    print_counts("Training Actions", count_by(training, "action"))
-    print_counts("Label Sources", count_by(labels, "label_source"))
-    print_counts("Tickers", count_by(labels, "ticker"))
-    print_counts("Timeframes", count_by(labels, "timeframe"))
-    print_counts("Trade Status", count_by(trades, "status"))
-    print_return_summary(trades)
+    lines.extend(format_counts("Actions", count_by(labels, "action")))
+    lines.extend(format_counts("Training Actions", count_by(training, "action")))
+    lines.extend(format_counts("Label Sources", count_by(labels, "label_source")))
+    lines.extend(format_counts("Tickers", count_by(labels, "ticker")))
+    lines.extend(format_counts("Timeframes", count_by(labels, "timeframe")))
+    lines.extend(format_counts("Trade Status", count_by(trades, "status")))
+    lines.extend(format_return_summary(trades))
+    lines.extend(format_feature_coverage(training))
 
-    print("\nReadiness")
+    lines.append("\nReadiness")
     entry_count = count_by(training, "action").get("ENTRY", 0)
     skip_count = count_by(training, "action").get("SKIP", 0)
     exit_count = count_by(training, "action").get("EXIT", 0)
     if entry_count < 100:
-        print(f"  entry labels are still early: {entry_count}/100 rough-mining target")
+        lines.append(f"  entry labels are still early: {entry_count}/100 rough-mining target")
     else:
-        print(f"  entry labels reached rough-mining target: {entry_count}")
+        lines.append(f"  entry labels reached rough-mining target: {entry_count}")
     if skip_count < entry_count:
-        print(f"  add more SKIP examples near tempting setups: {skip_count} skips vs {entry_count} entries")
+        lines.append(f"  add more SKIP examples near tempting setups: {skip_count} skips vs {entry_count} entries")
     else:
-        print(f"  skip coverage is at least entry-sized: {skip_count} skips vs {entry_count} entries")
+        lines.append(f"  skip coverage is at least entry-sized: {skip_count} skips vs {entry_count} entries")
     if exit_count < entry_count:
-        print(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
+        lines.append(f"  exits are behind entries: {exit_count} exits vs {entry_count} entries")
     if orphan_exits or entries_without_trade:
-        print("  fix orphan trade links before modeling")
+        lines.append("  fix orphan trade links before modeling")
     if excluded_labels:
-        print("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
+        lines.append("  excluded labels are present; keep them out of training unless intentionally studying hindsight")
+
+    lines.extend(next_label_recommendations(labels, training, trades, orphan_exits, entries_without_trade))
+
+    report = "\n".join(lines) + "\n"
+    print(report, end="")
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(report)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,8 @@ With the API running, use the repo command:
 pnpm research:report
 ```
 
+That command saves a timestamped export backup under `exports/` and writes the report under `reports/`. Both output directories are ignored by git except for `.gitkeep`.
+
 Or export CSV files manually and run:
 
 ```bash
@@ -27,4 +29,4 @@ python3 research/dataset_report.py \
   --trades /path/to/trades.csv
 ```
 
-The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, and basic closed-trade return stats.
+The report checks label counts, training eligibility, entry/exit/skip balance, trade status, orphan links, feature coverage, basic closed-trade return stats, and what to label next.

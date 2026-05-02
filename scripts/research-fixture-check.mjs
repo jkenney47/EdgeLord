@@ -59,6 +59,7 @@ const labelsCsv = writeFile("labels.csv", [
   "id,label_source,training_eligible,action,ticker,timeframe,timestamp,bar_index,chart_price,execution_price,trade_id,parent_entry_label_id,capture_mode,visible_until_timestamp,potential_visual_leakage,confidence,setup_quality,reason_codes,notes,created_at",
   "l1,retrospective_replay,1,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,0,10,,t1,,replay,2024-01-02T14:30:00.000Z,0,,,,2024-01-02T14:30:00.000Z",
   "l2,retrospective_replay,1,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,1,11,,t1,l1,replay,2024-01-03T14:30:00.000Z,0,,,,2024-01-03T14:30:00.000Z",
+  "l2_orphan,retrospective_replay,0,EXIT,SOXL,4H,2024-01-03T18:30:00.000Z,2,10.8,,,,replay,2024-01-03T18:30:00.000Z,0,,,,2024-01-03T18:30:00.000Z",
   "l3,retrospective_replay,1,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,2,9,,,,replay,2024-01-04T14:30:00.000Z,0,,,,2024-01-04T14:30:00.000Z",
   "l4,retrospective_hindsight,0,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z",
   "l5,retrospective_replay,1,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,4,20,,t2,,replay,2024-01-06T14:30:00.000Z,0,,,,2024-01-06T14:30:00.000Z",
@@ -102,6 +103,7 @@ try {
   assert(readFile("dataset-report.md").includes("State Machine Sequence Issues"), "dataset report should include state-machine sequence diagnostics");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
+  assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
   assert(datasetReport.counts.sequenceIssues === 0, "dataset report JSON should count sequence issues");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");

@@ -129,6 +129,14 @@ def sequence_issues(labels: list[dict[str, str]]) -> list[dict[str, str]]:
     open_label: dict[str, str] | None = None
     for label in sorted(labels, key=lambda row: row.get("created_at") or row.get("timestamp") or ""):
         action = label.get("action", "")
+        is_excluded_orphan_exit = (
+            action == "EXIT" and
+            label.get("training_eligible") != "1" and
+            not label.get("trade_id") and
+            not label.get("parent_entry_label_id")
+        )
+        if is_excluded_orphan_exit:
+            continue
         if action == "ENTRY":
             if open_label:
                 issues.append({
@@ -365,7 +373,9 @@ def main() -> None:
     excluded_labels = [label for label in labels if label.get("training_eligible") != "1"]
     orphan_exits = [
         label for label in labels
-        if label.get("action") == "EXIT" and (not label.get("trade_id") or not label.get("parent_entry_label_id"))
+        if label.get("action") == "EXIT" and
+        label.get("training_eligible") == "1" and
+        (not label.get("trade_id") or not label.get("parent_entry_label_id"))
     ]
     entries_without_trade = [
         label for label in labels

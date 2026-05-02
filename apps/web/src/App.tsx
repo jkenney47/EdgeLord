@@ -75,6 +75,7 @@ export function App() {
   const closedTrades = datasetPulse?.trades.closed ?? trades.filter((trade) => trade.status === "closed").length;
   const trainingEligibleClosedTrades = datasetPulse?.trades.trainingEligibleClosed ?? closedTrades;
   const ineligibleClosedTrades = datasetPulse?.trades.ineligibleClosed ?? Math.max(0, closedTrades - trainingEligibleClosedTrades);
+  const tradeCandidateRows = datasetPulse?.tradeCandidates.rows ?? 0;
   const targets = datasetPulse?.targets ?? [];
   const dataReadiness = datasetPulse?.dataReadiness ?? { tone: "warn" as const, text: "Checking data" };
   const integrity = datasetPulse?.integrity ?? null;
@@ -461,6 +462,7 @@ export function App() {
       </div>
       <footer className="statusbar">
         <span>Eligible closed {trainingEligibleClosedTrades}</span>
+        {tradeCandidateRows > 0 ? <span>Exit candidates {tradeCandidateRows}</span> : null}
         {ineligibleClosedTrades > 0 ? <span>Ineligible closed {ineligibleClosedTrades}</span> : null}
         {closedTrades !== trainingEligibleClosedTrades ? <span>Closed total {closedTrades}</span> : null}
         <span>{openTrade ? `Open ${openTrade.ticker}` : "Flat"}</span>

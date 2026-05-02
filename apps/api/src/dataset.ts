@@ -1,4 +1,5 @@
 import type { BarSummaryRow } from "./bars";
+import { summarizeTradeCandidateCoverage } from "./export";
 import type { Label, Trade } from "./schema";
 
 const targets = {
@@ -30,6 +31,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
   const dataReadiness = summarizeDataReadiness(barSummary);
   const integrity = summarizeLabelIntegrity(activeLabels, trades);
+  const tradeCandidates = summarizeTradeCandidateCoverage(activeLabels, trades);
   const exitTarget = Math.max(trainingEntries, 1);
   const targetProgress = [
     { key: "decisions", label: "Decisions", current: trainingLabels.length, target: targets.decisions },
@@ -74,6 +76,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
         entryPrice: openTrade.entry_price
       } : null
     },
+    tradeCandidates,
     targets: targetProgress,
     nextTarget,
     nextActions: [nextTarget.action]

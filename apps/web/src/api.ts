@@ -64,6 +64,13 @@ export type DatasetPulse = {
       entryPrice: number;
     } | null;
   };
+  tradeCandidates: {
+    rows: number;
+    byAction: Record<string, number>;
+    closedTrades: number;
+    closedTradesWithCandidates: number;
+    missingClosedTradeCandidateIds: string[];
+  };
   targets: Array<{
     key: "decisions" | "entries" | "exits" | "skips" | "closedTrades";
     label: string;

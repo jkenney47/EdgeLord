@@ -14,6 +14,7 @@
     "verify": "pnpm test && pnpm typecheck && pnpm --filter @edgelord/web build",
     "acceptance:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --acceptance",
     "closeout:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --closeout",
+    "export:backup": "node scripts/export-backup.mjs",
     "research:report": "node scripts/research-report.mjs",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"
   },

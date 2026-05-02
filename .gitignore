@@ -5,6 +5,8 @@ dist/
 data/*
 !data/.gitkeep
 !data/sample-bars.csv
+exports/*
+!exports/.gitkeep
 apps/*/data/
 coverage/
 playwright-report/

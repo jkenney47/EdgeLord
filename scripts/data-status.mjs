@@ -107,12 +107,14 @@ const readiness = {
     exportBackup: researchSummary.artifacts?.exportBackup ?? null,
     exportManifest: researchSummary.exportManifest ?? null,
     dataset: researchSummary.dataset ?? null,
+    nextLabelingTarget: researchSummary.nextLabelingTarget ?? null,
+    promotion: researchSummary.promotion ?? null,
     topHumanMimicRule: researchSummary.topHumanMimicRule ?? null,
     topExitRule: researchSummary.topExitRule ?? null,
     topReturnOptimizedRule: researchSummary.topReturnOptimizedRule ?? null
   } : null
 };
-const nextLabelingTarget = nextReadyLabelingTarget(readiness.research?.dataset?.labelingPlan);
+const nextLabelingTarget = readiness.research?.nextLabelingTarget ?? nextReadyLabelingTarget(readiness.research?.dataset?.labelingPlan);
 const summary = {
   version: "edgelord.data_status.v1",
   startedAt: startedAt.toISOString(),

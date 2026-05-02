@@ -62,6 +62,11 @@ function writeResearchSummaryFixture() {
       },
     },
     topHumanMimicRule: null,
+    nextLabelingTarget: null,
+    promotion: {
+      status: "scaffold_only",
+      warnings: ["fixture"]
+    },
     topReturnOptimizedRule: null,
   };
   writeFile("research-summary.json", `${JSON.stringify(summary, null, 2)}\n`);
@@ -346,6 +351,8 @@ try {
   assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
   assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
   assert(summary.exportManifest.tradeCandidates.rows === 4, "research summary should embed export manifest trade candidate coverage");
+  assert(summary.nextLabelingTarget === null, "fixture research summary should report no ready next target when only rough targets remain complete/blocked");
+  assert(summary.promotion?.status === "scaffold_only", "research summary should expose Pine promotion status");
 
   runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--json-output", path.join(tempDir, "csv-validation.json")]);
   const csvValidation = JSON.parse(readFile("csv-validation.json"));

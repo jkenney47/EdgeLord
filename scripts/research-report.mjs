@@ -287,6 +287,10 @@ execFileSync("python3", [
 const returnRules = JSON.parse(fs.readFileSync(returnRulesJsonPath, "utf8"));
 const exitRules = JSON.parse(fs.readFileSync(exitRulesJsonPath, "utf8"));
 const datasetReport = JSON.parse(fs.readFileSync(reportJsonPath, "utf8"));
+const strategyRules = JSON.parse(fs.readFileSync(strategyRulesPath, "utf8"));
+const nextLabelingTarget = Array.isArray(datasetReport.labelingPlan)
+  ? datasetReport.labelingPlan.find((item) => item?.status === "ready" && Number(item?.remaining ?? 0) > 0) ?? null
+  : null;
 const artifacts = {
   exportBackup: path.relative(root, backupDir),
   datasetReport: path.relative(root, reportPath),
@@ -326,6 +330,8 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
     labelingPlan: datasetReport.labelingPlan,
     issues: datasetReport.issues
   },
+  nextLabelingTarget,
+  promotion: strategyRules.promotion ?? null,
   topHumanMimicRule: topRule ?? null,
   topHumanMimicPairRule: topPairRule ?? null,
   topExitRule: exitRules.candidates?.[0] ?? null,

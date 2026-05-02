@@ -50,7 +50,7 @@ It writes:
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 - `reports/<timestamp>-research-summary.json`
 
-`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact, embeds the API export manifest, embeds the dataset readiness counts/issues, and includes the top human-mimic and return-optimized rules when available. The embedded export manifest includes trade-candidate coverage, which is the quick check for whether exit-rule mining has real HOLD/EXIT rows. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, source-file fingerprints, Pine feature-map version, Pine feature support status, rough dataset targets, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
+`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact, embeds the API export manifest, embeds the dataset readiness counts/issues, exposes the next ready labeling target, exposes Pine promotion status, and includes the top human-mimic and return-optimized rules when available. The embedded export manifest includes trade-candidate coverage, which is the quick check for whether exit-rule mining has real HOLD/EXIT rows. `strategy-rules.v1.json` is the TradingView handoff contract: it carries the selected candidate rules, source-file fingerprints, Pine feature-map version, Pine feature support status, rough dataset targets, and the promotion checklist that must pass before a generated signal should be treated as more than a scaffold.
 
 Or export CSV files manually and run:
 

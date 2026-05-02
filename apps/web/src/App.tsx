@@ -22,6 +22,7 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
+import { findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
 export function App() {
@@ -205,6 +206,13 @@ export function App() {
     }
   }, [bars, jumpDate]);
 
+  const resumeReplay = useCallback(() => {
+    const nextIndex = findReplayResumeIndex(bars, labels, ticker, timeframe);
+    setIndex(nextIndex);
+    setSelected(bars[nextIndex] ?? null);
+    setCaptureStatus(bars[nextIndex] ? `Resumed at ${bars[nextIndex].timestamp.slice(0, 10)}.` : null);
+  }, [bars, labels, ticker, timeframe]);
+
   const handleImportCsv = useCallback(async (file: File) => {
     setError(null);
     setImportStatus(`Importing ${file.name}`);
@@ -271,6 +279,7 @@ export function App() {
         onNext={() => move(1)}
         onJumpDate={setJumpDate}
         onJump={jump}
+        onResume={resumeReplay}
         onImportCsv={(file) => void handleImportCsv(file)}
         importStatus={importStatus}
       />

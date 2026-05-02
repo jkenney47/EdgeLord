@@ -2,21 +2,53 @@
 
 ## Current Priority
 
-Follow the ChatGPT Pro workstation/data-trust plan before adding strategy mining or broader charting features.
+Pivot from workstation polish to strategy-discovery labeling. The next work should make EdgeLord produce clean replay-safe labels quickly, then inspect those labels with `research/` scripts.
 
 Primary plan:
 
+- `docs/STRATEGY_DISCOVERY_PIVOT.md`
 - `docs/CHATGPT_PRO_DEVELOPMENT_PLAN.md`
 - `docs/CONSULTANT_IMPLEMENTATION_PLAN.md`
 - `docs/TRADINGVIEW_WORKSTATION_PLAN.md`
 
 Next recommended step:
 
-- **Slice 120: Dataset Review Usability Follow-up**
-  - Use the in-app browser to find the smallest remaining review-dashboard or Dataset Trust friction.
-  - Good candidates: clickable dashboard filters or a compact unresolved-label review queue.
-  - Keep strategy mining/backtesting deferred.
-  - Keep Capture and Dataset Trust as the edit/repair surfaces.
+- **Slice 126: Label Factory Default**
+  - Make the default surface one focused chart plus selected candle, `ENTRY` / `EXIT` / `SKIP` / `INVALID`, undo, and recent labels.
+  - Keep Details, Session, Review, Data, and Export collapsed until needed.
+  - Make replay-safe labeling the default path for training data.
+  - Keep regular-mode labels allowed but clearly future-visible and excluded from training exports by default.
+  - Do not add new charting, drawing, dashboard, responsive, broker, or strategy-mining UI.
+  - Status: done. The app now defaults to replay mode and focused chart layout, chart load/import auto-selects the current replay candle, Capture shows last-5 labels, outcome calculation is inside Details, stale Session/Review App imports were removed, and focused verification plus full `pnpm verify` passed.
+
+Next recommended implementation step:
+
+- **Slice 127: Simple Research Export Path**
+  - Add a first-class simple label export path that matches the pivot mental model.
+  - Keep the existing feature-rich export intact.
+  - Make regular/future-visible labels excluded or clearly separated by default for research use.
+  - Feed the output into `research/summarize_labels.py` without manual column interpretation.
+  - Status: done. `/export/research-labels` now emits replay-safe-by-default `csv` and `jsonl`, the toolbar exposes `Labels CSV` and `JSONL` separately from `Features CSV` and `Full JSON`, export tests cover replay-safe filtering and opt-in future-visible inclusion, and `research/summarize_labels.py` can read piped `/dev/stdin` output.
+
+Next recommended implementation step:
+
+- **Slice 128: Label Count Progress Loop**
+  - Make the Capture surface show replay-safe label progress toward the 300-label gate.
+  - Keep it compact and non-dashboard-like.
+  - Do not add strategy scoring or backtesting UI.
+  - Status: done. Capture now shows `Replay-safe labels 0 / 300` plus the remaining gate count, and Browser Use verified it remains visible in the narrow in-app browser layout with the replay label buttons still present.
+
+Next recommended implementation step:
+
+- **Slice 129: First Labeling Session Smoke**
+  - In the in-app browser, create one replay-safe `SKIP` label from the selected candle.
+  - Verify the progress strip increments, recent labels update, and `Labels CSV` exports one replay-safe row.
+  - Keep this as local smoke data only; do not start rule discovery.
+
+Hard gate:
+
+- No new charting features, drawing features, dashboard features, responsive polish, broker features, new indicators, or strategy-mining UI until at least 300 replay-safe decision labels exist unless the user explicitly overrides the gate.
+- `SKIP` labels are required for bars that were seriously reviewed and rejected, or the research dataset must define reviewed non-entry bars as negative examples.
 
 ## Saved QA Fix Plan
 

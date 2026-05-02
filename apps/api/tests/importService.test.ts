@@ -256,6 +256,45 @@ describe("importMarketData", () => {
     ]);
   });
 
+  it("waits between provider chunks when a chunk delay is requested", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const originalSetTimeout = globalThis.setTimeout;
+    const delays: number[] = [];
+    globalThis.setTimeout = ((callback: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      delays.push(Number(timeout ?? 0));
+      if (typeof callback === "function") {
+        callback(...args);
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout;
+
+    const provider: MarketDataProvider = {
+      async getBars() {
+        return [];
+      }
+    };
+
+    try {
+      await importMarketData({
+        db,
+        providerName: "alpaca",
+        provider,
+        request: {
+          tickers: ["SOXL", "SOXS"],
+          startDate: "2024-01-01",
+          endDate: "2024-02-10",
+          baseTimeframe: "1Min",
+          chunkDelayMs: 750
+        }
+      });
+    } finally {
+      globalThis.setTimeout = originalSetTimeout;
+    }
+
+    expect(delays).toEqual([750, 750]);
+  });
+
   it("marks the import run failed when the provider errors", async () => {
     db = new Database(":memory:");
     runMigrations(db);

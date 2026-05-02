@@ -141,6 +141,8 @@ describe("export routes", () => {
       notes: "Breakout, clean",
       decisionPhase: "at_close",
       captureMode: "replay",
+      labelSource: "retrospective_replay",
+      trainingEligible: true,
       visibleUntilTimestamp: "2024-01-02T14:30:00.000Z",
       potentialVisualLeakage: false,
       selectedBarIndex: 12,
@@ -450,6 +452,8 @@ describe("export routes", () => {
     );
     expect(csvHeader).toContain("nearestTrendlineDistance");
     expect(csvHeader).toContain("decisionPhase");
+    expect(csvHeader).toContain("labelSource");
+    expect(csvHeader).toContain("trainingEligible");
     expect(csvHeader).toContain("visibleUntilTimestamp");
     expect(csvHeader).toContain("potentialVisualLeakage");
     expect(csvHeader).toContain("setupId");
@@ -465,7 +469,7 @@ describe("export routes", () => {
     expect(csvHeader).toContain("pairDivergenceFlag");
     expect(csvHeader).not.toContain("outcomeFutureReturn1");
     expect(csvHeader).not.toContain("outcomeFutureMaxFavorableExcursion");
-    expect(csvRow).toContain("at_close,replay,2024-01-02T14:30:00.000Z,false,12");
+    expect(csvRow).toContain("at_close,replay,retrospective_replay,true,2024-01-02T14:30:00.000Z,false,12");
     expect(csvRow).toContain("setup-1,trade-1,,trigger,long,bullish_semis,long_ticker,primary,confirmation,breakout,,39.75,48.5");
     expect(csvRow).toContain("2024-01-01T21:00:00.000Z,1050,41.25,39.5,35.5,38,0.31,64,58,-3.1,2.75,44,37,2.75,4.25");
     expect(csvRow).toContain("2024-01-02T12:30:00.000Z,120,42.1,39.8,35.2,37.2,0.38,68,63,-2.2,2.1,42.8,39.3,0.7,2.8");
@@ -639,6 +643,322 @@ describe("export routes", () => {
         }
       }
     });
+
+    await server.close();
+  });
+
+  it("exports replay-safe research labels separately from the full feature export", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const sessionId = seedSession("session-1");
+    const replayLabel = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-02T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 42.5,
+      confidence: 4,
+      setupQuality: 5,
+      reasonCodes: ["ema_alignment"],
+      notes: "clean",
+      captureMode: "replay",
+      visibleUntilTimestamp: "2024-01-02T14:30:00.000Z",
+      potentialVisualLeakage: false,
+      selectedBarIndex: 12,
+      setupId: "setup-1",
+      tradeId: "trade-1",
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const regularLabel = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-03T14:30:00.000Z",
+      ticker: "SOXS",
+      timeframe: "4H",
+      labelType: "SKIP",
+      price: 12,
+      confidence: 2,
+      setupQuality: 2,
+      reasonCodes: ["other"],
+      notes: null,
+      captureMode: "regular",
+      visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
+      potentialVisualLeakage: true,
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const server = serverWithDb();
+
+    const csvResponse = await server.inject({
+      method: "GET",
+      url: `/export/research-labels?format=csv&sessionId=${sessionId}`
+    });
+
+    expect(csvResponse.statusCode).toBe(200);
+    expect(csvResponse.headers["content-disposition"]).toContain("edgelord-labels.csv");
+    expect(csvResponse.headers["x-edgelord-export-manifest"]).toEqual(expect.any(String));
+    expect(JSON.parse(String(csvResponse.headers["x-edgelord-export-manifest"]))).toMatchObject({
+      format: "csv",
+      filters: {
+        sessionId,
+        replaySafeOnly: true,
+        trainingEligibleOnly: true
+      },
+      rowCount: 1,
+      includedLabelTypes: { ENTRY: 1 }
+    });
+    const [header, row] = csvResponse.body.split("\n");
+    expect(header).toBe(
+      "label_id,session_id,ticker,timeframe,timestamp,bar_index,price,label_type,label_source,training_eligible,capture_mode,visible_until_timestamp,replay_safe,potential_visual_leakage,trade_id,parent_label_id,direction,confidence,setup_quality,reason_codes,notes_present,notes_length,created_at"
+    );
+    const record = Object.fromEntries(header.split(",").map((column, index) => [column, parseCsvLine(row)[index]]));
+    expect(record).toMatchObject({
+      label_id: replayLabel.id,
+      ticker: "SOXL",
+      label_type: "ENTRY",
+      label_source: "retrospective_replay",
+      training_eligible: "true",
+      capture_mode: "replay",
+      replay_safe: "true",
+      potential_visual_leakage: "false",
+      direction: "long_ticker",
+      reason_codes: "ema_alignment",
+      notes_present: "true",
+      notes_length: "5"
+    });
+    expect(csvResponse.body).not.toContain(regularLabel.id);
+
+    const jsonlResponse = await server.inject({
+      method: "GET",
+      url: `/export/research-labels?format=jsonl&sessionId=${sessionId}&includeFutureVisible=true`
+    });
+
+    expect(jsonlResponse.statusCode).toBe(200);
+    expect(jsonlResponse.headers["content-type"]).toContain("application/x-ndjson");
+    const jsonlRows = jsonlResponse.body.split("\n").map((line) => JSON.parse(line));
+    expect(jsonlRows).toHaveLength(2);
+    expect(jsonlRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label_id: replayLabel.id,
+          replay_safe: true,
+          training_eligible: true
+        }),
+        expect.objectContaining({
+          label_id: regularLabel.id,
+          label_source: "retrospective_hindsight",
+          training_eligible: false,
+          replay_safe: false,
+          potential_visual_leakage: true
+        })
+      ])
+    );
+
+    await server.close();
+  });
+
+  it("exports paired trades as training-eligible CSV by default", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const sessionId = seedSession("session-1");
+    const entry = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-02T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 40,
+      confidence: 4,
+      setupQuality: 5,
+      reasonCodes: ["ema_alignment"],
+      notes: null,
+      captureMode: "replay",
+      visibleUntilTimestamp: "2024-01-02T14:30:00.000Z",
+      potentialVisualLeakage: false,
+      setupId: "setup-1",
+      tradeId: "trade-1",
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const exit = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-03T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "EXIT",
+      price: 44,
+      confidence: 3,
+      setupQuality: 4,
+      reasonCodes: ["other"],
+      notes: null,
+      captureMode: "replay",
+      visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
+      potentialVisualLeakage: false,
+      setupId: "setup-1",
+      tradeId: "trade-1",
+      parentLabelId: entry.id,
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const regularEntry = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-04T14:30:00.000Z",
+      ticker: "SOXS",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 12,
+      confidence: 3,
+      setupQuality: 3,
+      reasonCodes: [],
+      notes: null,
+      captureMode: "regular",
+      potentialVisualLeakage: true,
+      tradeId: "trade-2",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-05T14:30:00.000Z",
+      ticker: "SOXS",
+      timeframe: "4H",
+      labelType: "EXIT",
+      price: 11,
+      confidence: 3,
+      setupQuality: 3,
+      reasonCodes: [],
+      notes: null,
+      captureMode: "regular",
+      potentialVisualLeakage: true,
+      tradeId: "trade-2",
+      parentLabelId: regularEntry.id,
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const server = serverWithDb();
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/export/paired-trades?sessionId=${sessionId}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-disposition"]).toContain("edgelord-trades.csv");
+    expect(JSON.parse(String(response.headers["x-edgelord-export-manifest"]))).toMatchObject({
+      format: "csv",
+      filters: {
+        sessionId,
+        trainingEligibleOnly: true
+      },
+      rowCount: 1,
+      unmatchedExitCount: 0,
+      openTradeCount: 0
+    });
+    const [header, row] = response.body.split("\n");
+    const record = Object.fromEntries(header.split(",").map((column, index) => [column, parseCsvLine(row)[index]]));
+    expect(record).toMatchObject({
+      trade_id: "trade-1",
+      entry_label_id: entry.id,
+      exit_label_id: exit.id,
+      ticker: "SOXL",
+      entry_price: "40",
+      exit_price: "44",
+      return_pct: "10",
+      entry_label_source: "retrospective_replay",
+      exit_label_source: "retrospective_replay"
+    });
+    expect(response.body).not.toContain("trade-2");
+
+    await server.close();
+  });
+
+  it("exports training features without future-visible rows", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const sessionId = seedSession("session-1");
+    const replayLabel = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-02T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 42.5,
+      confidence: 4,
+      setupQuality: 5,
+      reasonCodes: ["ema_alignment"],
+      notes: null,
+      captureMode: "replay",
+      visibleUntilTimestamp: "2024-01-02T14:30:00.000Z",
+      potentialVisualLeakage: false,
+      selectedBarIndex: 12,
+      indicatorSnapshot: {
+        ticker: "SOXL",
+        timeframe: "4H",
+        timestamp: "2024-01-02T14:30:00.000Z",
+        ema25: 40,
+        sma100: 35,
+        monthlyVwap: 37.5,
+        atr14Rma: 2.25,
+        smio: { oscillator: 0.42 },
+        stochRsi: { k: 70, d: 65 },
+        cmWvf: { filtered: true, filteredAggressive: false }
+      },
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const regularLabel = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-03T14:30:00.000Z",
+      ticker: "SOXS",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 12,
+      confidence: 2,
+      setupQuality: 2,
+      reasonCodes: [],
+      notes: null,
+      captureMode: "regular",
+      potentialVisualLeakage: true,
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const server = serverWithDb();
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/export/training-features?sessionId=${sessionId}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-disposition"]).toContain("edgelord-training-features.csv");
+    expect(JSON.parse(String(response.headers["x-edgelord-export-manifest"]))).toMatchObject({
+      format: "csv",
+      decisionFeatureExport: {
+        outcomeFieldsIncluded: false
+      },
+      filters: {
+        sessionId,
+        trainingEligibleOnly: true
+      },
+      rowCount: 1,
+      includedLabelTypes: { ENTRY: 1 }
+    });
+    expect(response.body).toContain(replayLabel.id);
+    expect(response.body).toContain("labelSource");
+    expect(response.body).toContain("trainingEligible");
+    expect(response.body).toContain("retrospective_replay,true");
+    expect(response.body).not.toContain(regularLabel.id);
 
     await server.close();
   });

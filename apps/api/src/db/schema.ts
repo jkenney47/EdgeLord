@@ -73,6 +73,8 @@ export const createTableStatements = [
     notes text,
     decision_phase text,
     capture_mode text,
+    label_source text,
+    training_eligible integer,
     visible_until_timestamp text,
     potential_visual_leakage integer,
     selected_bar_index integer,
@@ -146,6 +148,16 @@ export const additiveMigrationStatements = [
     table: "trade_events",
     column: "capture_mode",
     statement: "alter table trade_events add column capture_mode text"
+  },
+  {
+    table: "trade_events",
+    column: "label_source",
+    statement: "alter table trade_events add column label_source text"
+  },
+  {
+    table: "trade_events",
+    column: "training_eligible",
+    statement: "alter table trade_events add column training_eligible integer"
   },
   {
     table: "trade_events",

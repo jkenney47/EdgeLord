@@ -90,6 +90,7 @@ export type ImportMarketDataRequest = {
   startDate: string;
   endDate: string;
   baseTimeframe: "1Min" | "5Min";
+  chunkDelayMs?: number;
 };
 
 export type ImportMarketDataResult = {
@@ -150,6 +151,7 @@ export type ReasonCode =
 export type LabelType = "ENTRY" | "EXIT" | "SKIP" | "INVALID";
 export type DecisionPhase = "at_close" | "at_open" | "intrabar";
 export type CaptureMode = "regular" | "replay";
+export type LabelSource = "actual_trade" | "retrospective_replay" | "retrospective_hindsight";
 export type DecisionRole = "setup_start" | "trigger" | "entry" | "management" | "exit" | "skip" | "invalid";
 export type Bias = "long" | "short" | "neutral" | "unclear";
 export type MarketBias = "bullish_semis" | "bearish_semis" | "neutral" | "unclear";
@@ -184,6 +186,8 @@ export type CreateTradeEventRequest = {
   notes: string | null;
   decisionPhase?: DecisionPhase;
   captureMode?: CaptureMode;
+  labelSource?: LabelSource;
+  trainingEligible?: boolean;
   visibleUntilTimestamp?: string | null;
   potentialVisualLeakage?: boolean;
   selectedBarIndex?: number | null;
@@ -224,6 +228,8 @@ export type TradeEvent = CreateTradeEventRequest & {
   id: string;
   decisionPhase: DecisionPhase;
   captureMode: CaptureMode;
+  labelSource: LabelSource;
+  trainingEligible: boolean;
   visibleUntilTimestamp: string;
   potentialVisualLeakage: boolean;
   selectedBarIndex: number | null;
@@ -418,6 +424,49 @@ export type ExportValidationReport = {
 export function tradeEventsExportUrl(format: "json" | "csv", sessionId?: string): string {
   const url = new URL(`${API_BASE_URL}/export/trade-events`);
   url.searchParams.set("format", format);
+
+  if (sessionId) {
+    url.searchParams.set("sessionId", sessionId);
+  }
+
+  return url.toString();
+}
+
+export function researchLabelsExportUrl(
+  format: "csv" | "jsonl",
+  sessionId?: string,
+  includeFutureVisible = false
+): string {
+  const url = new URL(`${API_BASE_URL}/export/research-labels`);
+  url.searchParams.set("format", format);
+
+  if (sessionId) {
+    url.searchParams.set("sessionId", sessionId);
+  }
+
+  if (includeFutureVisible) {
+    url.searchParams.set("includeFutureVisible", "true");
+  }
+
+  return url.toString();
+}
+
+export function pairedTradesExportUrl(sessionId?: string, includeIneligible = false): string {
+  const url = new URL(`${API_BASE_URL}/export/paired-trades`);
+
+  if (sessionId) {
+    url.searchParams.set("sessionId", sessionId);
+  }
+
+  if (includeIneligible) {
+    url.searchParams.set("includeIneligible", "true");
+  }
+
+  return url.toString();
+}
+
+export function trainingFeaturesExportUrl(sessionId?: string): string {
+  const url = new URL(`${API_BASE_URL}/export/training-features`);
 
   if (sessionId) {
     url.searchParams.set("sessionId", sessionId);

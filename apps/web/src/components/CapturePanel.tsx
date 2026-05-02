@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { selectedCandleContext, useAppStore } from "../store/useAppStore";
 import type { IndicatorSnapshot } from "../api/client";
-import type { Bias, DecisionRole, LabelType, OutcomeStatus, ReasonCode, TradeDirection, TradeEvent } from "../api/client";
+import type {
+  Bias,
+  DecisionRole,
+  LabelSource,
+  LabelType,
+  ReasonCode,
+  TradeDirection,
+  TradeEvent
+} from "../api/client";
 
 type UiLabelType = {
   label: string;
@@ -58,6 +66,22 @@ const tradeDirections: SelectOption<TradeDirection>[] = [
   { label: "Long Ticker", value: "long_ticker" },
   { label: "Short Ticker", value: "short_ticker" }
 ];
+
+const labelSources: SelectOption<LabelSource>[] = [
+  { label: "Actual", value: "actual_trade" },
+  { label: "Replay", value: "retrospective_replay" },
+  { label: "Hindsight", value: "retrospective_hindsight" }
+];
+
+const replaySafeLabelGate = 300;
+
+function defaultLabelSourceForMode(mode: "regular" | "replay"): LabelSource {
+  return mode === "replay" ? "retrospective_replay" : "retrospective_hindsight";
+}
+
+function isTrainingEligibleDraft(labelSource: LabelSource, mode: "regular" | "replay"): boolean {
+  return mode === "replay" && labelSource !== "retrospective_hindsight";
+}
 
 function defaultDecisionRole(labelType: LabelType): DecisionRole {
   if (labelType === "ENTRY") {
@@ -127,31 +151,6 @@ function labelProvenance(label: Pick<TradeEvent, "captureMode" | "potentialVisua
   return { className: "regular", label: "Regular" };
 }
 
-function outcomeStatusLabel(status: OutcomeStatus): string {
-  const labels: Record<OutcomeStatus, string> = {
-    not_computed: "Not computed",
-    pending: "Pending",
-    computed: "Computed",
-    insufficient_future_bars: "Insufficient future bars",
-    missing_exit: "Missing exit",
-    invalidated: "Invalidated"
-  };
-
-  return labels[status];
-}
-
-function labelOutcomeStatus(label: TradeEvent | null): OutcomeStatus | "no_label" {
-  if (!label) {
-    return "no_label";
-  }
-
-  if (label.outcomeAvailable) {
-    return "computed";
-  }
-
-  return label.outcomeStatus;
-}
-
 function modeProvenance(mode: "regular" | "replay") {
   return mode === "replay"
     ? { className: "replay-safe" as const, label: "Replay-safe" as const }
@@ -197,23 +196,6 @@ function nextLifecycleId(prefix: "setup" | "trade", labels: TradeEvent[]): strin
   return `${prefix}-${maxId + 1}`;
 }
 
-function previousLabelFor(label: TradeEvent | null, labels: TradeEvent[]): TradeEvent | null {
-  if (!label) {
-    return null;
-  }
-
-  const currentIndex = labels.findIndex((item) => item.id === label.id);
-  if (currentIndex <= 0) {
-    return null;
-  }
-
-  return labels[currentIndex - 1] ?? null;
-}
-
-function latestLinkedLabel(labels: TradeEvent[]): TradeEvent | null {
-  return [...labels].reverse().find((label) => label.setupId || label.tradeId) ?? null;
-}
-
 function latestOpenTradeLabel(labels: TradeEvent[]): TradeEvent | null {
   const closedTradeIds = new Set(
     labels
@@ -233,49 +215,6 @@ function latestOpenTradeLabel(labels: TradeEvent[]): TradeEvent | null {
   );
 }
 
-function lifecycleCards(labels: TradeEvent[]): Array<{
-  id: string;
-  outcome: OutcomeStatus;
-  status: "exited" | "invalidated" | "open" | "unresolved";
-  title: string;
-}> {
-  const grouped = new Map<string, TradeEvent[]>();
-
-  for (const label of labels) {
-    const key = label.tradeId ?? label.setupId;
-    if (!key) {
-      continue;
-    }
-
-    grouped.set(key, [...(grouped.get(key) ?? []), label]);
-  }
-
-  return [...grouped.entries()]
-    .map(([id, group]) => {
-      const hasExit = group.some((label) => label.labelType === "EXIT" || label.decisionRole === "exit");
-      const hasInvalid = group.some((label) => label.labelType === "INVALID" || label.decisionRole === "invalid");
-      const hasEntry = group.some((label) => label.labelType === "ENTRY" || label.decisionRole === "entry");
-      const latest = group.at(-1);
-      const hasOutcome = group.some((label) => label.outcomeAvailable || label.outcomeStatus === "computed");
-      const latestOutcomeStatus = latest?.outcomeStatus ?? "not_computed";
-
-      return {
-        id,
-        outcome: hasOutcome ? "computed" : latestOutcomeStatus,
-        status: hasInvalid
-          ? ("invalidated" as const)
-          : hasExit
-            ? ("exited" as const)
-            : hasEntry
-              ? ("open" as const)
-              : ("unresolved" as const),
-        title: `${id} · ${latest?.ticker ?? "--"} ${latest?.timeframe ?? ""}`.trim()
-      };
-    })
-    .reverse()
-    .slice(0, 4);
-}
-
 export function CapturePanel() {
   const selectedCandle = useAppStore((state) => state.selectedCandle);
   const mode = useAppStore((state) => state.mode);
@@ -290,7 +229,6 @@ export function CapturePanel() {
   const submitLabel = useAppStore((state) => state.submitLabel);
   const updateLabel = useAppStore((state) => state.updateLabel);
   const deleteLabel = useAppStore((state) => state.deleteLabel);
-  const calculateOutcome = useAppStore((state) => state.calculateOutcome);
   const isSavingLabel = useAppStore((state) => state.isSavingLabel);
   const labelError = useAppStore((state) => state.labelError);
   const labelStatus = useAppStore((state) => state.labelStatus);
@@ -305,6 +243,8 @@ export function CapturePanel() {
   const [setupId, setSetupId] = useState("");
   const [tradeId, setTradeId] = useState("");
   const [parentLabelId, setParentLabelId] = useState("");
+  const [labelSource, setLabelSource] = useState<LabelSource>(() => defaultLabelSourceForMode(mode));
+  const [captureGuardError, setCaptureGuardError] = useState<string | null>(null);
   const [decisionRole, setDecisionRole] = useState<DecisionRole | "auto">("auto");
   const [bias, setBias] = useState<Bias>("unclear");
   const [tradeDirection, setTradeDirection] = useState<TradeDirection>("observe_only");
@@ -339,6 +279,7 @@ export function CapturePanel() {
     setupId.trim() || tradeId.trim() || bias !== "unclear" || tradeDirection !== "observe_only"
       ? "intent"
       : null;
+  const trainingEligibleDraft = isTrainingEligibleDraft(labelSource, mode);
   const detailSummary =
     [reasonSummary, notesSummary, lifecycleSummary].filter(Boolean).join(" + ") || "Optional";
   const statusLabel = selectedLabelId
@@ -352,11 +293,11 @@ export function CapturePanel() {
     ? `${statusDetailLabel.labelType} ${statusDetailLabel.ticker} ${statusDetailLabel.price.toFixed(2)} ${statusDetailLabel.timeframe}`
     : null;
   const lastLabel = sessionLabels.at(-1) ?? null;
-  const outcomeTarget = editingLabel ?? statusLabel ?? lastCreatedLabel ?? lastLabel;
-  const targetOutcomeStatus = labelOutcomeStatus(outcomeTarget);
-  const recentLabels = sessionLabels.slice(-3).reverse();
-  const lifecycleItems = lifecycleCards(sessionLabels);
-  const linkedLabel = latestLinkedLabel(sessionLabels);
+  const openTrade = latestOpenTradeLabel(sessionLabels);
+  const recentLabels = sessionLabels.slice(-5).reverse();
+  const replaySafeLabels = sessionLabels.filter((label) => label.trainingEligible);
+  const replaySafeCount = replaySafeLabels.length;
+  const replaySafeRemaining = Math.max(replaySafeLabelGate - replaySafeCount, 0);
   const validationSummary = exportValidationReport?.summary;
   const selectedCandleProvenance = modeProvenance(mode);
   const trustStatus = (validationSummary?.errorCount ?? 0) > 0
@@ -365,15 +306,6 @@ export function CapturePanel() {
       ? "Needs review"
       : "Ready";
   const showTrustStrip = trustStatus !== "Ready";
-  const previousEditingLabel = previousLabelFor(editingLabel, sessionLabels);
-  const canRepairEntryIntent =
-    editingLabel?.labelType === "ENTRY" &&
-    (!setupId.trim() || bias === "unclear" || tradeDirection === "observe_only");
-  const canRepairExitLinkage =
-    editingLabel?.labelType === "EXIT" &&
-    !tradeId.trim() &&
-    !parentLabelId.trim() &&
-    Boolean(previousEditingLabel);
 
   const startQuickSession = async () => {
     await startSession({
@@ -391,11 +323,13 @@ export function CapturePanel() {
     setSetupId("");
     setTradeId("");
     setParentLabelId("");
+    setLabelSource(defaultLabelSourceForMode(mode));
+    setCaptureGuardError(null);
     setDecisionRole("auto");
     setBias("unclear");
     setTradeDirection("observe_only");
     setEditingLabelType("ENTRY");
-  }, []);
+  }, [mode]);
 
   const cancelEditingLabel = useCallback(() => {
     setEditingLabel(null);
@@ -412,122 +346,76 @@ export function CapturePanel() {
     );
   };
 
-  const startSetup = () => {
-    setSetupId(nextLifecycleId("setup", sessionLabels));
-    setTradeId("");
-    setParentLabelId("");
-    setDecisionRole("setup_start");
-  };
-
-  const startTrade = () => {
-    const currentSetupId = optionalText(setupId) ?? nextLifecycleId("setup", sessionLabels);
-    setSetupId(currentSetupId);
-    setTradeId(nextLifecycleId("trade", sessionLabels));
-    setParentLabelId("");
-    setDecisionRole("trigger");
-  };
-
-  const startEntryTrade = () => {
-    const currentSetupId = optionalText(setupId) ?? nextLifecycleId("setup", sessionLabels);
-    setSetupId(currentSetupId);
-    setTradeId(optionalText(tradeId) ?? nextLifecycleId("trade", sessionLabels));
-    setParentLabelId("");
-    setDecisionRole("entry");
-  };
-
-  const attachExitToOpenTrade = () => {
-    const openTrade = latestOpenTradeLabel(sessionLabels);
-    if (!openTrade) {
-      return;
-    }
-
-    setSetupId(openTrade.setupId ?? setupId);
-    setTradeId(openTrade.tradeId ?? tradeId);
-    setParentLabelId(openTrade.id);
-    setDecisionRole("exit");
-    setBias(openTrade.bias);
-    setTradeDirection(openTrade.tradeDirection);
-  };
-
-  const attachInvalidationToSetup = () => {
-    const target = latestLinkedLabel(sessionLabels);
-    const currentSetupId = target?.setupId ?? optionalText(setupId) ?? nextLifecycleId("setup", sessionLabels);
-    setSetupId(currentSetupId);
-    setTradeId("");
-    setParentLabelId(target?.id ?? "");
-    setDecisionRole("invalid");
-    if (target) {
-      setBias(target.bias);
-      setTradeDirection(target.tradeDirection);
-    }
-  };
-
-  const markSkipReview = () => {
-    setTradeId("");
-    setParentLabelId("");
-    setDecisionRole("skip");
-  };
-
-  const continueLastLifecycle = () => {
-    if (!lastLabel) {
-      return;
-    }
-
-    setSetupId(lastLabel.setupId ?? "");
-    setTradeId(lastLabel.tradeId ?? "");
-    setParentLabelId(lastLabel.id);
-    setDecisionRole("management");
-    setBias(lastLabel.bias);
-    setTradeDirection(lastLabel.tradeDirection);
-  };
-
-  const clearLifecycle = () => {
-    setSetupId("");
-    setTradeId("");
-    setParentLabelId("");
-    setDecisionRole("auto");
-    setBias("unclear");
-    setTradeDirection("observe_only");
-  };
-
-  const applyEntryIntentRepair = (direction: "long_ticker" | "short_ticker") => {
+  useEffect(() => {
     if (!editingLabel) {
-      return;
+      setLabelSource(defaultLabelSourceForMode(mode));
     }
-
-    setSetupId((current) => optionalText(current) ?? nextLifecycleId("setup", sessionLabels));
-    setDecisionRole("entry");
-    setBias(direction === "long_ticker" ? "long" : "short");
-    setTradeDirection(direction);
-  };
-
-  const applyExitLinkageRepair = () => {
-    if (!previousEditingLabel) {
-      return;
-    }
-
-    setSetupId(previousEditingLabel.setupId ?? setupId);
-    setTradeId(previousEditingLabel.tradeId ?? tradeId);
-    setParentLabelId(previousEditingLabel.id);
-    setDecisionRole("exit");
-    setBias(previousEditingLabel.bias);
-    setTradeDirection(previousEditingLabel.tradeDirection);
-  };
+  }, [editingLabel, mode]);
 
   const capture = useCallback(
     async (labelType: LabelType) => {
+      const openTrade = latestOpenTradeLabel(sessionLabels);
+      let nextSetupId = optionalText(setupId);
+      let nextTradeId = optionalText(tradeId);
+      let nextParentLabelId = optionalText(parentLabelId);
+      let nextDecisionRole = decisionRole === "auto" ? defaultDecisionRole(labelType) : decisionRole;
+      let nextBias = bias;
+      let nextTradeDirection = tradeDirection;
+
+      if (labelType === "ENTRY") {
+        if (openTrade) {
+          setCaptureGuardError(`Exit open ${openTrade.ticker} trade ${openTrade.tradeId ?? ""} before entering again.`);
+          return;
+        }
+
+        nextSetupId = nextSetupId ?? nextLifecycleId("setup", sessionLabels);
+        nextTradeId = nextTradeId ?? nextLifecycleId("trade", sessionLabels);
+        nextParentLabelId = null;
+        nextDecisionRole = "entry";
+        nextBias = "long";
+        nextTradeDirection = "long_ticker";
+      }
+
+      if (labelType === "EXIT") {
+        if (!openTrade) {
+          setCaptureGuardError("No open SOXL/SOXS trade to exit. Capture an entry first.");
+          return;
+        }
+
+        nextSetupId = openTrade.setupId ?? nextSetupId;
+        nextTradeId = openTrade.tradeId ?? nextTradeId;
+        nextParentLabelId = openTrade.id;
+        nextDecisionRole = "exit";
+        nextBias = openTrade.bias;
+        nextTradeDirection = openTrade.tradeDirection;
+      }
+
+      if (labelType === "SKIP") {
+        nextTradeId = null;
+        nextParentLabelId = null;
+        nextDecisionRole = "skip";
+        nextTradeDirection = "observe_only";
+      }
+
+      if (labelType === "INVALID") {
+        nextDecisionRole = "invalid";
+      }
+
+      setCaptureGuardError(null);
       await submitLabel({
         labelType,
+        labelSource,
+        trainingEligible: trainingEligibleDraft,
         confidence,
         setupQuality,
         reasonCodes: selectedReasons,
         notes: optionalText(notes),
-        setupId: optionalText(setupId),
-        tradeId: optionalText(tradeId),
-        parentLabelId: optionalText(parentLabelId),
-        decisionRole: decisionRole === "auto" ? defaultDecisionRole(labelType) : decisionRole,
-        bias,
-        tradeDirection
+        setupId: nextSetupId,
+        tradeId: nextTradeId,
+        parentLabelId: nextParentLabelId,
+        decisionRole: nextDecisionRole,
+        bias: nextBias,
+        tradeDirection: nextTradeDirection
       });
       setIsDetailsOpen(false);
     },
@@ -535,14 +423,17 @@ export function CapturePanel() {
       bias,
       confidence,
       decisionRole,
+      labelSource,
       notes,
       parentLabelId,
       selectedReasons,
+      sessionLabels,
       setupId,
       setupQuality,
       submitLabel,
       tradeDirection,
-      tradeId
+      tradeId,
+      trainingEligibleDraft
     ]
   );
 
@@ -557,6 +448,7 @@ export function CapturePanel() {
     setSetupId(label.setupId ?? "");
     setTradeId(label.tradeId ?? "");
     setParentLabelId(label.parentLabelId ?? "");
+    setLabelSource(label.labelSource);
     setDecisionRole(label.decisionRole);
     setBias(label.bias);
     setTradeDirection(label.tradeDirection);
@@ -583,6 +475,7 @@ export function CapturePanel() {
     setSetupId(label.setupId ?? "");
     setTradeId(label.tradeId ?? "");
     setParentLabelId(label.parentLabelId ?? "");
+    setLabelSource(label.labelSource);
     setDecisionRole(label.decisionRole);
     setBias(label.bias);
     setTradeDirection(label.tradeDirection);
@@ -607,6 +500,8 @@ export function CapturePanel() {
         setupQuality,
         reasonCodes: selectedReasons,
         notes: optionalText(notes),
+        labelSource,
+        trainingEligible: isTrainingEligibleDraft(labelSource, editingLabel.captureMode),
         setupId: optionalText(setupId),
         tradeId: optionalText(tradeId),
         parentLabelId: optionalText(parentLabelId),
@@ -636,6 +531,7 @@ export function CapturePanel() {
     editingLabel,
     editingLabelType,
     isSavingLabel,
+    labelSource,
     notes,
     parentLabelId,
     resetDraft,
@@ -683,20 +579,6 @@ export function CapturePanel() {
       setPendingEditAction(null);
     }
   }, [deleteLabel, editingLabel, isSavingLabel, lastCreatedLabel, lastLabel]);
-
-  const calculateOutcomeForTarget = async () => {
-    if (!outcomeTarget || isSavingLabel) {
-      return;
-    }
-
-    const didCalculate = await calculateOutcome(outcomeTarget.id);
-    if (didCalculate && editingLabel?.id === outcomeTarget.id) {
-      const refreshed = useAppStore.getState().sessionLabels.find((label) => label.id === outcomeTarget.id);
-      if (refreshed) {
-        setEditingLabel(refreshed);
-      }
-    }
-  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -765,45 +647,33 @@ export function CapturePanel() {
       <section className="candle-context" aria-label="Selected candle context">
         {context ? (
           <>
-            <div className="selected-candle-card" aria-label="Selected candle details">
+            <div className="selected-candle-card selected-candle-card-compact" aria-label="Selected candle details">
               <div>
-                <span>Selected Candle</span>
-                <strong>
-                  {context.candle.ticker} · {context.candle.timeframe}
-                </strong>
-              </div>
-              <div>
-                <span>{formatTimestamp(context.candle.timestamp)}</span>
-                <strong>
-                  {context.candle.close.toFixed(2)} {formatCandleChange(context.candle)}
-                </strong>
+                <span>{context.candle.ticker} · {context.candle.timeframe}</span>
+                <strong>{context.candle.close.toFixed(2)} {formatCandleChange(context.candle)}</strong>
               </div>
               <div className="selected-candle-meta">
+                <span>{formatTimestamp(context.candle.timestamp)}</span>
                 <span className={`provenance-badge ${selectedCandleProvenance.className}`}>
                   {selectedCandleProvenance.label}
                 </span>
-                <span>Bar {context.candleIndex + 1}</span>
               </div>
-            </div>
-            <div className="context-head">
-              <span>{context.candle.timeframe}</span>
-              <strong>{context.candle.close.toFixed(2)}</strong>
-            </div>
-            <div className="context-grid">
-              <span>Open</span>
-              <strong>{context.candle.open.toFixed(2)}</strong>
-              <span>High</span>
-              <strong>{context.candle.high.toFixed(2)}</strong>
-              <span>Low</span>
-              <strong>{context.candle.low.toFixed(2)}</strong>
-              <span>Vol</span>
-              <strong>{formatVolume(context.candle.volume)}</strong>
             </div>
             <details className="candle-data-details">
               <summary>
-                <span>Market Context</span>
-                <strong>Indicators + pair</strong>
+                <span>Market context</span>
+                <strong>OHLCV + indicators</strong>
               </summary>
+              <div className="context-grid">
+                <span>Open</span>
+                <strong>{context.candle.open.toFixed(2)}</strong>
+                <span>High</span>
+                <strong>{context.candle.high.toFixed(2)}</strong>
+                <span>Low</span>
+                <strong>{context.candle.low.toFixed(2)}</strong>
+                <span>Vol</span>
+                <strong>{formatVolume(context.candle.volume)}</strong>
+              </div>
               <div className="context-grid context-grid-wide">
                 {indicatorRows(context.indicator).map(([label, value]) => (
                   <div key={label}>
@@ -842,6 +712,10 @@ export function CapturePanel() {
               <strong>{focusedTicker} {activeTimeframe}</strong>
             </div>
             <div className="capture-empty-grid">
+              <div>
+                <span>Mode</span>
+                <strong>{mode === "replay" ? "Replay-safe" : "Future-visible"}</strong>
+              </div>
               <div>
                 <span>Session</span>
                 <strong>{activeSession?.name ?? "No active session"}</strong>
@@ -919,6 +793,25 @@ export function CapturePanel() {
           <span>{pendingEditAction === "delete" && !editingLabel ? "Undoing..." : "Undo Last"}</span>
           <kbd>U</kbd>
         </button>
+        <div className="label-source-strip" aria-label="Label source">
+          <label>
+            <span>Source</span>
+            <select
+              value={labelSource}
+              disabled={isDisabled}
+              onChange={(event) => setLabelSource(event.target.value as LabelSource)}
+            >
+              {labelSources.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className={trainingEligibleDraft ? "provenance-badge replay-safe" : "provenance-badge future-visible"}>
+            {trainingEligibleDraft ? "Training eligible" : "Excluded by default"}
+          </span>
+        </div>
         {disabledReason ? (
           <p className="capture-disabled-reason" role="status">
             {disabledReason}
@@ -932,41 +825,13 @@ export function CapturePanel() {
             </button>
           </p>
         ) : null}
-        <div className="capture-control-row">
-          <div className="control-group">
-            <span>Confidence</span>
-            <div className="segmented">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  className={confidence === value ? "active" : undefined}
-                  key={value}
-                  type="button"
-                  aria-label={`Confidence ${value}`}
-                  disabled={isDisabled}
-                  onClick={() => setConfidence(value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="control-group">
-            <span>Setup Quality</span>
-            <div className="segmented">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  className={setupQuality === value ? "active" : undefined}
-                  key={value}
-                  type="button"
-                  aria-label={`Setup quality ${value}`}
-                  disabled={isDisabled}
-                  onClick={() => setSetupQuality(value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="active-trade-strip" aria-label="Active trade state">
+          <span>State</span>
+          <strong>
+            {openTrade
+              ? `Long ${openTrade.ticker} · ${openTrade.tradeId ?? "open trade"}`
+              : "Flat"}
+          </strong>
         </div>
         <details
           className="capture-details"
@@ -982,89 +847,41 @@ export function CapturePanel() {
               <span>{editingLabel ? "Editing saved detail" : "Optional context"}</span>
               <strong>{detailSummary}</strong>
             </div>
-            {canRepairEntryIntent || canRepairExitLinkage ? (
-              <div className="qa-repair-panel" aria-label="QA repair" role="region">
-                <div>
-                  <span>QA repair</span>
-                  <strong>
-                    {canRepairEntryIntent
-                      ? "Entry needs setup, bias, and direction"
-                      : "Exit needs linkage"}
-                  </strong>
+            <div className="capture-control-row">
+              <div className="control-group">
+                <span>Confidence</span>
+                <div className="segmented">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      className={confidence === value ? "active" : undefined}
+                      key={value}
+                      type="button"
+                      aria-label={`Confidence ${value}`}
+                      disabled={isDisabled}
+                      onClick={() => setConfidence(value)}
+                    >
+                      {value}
+                    </button>
+                  ))}
                 </div>
-                {canRepairEntryIntent ? (
-                  <>
-                    <button type="button" disabled={isDisabled} onClick={() => applyEntryIntentRepair("long_ticker")}>
-                      Long Ticker Setup
+              </div>
+              <div className="control-group">
+                <span>Setup Quality</span>
+                <div className="segmented">
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      className={setupQuality === value ? "active" : undefined}
+                      key={value}
+                      type="button"
+                      aria-label={`Setup quality ${value}`}
+                      disabled={isDisabled}
+                      onClick={() => setSetupQuality(value)}
+                    >
+                      {value}
                     </button>
-                    <button type="button" disabled={isDisabled} onClick={() => applyEntryIntentRepair("short_ticker")}>
-                      Short Ticker Setup
-                    </button>
-                  </>
-                ) : null}
-                {canRepairExitLinkage ? (
-                  <button type="button" disabled={isDisabled} onClick={applyExitLinkageRepair}>
-                    Link Previous Label
-                  </button>
-                ) : null}
+                  ))}
+                </div>
               </div>
-            ) : null}
-            <div className="lifecycle-workspace" aria-label="Lifecycle workspace">
-              <div>
-                <span>Lifecycle</span>
-                <strong>{setupId || tradeId || lastLabel?.setupId || "No active idea"}</strong>
-              </div>
-              <button type="button" disabled={isDisabled} onClick={startSetup}>
-                Start Setup
-              </button>
-              <button type="button" disabled={isDisabled} onClick={startTrade}>
-                Start Trade
-              </button>
-              <button type="button" disabled={isDisabled || !lastLabel} onClick={continueLastLifecycle}>
-                Continue Last
-              </button>
-              <button type="button" disabled={isDisabled} onClick={clearLifecycle}>
-                Clear
-              </button>
-            </div>
-            <div className="lifecycle-linkage-editor" aria-label="Trade linkage editor" role="region">
-              <div>
-                <span>Trade Linkage</span>
-                <strong>{linkedLabel?.tradeId ?? linkedLabel?.setupId ?? "No linked trade"}</strong>
-              </div>
-              <button type="button" disabled={isDisabled} onClick={startEntryTrade}>
-                Entry Trade
-              </button>
-              <button
-                type="button"
-                disabled={isDisabled || !latestOpenTradeLabel(sessionLabels)}
-                onClick={attachExitToOpenTrade}
-              >
-                Attach Exit
-              </button>
-              <button type="button" disabled={isDisabled} onClick={attachInvalidationToSetup}>
-                Invalidate Setup
-              </button>
-              <button type="button" disabled={isDisabled} onClick={markSkipReview}>
-                Skip Review
-              </button>
-            </div>
-            <div className="lifecycle-card-list" aria-label="Trade lifecycle cards" role="region">
-              <div className="label-history-header">
-                <span>Trade Cards</span>
-                <strong>{lifecycleItems.length}</strong>
-              </div>
-              {lifecycleItems.length === 0 ? (
-                <p className="label-history-empty">No linked trades yet</p>
-              ) : (
-                lifecycleItems.map((item) => (
-                  <article className={`lifecycle-card ${item.status}`} key={item.id}>
-                    <strong>{item.title}</strong>
-                    <span>{item.status}</span>
-                    <small>{outcomeStatusLabel(item.outcome)}</small>
-                  </article>
-                ))
-              )}
             </div>
             <div className="lifecycle-fields" aria-label="Setup and trade metadata">
               <label>
@@ -1165,6 +982,16 @@ export function CapturePanel() {
           </div>
         </details>
       </div>
+      <section className="capture-progress-strip" aria-label="Replay-safe label progress">
+        <div>
+          <span>Replay-safe labels</span>
+          <strong>{replaySafeCount} / {replaySafeLabelGate}</strong>
+        </div>
+        <div>
+          <span>Gate</span>
+          <strong>{replaySafeRemaining === 0 ? "Ready" : `${replaySafeRemaining} to go`}</strong>
+        </div>
+      </section>
       {showTrustStrip ? (
         <section className="capture-review-strip" aria-label="Dataset trust compact summary">
           <div>
@@ -1181,10 +1008,10 @@ export function CapturePanel() {
           </div>
         </section>
       ) : null}
-      {labelError ? (
+      {captureGuardError || labelError ? (
         <p className="capture-status error" role="alert">
           <strong>Error</strong>
-          <span>{labelError}</span>
+          <span>{captureGuardError ?? labelError}</span>
         </p>
       ) : null}
       {labelStatus ? (
@@ -1229,31 +1056,16 @@ export function CapturePanel() {
           </div>
         </section>
       ) : null}
-      <section className="outcome-action-panel" aria-label="Outcome calculation">
-        <div>
-          <span>Outcome</span>
-          <strong>{targetOutcomeStatus === "no_label" ? "No label" : outcomeStatusLabel(targetOutcomeStatus)}</strong>
-          {outcomeTarget?.outcomeHorizonBars ? <small>{outcomeTarget.outcomeHorizonBars} bars</small> : null}
-          {outcomeTarget?.outcomeRuleVersion ? <small>{outcomeTarget.outcomeRuleVersion}</small> : null}
-        </div>
-        <button
-          type="button"
-          disabled={isSavingLabel || !outcomeTarget}
-          onClick={() => void calculateOutcomeForTarget()}
-        >
-          {isSavingLabel ? "Working..." : "Calculate Outcome"}
-        </button>
-      </section>
-      <section className="label-history" aria-label="Captured labels">
+      <section className="label-history" aria-label="Recent captured labels">
         <div className="label-history-header">
-          <span>Labels</span>
+          <span>Last 5 Labels</span>
           <strong>{sessionLabels.length}</strong>
         </div>
         {sessionLabels.length === 0 ? (
           <p className="label-history-empty">No labels yet</p>
         ) : (
           <ol>
-            {sessionLabels.map((label) => (
+            {recentLabels.map((label) => (
               <li key={label.id}>
                 <button
                   type="button"

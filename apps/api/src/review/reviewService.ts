@@ -150,17 +150,25 @@ function indicatorAverages(events: TradeEventDto[]): IndicatorAverages {
 }
 
 function buildPairs(events: TradeEventDto[]): EntryExitPair[] {
-  const openEntries = new Map<string, TradeEventDto>();
+  const openEntriesByTradeId = new Map<string, TradeEventDto>();
+  const openEntriesByTicker = new Map<string, TradeEventDto>();
   const pairs: EntryExitPair[] = [];
 
   for (const event of events) {
-    if (event.labelType === "ENTRY" && !openEntries.has(event.ticker)) {
-      openEntries.set(event.ticker, event);
+    if (event.labelType === "ENTRY") {
+      openEntriesByTradeId.set(event.tradeId ?? event.id, event);
+      openEntriesByTicker.set(event.ticker, event);
       continue;
     }
 
     if (event.labelType === "EXIT") {
-      const entry = openEntries.get(event.ticker);
+      let entry = event.tradeId ? openEntriesByTradeId.get(event.tradeId) : undefined;
+      if (!entry && event.parentLabelId) {
+        entry = [...openEntriesByTradeId.values()].find((candidate) => candidate.id === event.parentLabelId);
+      }
+      if (!entry) {
+        entry = openEntriesByTicker.get(event.ticker);
+      }
       if (!entry) {
         continue;
       }
@@ -175,7 +183,14 @@ function buildPairs(events: TradeEventDto[]): EntryExitPair[] {
         exitPrice: event.price,
         returnPercent: Number((((event.price - entry.price) / entry.price) * 100).toFixed(4))
       });
-      openEntries.delete(event.ticker);
+      for (const [key, candidate] of openEntriesByTradeId.entries()) {
+        if (candidate.id === entry.id) {
+          openEntriesByTradeId.delete(key);
+        }
+      }
+      if (openEntriesByTicker.get(event.ticker)?.id === entry.id) {
+        openEntriesByTicker.delete(event.ticker);
+      }
     }
   }
 

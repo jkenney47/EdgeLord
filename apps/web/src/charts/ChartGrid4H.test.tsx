@@ -101,6 +101,8 @@ function chartLabel(overrides: Partial<TradeEvent> = {}): TradeEvent {
     notes: null,
     decisionPhase: "at_close",
     captureMode: "regular",
+    labelSource: "retrospective_hindsight",
+    trainingEligible: false,
     visibleUntilTimestamp: timestamp,
     potentialVisualLeakage: true,
     selectedBarIndex: 2,
@@ -139,7 +141,7 @@ function chartLabel(overrides: Partial<TradeEvent> = {}): TradeEvent {
     updatedAt: "2024-01-03T14:31:00.000Z",
     deletedAt: null,
     ...overrides
-  };
+  } as TradeEvent;
 }
 
 function validationReport(issues: ExportValidationIssue[]): ExportValidationReport {
@@ -175,6 +177,7 @@ describe("ChartGrid4H", () => {
     useAppStore.setState({
       ...createInitialState(),
       mode: "regular",
+      chartLayoutMode: "grid",
       replayIndex: 0,
       selectedCandle: null,
       syncData: syncData(),
@@ -831,6 +834,8 @@ describe("ChartGrid4H", () => {
           notes: null,
           decisionPhase: "at_close",
           captureMode: "regular",
+          labelSource: "retrospective_hindsight",
+          trainingEligible: false,
           visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
           potentialVisualLeakage: true,
           selectedBarIndex: 2,
@@ -883,6 +888,8 @@ describe("ChartGrid4H", () => {
           notes: null,
           decisionPhase: "at_close",
           captureMode: "regular",
+          labelSource: "retrospective_hindsight",
+          trainingEligible: false,
           visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
           potentialVisualLeakage: true,
           selectedBarIndex: 2,
@@ -1067,6 +1074,8 @@ describe("ChartGrid4H", () => {
           notes: null,
           decisionPhase: "at_close",
           captureMode: "regular",
+          labelSource: "retrospective_hindsight",
+          trainingEligible: false,
           visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
           potentialVisualLeakage: true,
           selectedBarIndex: 2,

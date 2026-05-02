@@ -88,6 +88,8 @@ function tradeEvent(overrides: Partial<TradeEvent> = {}): TradeEvent {
     labelType: "ENTRY",
     decisionPhase: "at_close",
     captureMode: "regular",
+    labelSource: "retrospective_hindsight",
+    trainingEligible: false,
     visibleUntilTimestamp: "2024-01-02T14:30:00.000Z",
     potentialVisualLeakage: true,
     selectedBarIndex: 0,
@@ -131,7 +133,7 @@ function tradeEvent(overrides: Partial<TradeEvent> = {}): TradeEvent {
     updatedAt: "2024-01-02T14:31:00.000Z",
     deletedAt: null,
     ...overrides
-  };
+  } as TradeEvent;
 }
 
 function validationReport(labelIds: string[]): ExportValidationReport {
@@ -360,9 +362,10 @@ describe("app store helpers", () => {
     });
   });
 
-  it("starts in regular mode with no selected candle", () => {
+  it("starts in replay-focused labeler mode with no selected candle", () => {
     expect(createInitialState()).toMatchObject({
-      mode: "regular",
+      mode: "replay",
+      chartLayoutMode: "focused",
       replayIndex: 0,
       replaySpeedMs: 500,
       selectedCandle: null,
@@ -499,7 +502,8 @@ describe("app store helpers", () => {
       },
       createTradeEvent,
       listTradeEvents: vi.fn().mockResolvedValue([]),
-      fetchReviewSummary: vi.fn().mockResolvedValue(null)
+      fetchReviewSummary: vi.fn().mockResolvedValue(null),
+      fetchExportValidationReport: vi.fn().mockResolvedValue(null)
     });
 
     await useAppStore.getState().submitLabel({
@@ -648,7 +652,8 @@ describe("app store helpers", () => {
       },
       createTradeEvent,
       listTradeEvents: vi.fn().mockResolvedValue([]),
-      fetchReviewSummary: vi.fn().mockResolvedValue(null)
+      fetchReviewSummary: vi.fn().mockResolvedValue(null),
+      fetchExportValidationReport: vi.fn().mockResolvedValue(null)
     });
 
     await useAppStore.getState().submitLabel({
@@ -706,6 +711,8 @@ describe("app store helpers", () => {
       notes: null,
       decisionPhase: "at_close",
       captureMode: "replay",
+      labelSource: "retrospective_replay",
+      trainingEligible: true,
       visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
       potentialVisualLeakage: false,
       selectedBarIndex: 1,
@@ -1065,6 +1072,8 @@ describe("app store helpers", () => {
       labelType: "ENTRY",
       decisionPhase: "at_close",
       captureMode: "replay",
+      labelSource: "retrospective_replay",
+      trainingEligible: true,
       visibleUntilTimestamp: "2024-01-03T14:30:00.000Z",
       potentialVisualLeakage: false,
       selectedBarIndex: 1,
@@ -1277,7 +1286,7 @@ describe("app store helpers", () => {
     expect(useAppStore.getState().selectedCandle).toEqual({
       ticker: "SOXS",
       timeframe: "4H",
-      timestamp: soxsCandles[1].timestamp
+      timestamp: soxsCandles[0].timestamp
     });
   });
 

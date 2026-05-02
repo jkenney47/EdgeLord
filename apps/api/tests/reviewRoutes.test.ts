@@ -183,4 +183,132 @@ describe("review routes", () => {
 
     await server.close();
   });
+
+  it("pairs review trades by explicit trade links before ticker fallback", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const sessionId = seedSession();
+    const firstEntry = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-02T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 100,
+      confidence: 4,
+      setupQuality: 4,
+      reasonCodes: ["ema_alignment"],
+      notes: null,
+      captureMode: "replay",
+      potentialVisualLeakage: false,
+      setupId: "setup-1",
+      tradeId: "trade-1",
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const secondEntry = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-03T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "ENTRY",
+      price: 200,
+      confidence: 3,
+      setupQuality: 3,
+      reasonCodes: ["other"],
+      notes: null,
+      captureMode: "replay",
+      potentialVisualLeakage: false,
+      setupId: "setup-2",
+      tradeId: "trade-2",
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const secondExit = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-04T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "EXIT",
+      price: 220,
+      confidence: 3,
+      setupQuality: 3,
+      reasonCodes: [],
+      notes: null,
+      captureMode: "replay",
+      potentialVisualLeakage: false,
+      setupId: "setup-2",
+      tradeId: "trade-2",
+      parentLabelId: secondEntry.id,
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const firstExit = createTradeEvent(db, {
+      sessionId,
+      timestamp: "2024-01-05T14:30:00.000Z",
+      ticker: "SOXL",
+      timeframe: "4H",
+      labelType: "EXIT",
+      price: 90,
+      confidence: 3,
+      setupQuality: 3,
+      reasonCodes: [],
+      notes: null,
+      captureMode: "replay",
+      potentialVisualLeakage: false,
+      setupId: "setup-1",
+      tradeId: "trade-1",
+      parentLabelId: firstEntry.id,
+      tradeDirection: "long_ticker",
+      indicatorSnapshot: {},
+      structureSnapshot: {},
+      drawingContext: {}
+    });
+    const server = serverWithDb();
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/review/summary?sessionId=${sessionId}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      pairedTrades: {
+        count: 2,
+        wins: 1,
+        losses: 1,
+        winRate: 0.5,
+        averageReturnPercent: 0,
+        pairs: expect.arrayContaining([
+          expect.objectContaining({
+            entryId: secondEntry.id,
+            exitId: secondExit.id,
+            returnPercent: 10
+          }),
+          expect.objectContaining({
+            entryId: firstEntry.id,
+            exitId: firstExit.id,
+            returnPercent: -10
+          })
+        ])
+      },
+      lossClusters: {
+        worstPairs: [
+          expect.objectContaining({
+            entryId: firstEntry.id,
+            exitId: firstExit.id,
+            returnPercent: -10
+          })
+        ]
+      }
+    });
+
+    await server.close();
+  });
 });

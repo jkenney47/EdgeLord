@@ -110,14 +110,15 @@ describe("ToolRail", () => {
   it("toggles the focused chart layout from the rail", async () => {
     render(<ToolRail />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Focus SOXL 4H chart panel" }));
-
-    expect(useAppStore.getState().chartLayoutMode).toBe("focused");
     expect(screen.getByRole("button", { name: "Show all chart panels" })).toHaveClass("active");
 
     await userEvent.click(screen.getByRole("button", { name: "Show all chart panels" }));
 
     expect(useAppStore.getState().chartLayoutMode).toBe("grid");
+
+    await userEvent.click(screen.getByRole("button", { name: "Focus SOXL 4H chart panel" }));
+
+    expect(useAppStore.getState().chartLayoutMode).toBe("focused");
   });
 
   it("switches between cursor and pan chart interaction modes", async () => {

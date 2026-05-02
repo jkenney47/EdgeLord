@@ -98,6 +98,38 @@ describe("import routes", () => {
     await server.close();
   });
 
+  it("accepts an import chunk delay for rate-limited backfills", async () => {
+    db = new Database(":memory:");
+    runMigrations(db);
+    const provider: MarketDataProvider = {
+      async getBars() {
+        return [];
+      }
+    };
+    const server = buildServer({
+      db,
+      marketDataProvider: provider,
+      marketDataProviderName: "alpaca"
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/import",
+      payload: {
+        startDate: "2024-01-01",
+        endDate: "2024-01-01",
+        chunkDelayMs: 750
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      provider: "alpaca"
+    });
+
+    await server.close();
+  });
+
   it("returns a clean import error when the provider fails", async () => {
     db = new Database(":memory:");
     runMigrations(db);

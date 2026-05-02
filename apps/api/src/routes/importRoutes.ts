@@ -21,7 +21,8 @@ const importRequestSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .default(() => new Date().toISOString().slice(0, 10)),
-  baseTimeframe: z.enum(["1Min", "5Min"]).default("1Min")
+  baseTimeframe: z.enum(["1Min", "5Min"]).default("1Min"),
+  chunkDelayMs: z.number().int().min(0).max(10_000).optional()
 });
 
 export type ImportRouteDependencies = {

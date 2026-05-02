@@ -6,6 +6,8 @@ type AlpacaProviderConfig = {
   baseUrl?: string;
   feed?: "iex" | "sip";
   adjustment?: "raw" | "split" | "dividend" | "all";
+  retryDelayMs?: number;
+  maxRetries?: number;
 };
 
 type AlpacaBar = {
@@ -33,6 +35,8 @@ export class AlpacaProvider implements MarketDataProvider {
   private readonly baseUrl: string;
   private readonly feed: "iex" | "sip";
   private readonly adjustment: "raw" | "split" | "dividend" | "all";
+  private readonly retryDelayMs: number;
+  private readonly maxRetries: number;
 
   constructor(config: AlpacaProviderConfig) {
     this.apiKeyId = config.apiKeyId;
@@ -40,6 +44,8 @@ export class AlpacaProvider implements MarketDataProvider {
     this.baseUrl = config.baseUrl ?? "https://data.alpaca.markets";
     this.feed = config.feed ?? "iex";
     this.adjustment = config.adjustment ?? "all";
+    this.retryDelayMs = config.retryDelayMs ?? 60_000;
+    this.maxRetries = config.maxRetries ?? 3;
   }
 
   buildBarsRequest(request: GetBarsRequest, pageToken?: string): BarsHttpRequest {
@@ -91,11 +97,25 @@ export class AlpacaProvider implements MarketDataProvider {
 
     do {
       const httpRequest = this.buildBarsRequest(request, pageToken);
-      const response = await fetch(httpRequest.url, {
-        headers: httpRequest.headers
-      });
+      let response: Response | null = null;
 
-      if (!response.ok) {
+      for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
+        response = await fetch(httpRequest.url, {
+          headers: httpRequest.headers
+        });
+
+        if (response.status !== 429 || attempt === this.maxRetries) {
+          break;
+        }
+
+        const retryAfterSeconds = Number(response.headers.get("retry-after"));
+        const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+          ? retryAfterSeconds * 1000
+          : this.retryDelayMs;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      if (!response?.ok) {
         throw new Error(`Alpaca bars request failed: ${response.status}`);
       }
 

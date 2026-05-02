@@ -12,15 +12,18 @@ Do not recreate `/Users/JoeyKenney/Documents/New project`; the project has been 
 
 ## Current Product Direction
 
-EdgeLord is a local-first, desktop-first web app: a TradingView-style replay workstation with decision capture on top. The app should feel like a fast charting surface first, not a dashboard, and definitely not a mobile app. The core job is to capture discretionary trading decisions as structured data for later strategy extraction and backtesting.
+EdgeLord is a local-first, desktop-first replay labeler for strategy discovery. The app should feel like a fast charting surface, but the charting surface is not the product. The product is replay-safe discretionary decision data that can feed rule discovery, walk-forward testing, and eventually a rule engine.
+
+Default posture: label-factory first, workstation second. Do not keep polishing the TradingView-style workstation surface unless the work directly improves replay-safe labeling throughput, data integrity, or research export usefulness.
 
 Authoritative plan:
 
+- `docs/STRATEGY_DISCOVERY_PIVOT.md`
 - `docs/CHATGPT_PRO_DEVELOPMENT_PLAN.md`
 - `docs/TRADINGVIEW_WORKSTATION_PLAN.md`
 - `docs/CONSULTANT_IMPLEMENTATION_PLAN.md`
 
-The plan is current through **Slice 122: Toolbar Primary/Secondary Split**. The next recommended step is another in-app browser pass over the simplified default loop, focused on any remaining visible friction after the toolbar hierarchy and candle-selection repairs. Do not use standalone Playwright for EdgeLord UI verification; use the Codex in-app browser when browser control is available.
+The plan is current through **Slice 128: Label Count Progress Loop**. The old browser-QA slice treadmill is now subordinate to the pivot gate. The next recommended step is to collect replay-safe labels and use `research/` scripts against simple exports. Do not start more charting/drawing/dashboard work before 300 replay-safe labels unless explicitly overridden. Do not use standalone Playwright for EdgeLord UI verification; use the Codex in-app browser when browser control is available.
 
 ## Current Implementation State
 
@@ -44,6 +47,13 @@ Implemented:
 - Open sessions are remembered locally and auto-resumed on reload; first label capture can start a Quick capture session without a blocking pre-step.
 - Capture now exposes `U` / `Undo Last` for fast correction of the most recent label.
 - Capture now owns the primary right-rail surface; Dataset Trust is compact in Capture and the full Review drawer stays collapsed until explicitly opened.
+- The default app posture is now replay-focused label capture: replay mode, focused chart layout, auto-selected replay candle after chart load/import, last-5 label history, and outcome work demoted into Details.
+- The old always-visible Session/Review side drawer is removed from `App.tsx`; label capture is the right-rail workflow surface.
+- Repo-local `research/` scripts can summarize labels, inspect entry feature frequencies, and sanity-check time-ordered splits.
+- `/export/research-labels` now provides replay-safe-by-default `Labels CSV` and `JSONL` exports for research scripts, separate from the feature-rich trade-events export.
+- `research/load_dataset.py` accepts CSV, JSON, JSONL, and extensionless stdin such as `/dev/stdin`.
+- Capture shows compact replay-safe label progress toward the 300-label gate, including at the narrow in-app browser width.
+- `.codex/skills/label-factory-slice/SKILL.md` captures the repeated post-pivot workflow and verification commands.
 - Post-create label behavior is mode-aware: regular review stays on the selected candle, while replay mode advances to the next candle after saving and preserves the created-label confirmation.
 - Label pins now have compact normal, selected, QA warning, QA blocker, and same-candle cluster states. Cluster clicks focus the first label and expand the cluster into individual pins.
 - Chart navigation now includes keyboard label navigation, keyboard QA-issue navigation, double-click fit/reset, and wheel zoom while keeping cursor-mode drag passive.

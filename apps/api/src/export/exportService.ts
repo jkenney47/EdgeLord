@@ -7,6 +7,7 @@ import { exportVersions } from "./exportVersions.js";
 
 type JsonRecord = Record<string, unknown>;
 type ExportFormat = "json" | "csv";
+type ResearchLabelExportFormat = "csv" | "jsonl";
 
 export type TradeEventsExportManifest = {
   schemaVersion: string;
@@ -41,6 +42,102 @@ export type TradeEventsJsonExport = {
   events: TradeEventDto[];
 };
 
+export type ResearchLabelsExportManifest = {
+  schemaVersion: string;
+  exportVersion: string;
+  indicatorCalcVersion: string;
+  structureCalcVersion: string;
+  exportedAt: string;
+  format: ResearchLabelExportFormat;
+  filters: {
+    sessionId: string | null;
+    replaySafeOnly: boolean;
+    trainingEligibleOnly: boolean;
+  };
+  rowCount: number;
+  includedLabelTypes: Record<string, number>;
+};
+
+export type PairedTradesExportManifest = {
+  schemaVersion: string;
+  exportVersion: string;
+  indicatorCalcVersion: string;
+  structureCalcVersion: string;
+  exportedAt: string;
+  format: "csv";
+  filters: {
+    sessionId: string | null;
+    trainingEligibleOnly: boolean;
+  };
+  rowCount: number;
+  unmatchedExitCount: number;
+  openTradeCount: number;
+};
+
+export type TrainingFeaturesExportManifest = {
+  schemaVersion: string;
+  exportVersion: string;
+  indicatorCalcVersion: string;
+  structureCalcVersion: string;
+  exportedAt: string;
+  format: "csv";
+  decisionFeatureExport: {
+    outcomeFieldsIncluded: false;
+  };
+  filters: {
+    sessionId: string | null;
+    trainingEligibleOnly: true;
+  };
+  rowCount: number;
+  includedLabelTypes: Record<string, number>;
+};
+
+const researchLabelColumns = [
+  "label_id",
+  "session_id",
+  "ticker",
+  "timeframe",
+  "timestamp",
+  "bar_index",
+  "price",
+  "label_type",
+  "label_source",
+  "training_eligible",
+  "capture_mode",
+  "visible_until_timestamp",
+  "replay_safe",
+  "potential_visual_leakage",
+  "trade_id",
+  "parent_label_id",
+  "direction",
+  "confidence",
+  "setup_quality",
+  "reason_codes",
+  "notes_present",
+  "notes_length",
+  "created_at"
+];
+
+const pairedTradeColumns = [
+  "trade_id",
+  "entry_label_id",
+  "exit_label_id",
+  "ticker",
+  "entry_timestamp",
+  "exit_timestamp",
+  "entry_price",
+  "exit_price",
+  "return_pct",
+  "entry_timeframe",
+  "exit_timeframe",
+  "entry_label_source",
+  "exit_label_source",
+  "entry_confidence",
+  "exit_confidence",
+  "entry_setup_quality",
+  "exit_setup_quality"
+];
+
 const csvColumns = [
   "schemaVersion",
   "exportVersion",
@@ -54,6 +151,8 @@ const csvColumns = [
   "labelType",
   "decisionPhase",
   "captureMode",
+  "labelSource",
+  "trainingEligible",
   "visibleUntilTimestamp",
   "potentialVisualLeakage",
   "selectedBarIndex",
@@ -528,6 +627,115 @@ function csvEscape(value: unknown): string {
   return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function jsonlEscape(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function replaySafe(event: TradeEventDto): boolean {
+  return event.captureMode === "replay" && !event.potentialVisualLeakage;
+}
+
+function exportTrainingEligible(event: TradeEventDto): boolean {
+  return event.trainingEligible;
+}
+
+function incrementLabelType(counts: Record<string, number>, labelType: string): void {
+  counts[labelType] = (counts[labelType] ?? 0) + 1;
+}
+
+type PairedTradeRow = {
+  trade_id: string;
+  entry_label_id: string;
+  exit_label_id: string;
+  ticker: string;
+  entry_timestamp: string;
+  exit_timestamp: string;
+  entry_price: number;
+  exit_price: number;
+  return_pct: number | "";
+  entry_timeframe: string;
+  exit_timeframe: string;
+  entry_label_source: string;
+  exit_label_source: string;
+  entry_confidence: number;
+  exit_confidence: number;
+  entry_setup_quality: number;
+  exit_setup_quality: number;
+};
+
+type PairedTradesResult = {
+  rows: PairedTradeRow[];
+  unmatchedExitCount: number;
+  openTradeCount: number;
+};
+
+function pairTradeEvents(events: TradeEventDto[]): PairedTradesResult {
+  const openByTradeId = new Map<string, TradeEventDto>();
+  const openByTicker = new Map<string, TradeEventDto>();
+  const rows: PairedTradeRow[] = [];
+  let unmatchedExitCount = 0;
+
+  for (const event of events) {
+    if (event.labelType === "ENTRY") {
+      const key = event.tradeId ?? event.id;
+      openByTradeId.set(key, event);
+      openByTicker.set(event.ticker, event);
+      continue;
+    }
+
+    if (event.labelType !== "EXIT") {
+      continue;
+    }
+
+    let entry = event.tradeId ? openByTradeId.get(event.tradeId) : undefined;
+    if (!entry && event.parentLabelId) {
+      entry = [...openByTradeId.values()].find((candidate) => candidate.id === event.parentLabelId);
+    }
+    if (!entry) {
+      entry = openByTicker.get(event.ticker);
+    }
+    if (!entry) {
+      unmatchedExitCount += 1;
+      continue;
+    }
+
+    rows.push({
+      trade_id: event.tradeId ?? entry.tradeId ?? entry.id,
+      entry_label_id: entry.id,
+      exit_label_id: event.id,
+      ticker: event.ticker,
+      entry_timestamp: entry.timestamp,
+      exit_timestamp: event.timestamp,
+      entry_price: entry.price,
+      exit_price: event.price,
+      return_pct: entry.price === 0 ? "" : Number((((event.price - entry.price) / entry.price) * 100).toFixed(6)),
+      entry_timeframe: entry.timeframe,
+      exit_timeframe: event.timeframe,
+      entry_label_source: entry.labelSource,
+      exit_label_source: event.labelSource,
+      entry_confidence: entry.confidence,
+      exit_confidence: event.confidence,
+      entry_setup_quality: entry.setupQuality,
+      exit_setup_quality: event.setupQuality
+    });
+
+    for (const [key, candidate] of openByTradeId.entries()) {
+      if (candidate.id === entry.id) {
+        openByTradeId.delete(key);
+      }
+    }
+    if (openByTicker.get(event.ticker)?.id === entry.id) {
+      openByTicker.delete(event.ticker);
+    }
+  }
+
+  return {
+    rows,
+    unmatchedExitCount,
+    openTradeCount: openByTradeId.size
+  };
+}
+
 export function buildExportManifest(
   format: ExportFormat,
   sessionId: string | undefined,
@@ -592,6 +800,8 @@ function eventToCsvRow(event: TradeEventDto): Record<string, unknown> {
     labelType: event.labelType,
     decisionPhase: event.decisionPhase,
     captureMode: event.captureMode,
+    labelSource: event.labelSource,
+    trainingEligible: event.trainingEligible,
     visibleUntilTimestamp: event.visibleUntilTimestamp,
     potentialVisualLeakage: event.potentialVisualLeakage,
     selectedBarIndex: event.selectedBarIndex,
@@ -706,4 +916,176 @@ export function exportTradeEventsCsv(db: SqliteDatabase, sessionId?: string): st
   const body = rows.map((row) => csvColumns.map((column) => csvEscape(row[column])).join(","));
 
   return [header, ...body].join("\n");
+}
+
+function trainingFeatureEvents(db: SqliteDatabase, options: { sessionId?: string } = {}): TradeEventDto[] {
+  return listTradeEvents(db, { sessionId: options.sessionId }).filter(exportTrainingEligible);
+}
+
+export function exportTrainingFeaturesCsv(db: SqliteDatabase, options: { sessionId?: string } = {}): string {
+  const rows = trainingFeatureEvents(db, options).map(eventToCsvRow);
+  const header = csvColumns.join(",");
+  const body = rows.map((row) => csvColumns.map((column) => csvEscape(row[column])).join(","));
+
+  return [header, ...body].join("\n");
+}
+
+export function trainingFeaturesManifestForExport(
+  db: SqliteDatabase,
+  options: { sessionId?: string } = {}
+): TrainingFeaturesExportManifest {
+  const events = trainingFeatureEvents(db, options);
+  const includedLabelTypes: Record<string, number> = {};
+  for (const event of events) {
+    incrementLabelType(includedLabelTypes, event.labelType);
+  }
+
+  return {
+    ...exportVersions,
+    exportedAt: new Date().toISOString(),
+    format: "csv",
+    decisionFeatureExport: {
+      outcomeFieldsIncluded: false
+    },
+    filters: {
+      sessionId: options.sessionId ?? null,
+      trainingEligibleOnly: true
+    },
+    rowCount: events.length,
+    includedLabelTypes
+  };
+}
+
+function researchLabelRow(event: TradeEventDto): Record<string, unknown> {
+  const notes = event.notes ?? "";
+
+  return {
+    label_id: event.id,
+    session_id: event.sessionId,
+    ticker: event.ticker,
+    timeframe: event.timeframe,
+    timestamp: event.timestamp,
+    bar_index: event.selectedBarIndex,
+    price: event.price,
+    label_type: event.labelType,
+    label_source: event.labelSource,
+    training_eligible: event.trainingEligible,
+    capture_mode: event.captureMode,
+    visible_until_timestamp: event.visibleUntilTimestamp,
+    replay_safe: replaySafe(event),
+    potential_visual_leakage: event.potentialVisualLeakage,
+    trade_id: event.tradeId,
+    parent_label_id: event.parentLabelId,
+    direction: event.tradeDirection,
+    confidence: event.confidence,
+    setup_quality: event.setupQuality,
+    reason_codes: event.reasonCodes,
+    notes_present: notes.length > 0,
+    notes_length: notes.length,
+    created_at: event.createdAt
+  };
+}
+
+function researchLabelEvents(
+  db: SqliteDatabase,
+  options: { sessionId?: string; replaySafeOnly?: boolean } = {}
+): TradeEventDto[] {
+  const events = listTradeEvents(db, { sessionId: options.sessionId });
+  return options.replaySafeOnly === false ? events : events.filter(exportTrainingEligible);
+}
+
+export function buildResearchLabelsManifest(
+  format: ResearchLabelExportFormat,
+  options: { sessionId?: string; replaySafeOnly?: boolean; rowCount: number; events: TradeEventDto[] }
+): ResearchLabelsExportManifest {
+  const includedLabelTypes: Record<string, number> = {};
+  for (const event of options.events) {
+    incrementLabelType(includedLabelTypes, event.labelType);
+  }
+
+  return {
+    ...exportVersions,
+    exportedAt: new Date().toISOString(),
+    format,
+    filters: {
+      sessionId: options.sessionId ?? null,
+      replaySafeOnly: options.replaySafeOnly !== false,
+      trainingEligibleOnly: options.replaySafeOnly !== false
+    },
+    rowCount: options.rowCount,
+    includedLabelTypes
+  };
+}
+
+export function exportResearchLabelsCsv(
+  db: SqliteDatabase,
+  options: { sessionId?: string; replaySafeOnly?: boolean } = {}
+): string {
+  const rows = researchLabelEvents(db, options).map(researchLabelRow);
+  const header = researchLabelColumns.join(",");
+  const body = rows.map((row) => researchLabelColumns.map((column) => csvEscape(row[column])).join(","));
+
+  return [header, ...body].join("\n");
+}
+
+export function exportResearchLabelsJsonl(
+  db: SqliteDatabase,
+  options: { sessionId?: string; replaySafeOnly?: boolean } = {}
+): string {
+  return researchLabelEvents(db, options)
+    .map((event) => jsonlEscape(researchLabelRow(event)))
+    .join("\n");
+}
+
+export function researchLabelsManifestForExport(
+  db: SqliteDatabase,
+  format: ResearchLabelExportFormat,
+  options: { sessionId?: string; replaySafeOnly?: boolean } = {}
+): ResearchLabelsExportManifest {
+  const events = researchLabelEvents(db, options);
+  return buildResearchLabelsManifest(format, {
+    ...options,
+    rowCount: events.length,
+    events
+  });
+}
+
+function pairedTradeEvents(
+  db: SqliteDatabase,
+  options: { sessionId?: string; trainingEligibleOnly?: boolean } = {}
+): PairedTradesResult {
+  const events = listTradeEvents(db, { sessionId: options.sessionId });
+  const filteredEvents = options.trainingEligibleOnly === false ? events : events.filter(exportTrainingEligible);
+  return pairTradeEvents(filteredEvents);
+}
+
+export function exportPairedTradesCsv(
+  db: SqliteDatabase,
+  options: { sessionId?: string; trainingEligibleOnly?: boolean } = {}
+): string {
+  const result = pairedTradeEvents(db, options);
+  const header = pairedTradeColumns.join(",");
+  const body = result.rows.map((row) => pairedTradeColumns.map((column) => csvEscape(row[column as keyof PairedTradeRow])).join(","));
+
+  return [header, ...body].join("\n");
+}
+
+export function pairedTradesManifestForExport(
+  db: SqliteDatabase,
+  options: { sessionId?: string; trainingEligibleOnly?: boolean } = {}
+): PairedTradesExportManifest {
+  const result = pairedTradeEvents(db, options);
+
+  return {
+    ...exportVersions,
+    exportedAt: new Date().toISOString(),
+    format: "csv",
+    filters: {
+      sessionId: options.sessionId ?? null,
+      trainingEligibleOnly: options.trainingEligibleOnly !== false
+    },
+    rowCount: result.rows.length,
+    unmatchedExitCount: result.unmatchedExitCount,
+    openTradeCount: result.openTradeCount
+  };
 }

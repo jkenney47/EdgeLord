@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 
-import { tradeEventsExportUrl } from "../api/client";
-import { useAppStore } from "../store/useAppStore";
+import {
+  pairedTradesExportUrl,
+  researchLabelsExportUrl,
+  tradeEventsExportUrl,
+  trainingFeaturesExportUrl
+} from "../api/client";
+import { chartGridTimeframes, useAppStore } from "../store/useAppStore";
 
 export function ReplayToolbar() {
   const mode = useAppStore((state) => state.mode);
@@ -15,7 +20,6 @@ export function ReplayToolbar() {
   const replayDateInput = useAppStore((state) => state.replayDateInput);
   const replayDateError = useAppStore((state) => state.replayDateError);
   const syncData = useAppStore((state) => state.syncData);
-  const syncDataByTimeframe = useAppStore((state) => state.syncDataByTimeframe);
   const activeSession = useAppStore((state) => state.activeSession);
   const sessionLabels = useAppStore((state) => state.sessionLabels);
   const reviewSummary = useAppStore((state) => state.reviewSummary);
@@ -41,6 +45,8 @@ export function ReplayToolbar() {
   const setImportBaseTimeframe = useAppStore((state) => state.setImportBaseTimeframe);
   const loadChartData = useAppStore((state) => state.loadChartData);
   const runImport = useAppStore((state) => state.runImport);
+  const setFocusedTicker = useAppStore((state) => state.setFocusedTicker);
+  const setActiveTimeframe = useAppStore((state) => state.setActiveTimeframe);
   const maxIndex = Math.max((syncData?.timestamps.length ?? 1) - 1, 0);
   const visibleCount =
     mode === "replay" ? Math.min(replayIndex + 1, syncData?.timestamps.length ?? 0) : syncData?.timestamps.length ?? 0;
@@ -55,6 +61,10 @@ export function ReplayToolbar() {
   const exportScopeLabel = `${exportScope} ${labelCount} ${labelCount === 1 ? "label" : "labels"}`;
   const exportHref = (format: "csv" | "json") =>
     hasLabels && !exportBlocked ? tradeEventsExportUrl(format, activeSession?.id) : undefined;
+  const researchExportHref = (format: "csv" | "jsonl") =>
+    hasLabels ? researchLabelsExportUrl(format, activeSession?.id) : undefined;
+  const pairedTradesHref = hasLabels ? pairedTradesExportUrl(activeSession?.id) : undefined;
+  const trainingFeaturesHref = hasLabels ? trainingFeaturesExportUrl(activeSession?.id) : undefined;
   const exportPreviewStatus = !hasLabels
     ? "No rows"
     : exportBlocked
@@ -62,16 +72,6 @@ export function ReplayToolbar() {
       : exportWarnings > 0
         ? `Warnings ${exportWarnings}`
         : "Ready";
-  const dataWarningCount = Object.values(syncDataByTimeframe).reduce(
-    (count, data) =>
-      count + (data?.warnings.filter((warning) => warning.severity === "warning").length ?? 0),
-    0
-  );
-  const dataReviewCount = Object.values(syncDataByTimeframe).reduce(
-    (count, data) =>
-      count + (data?.warnings.filter((warning) => warning.severity === "review").length ?? 0),
-    0
-  );
   const replayStateLabel =
     mode === "replay"
       ? `Replay hidden after ${(currentTimestamp?.slice(0, 10) ?? replayStartDate) || "--"}`
@@ -175,85 +175,39 @@ export function ReplayToolbar() {
   ]);
 
   return (
-    <nav className="toolbar" aria-label="Replay controls">
-      <div className="toolbar-group toolbar-zone market-zone" aria-label="Market controls">
-        <span className="toolbar-zone-label">Market</span>
+    <nav className="toolbar labeler-toolbar" aria-label="Labeler controls">
+      <div className="toolbar-group labeler-primary" aria-label="Label target">
+        <div className="toolbar-segments" aria-label="Label target ticker">
+          {(["SOXL", "SOXS"] as const).map((ticker) => (
+            <button
+              className={focusedTicker === ticker ? "active" : undefined}
+              type="button"
+              key={ticker}
+              onClick={() => setFocusedTicker(ticker)}
+            >
+              {ticker}
+            </button>
+          ))}
+        </div>
+        <div className="toolbar-segments" aria-label="Label target timeframe">
+          {chartGridTimeframes.map((timeframe) => (
+            <button
+              className={activeTimeframe === timeframe ? "active" : undefined}
+              type="button"
+              key={timeframe}
+              onClick={() => void setActiveTimeframe(timeframe)}
+            >
+              {timeframe}
+            </button>
+          ))}
+        </div>
         {chartLayoutMode === "focused" ? (
           <span className="focus-scope-badge" aria-label={`Focused layout: ${focusedTicker} ${activeTimeframe}`}>
-            Focused {focusedTicker} {activeTimeframe}
+            {focusedTicker} {activeTimeframe}
           </span>
         ) : null}
-        <button type="button" disabled={isLoading || isImporting} onClick={() => void loadChartData()}>
-          {isLoading ? "Loading" : "Load Charts"}
-        </button>
       </div>
-      <details className="toolbar-group toolbar-zone toolbar-utility-zone data-import-zone">
-        <summary aria-label="Data utility controls">
-          <span className="toolbar-zone-label">Data</span>
-          <span className={coverageGapCount > 0 ? "toolbar-data-warning" : "coverage-badge"} role="status">
-            Gaps {coverageGapCount}
-          </span>
-        </summary>
-        <div className="toolbar-drawer" aria-label="Data import controls">
-          <label className="toolbar-date-field">
-            <span>From</span>
-            <input
-              aria-label="Import start date"
-              type="text"
-              inputMode="numeric"
-              placeholder="YYYY-MM-DD"
-              value={importStartDate}
-              onChange={(event) => setImportStartDate(event.target.value)}
-            />
-          </label>
-          <label className="toolbar-date-field">
-            <span>To</span>
-            <input
-              aria-label="Import end date"
-              type="text"
-              inputMode="numeric"
-              placeholder="YYYY-MM-DD"
-              value={importEndDate}
-              onChange={(event) => setImportEndDate(event.target.value)}
-            />
-          </label>
-          <select
-            aria-label="Import base timeframe"
-            value={importBaseTimeframe}
-            onChange={(event) => setImportBaseTimeframe(event.target.value as "1Min" | "5Min")}
-          >
-            <option value="1Min">1Min</option>
-            <option value="5Min">5Min</option>
-          </select>
-          <button type="button" disabled={isImporting} onClick={() => void runImport()}>
-            {isImporting ? "Importing" : "Import"}
-          </button>
-          <span className={coverageGapCount > 0 ? "toolbar-data-warning" : "coverage-badge"} role="status">
-            Coverage gaps {coverageGapCount}
-          </span>
-          <span className="coverage-badge" aria-label="Data coverage status">
-            {coverageLabel}
-          </span>
-          {importStatusLabel ? (
-            <span
-              className={importError ? "toolbar-data-warning" : "coverage-badge"}
-              role="status"
-              aria-label="Import status"
-            >
-              {importStatusLabel}
-            </span>
-          ) : null}
-        </div>
-      </details>
-      <div className="toolbar-group toolbar-zone replay-zone" aria-label="Replay mode controls">
-        <span className="toolbar-zone-label">Replay</span>
-        <button
-          className={mode === "regular" ? "active" : ""}
-          type="button"
-          onClick={() => setMode("regular")}
-        >
-          Regular
-        </button>
+      <div className="toolbar-group labeler-replay" aria-label="Replay mode controls">
         <button
           className={mode === "replay" ? "active" : ""}
           type="button"
@@ -261,13 +215,92 @@ export function ReplayToolbar() {
         >
           Replay
         </button>
-        <details className="toolbar-utility-zone replay-settings-zone">
-          <summary aria-label="Replay settings">
-            <span className={mode === "replay" ? "mode-badge replay" : "mode-badge regular"}>
-              {mode === "replay" ? "Future hidden" : "All bars"}
+        <button
+          className={mode === "regular" ? "active" : ""}
+          type="button"
+          onClick={() => setMode("regular")}
+        >
+          Regular
+        </button>
+        <span className={mode === "replay" ? "mode-badge replay" : "mode-badge regular"}>
+          {mode === "replay" ? "Future hidden" : "All bars"}
+        </span>
+      </div>
+      <div className="toolbar-group labeler-navigation" aria-label="Candle navigation controls">
+        <button type="button" disabled={!syncData} onClick={() => moveSelectedCandle(-1)}>
+          Prev
+        </button>
+        <button type="button" disabled={!syncData} onClick={() => moveSelectedCandle(1)}>
+          Next
+        </button>
+      </div>
+      <div className="toolbar-group labeler-status" aria-label="Replay status">
+        <span className="toolbar-count" title={replayStateLabel}>
+          {syncData ? `${visibleCount} / ${totalCount}` : "0 / 0"}
+          {currentTimestamp ? <small>{currentTimestamp.slice(0, 10)}</small> : null}
+        </span>
+        <button type="button" disabled={isLoading || isImporting} onClick={() => void loadChartData()}>
+          {isLoading ? "Loading" : "Load"}
+        </button>
+      </div>
+      <details className="toolbar-group toolbar-utility-zone labeler-more">
+        <summary aria-label="Data and export controls">
+          <span>More</span>
+        </summary>
+        <div className="toolbar-drawer labeler-more-drawer" aria-label="Data, replay, and export controls">
+          <section aria-label="Data import controls">
+            <strong>Data</strong>
+            <label className="toolbar-date-field">
+              <span>From</span>
+              <input
+                aria-label="Import start date"
+                type="text"
+                inputMode="numeric"
+                placeholder="YYYY-MM-DD"
+                value={importStartDate}
+                onChange={(event) => setImportStartDate(event.target.value)}
+              />
+            </label>
+            <label className="toolbar-date-field">
+              <span>To</span>
+              <input
+                aria-label="Import end date"
+                type="text"
+                inputMode="numeric"
+                placeholder="YYYY-MM-DD"
+                value={importEndDate}
+                onChange={(event) => setImportEndDate(event.target.value)}
+              />
+            </label>
+            <select
+              aria-label="Import base timeframe"
+              value={importBaseTimeframe}
+              onChange={(event) => setImportBaseTimeframe(event.target.value as "1Min" | "5Min")}
+            >
+              <option value="1Min">1Min</option>
+              <option value="5Min">5Min</option>
+            </select>
+            <button type="button" disabled={isImporting} onClick={() => void runImport()}>
+              {isImporting ? "Importing" : "Import"}
+            </button>
+            <span className={coverageGapCount > 0 ? "toolbar-data-warning" : "coverage-badge"} role="status">
+              Gaps {coverageGapCount}
             </span>
-          </summary>
-          <div className="toolbar-drawer replay-drawer" aria-label="Replay setup controls">
+            <span className="coverage-badge" aria-label="Data coverage status">
+              {coverageLabel}
+            </span>
+            {importStatusLabel ? (
+              <span
+                className={importError ? "toolbar-data-warning" : "coverage-badge"}
+                role="status"
+                aria-label="Import status"
+              >
+                {importStatusLabel}
+              </span>
+            ) : null}
+          </section>
+          <section aria-label="Replay setup controls">
+            <strong>Replay</strong>
             <label className="replay-date-field">
               <span>Start</span>
               <input
@@ -291,61 +324,74 @@ export function ReplayToolbar() {
             <button type="button" disabled={mode !== "replay" || replayIndex >= maxIndex} onClick={stepForward}>
               Step
             </button>
+            <select
+              aria-label="Replay speed"
+              value={replaySpeedMs}
+              onChange={(event) => setReplaySpeedMs(Number(event.target.value))}
+            >
+              <option value={1000}>1x</option>
+              <option value={500}>2x</option>
+              <option value={250}>4x</option>
+            </select>
             <span className={replayDateError ? "replay-boundary error" : "replay-boundary"} role="status">
               {replayDateError ?? replayStateLabel}
             </span>
-          </div>
-        </details>
-        <span className="sr-only">{mode === "replay" ? "Replay: future hidden" : "Regular: all bars"}</span>
-      </div>
-      <div className="toolbar-group toolbar-zone navigation-zone" aria-label="Candle navigation controls">
-        <span className="toolbar-zone-label">Nav</span>
-        <button type="button" disabled={!syncData} onClick={() => moveSelectedCandle(-1)}>
-          Prev
-        </button>
-        <button type="button" disabled={!syncData} onClick={() => moveSelectedCandle(1)}>
-          Next
-        </button>
-        <select
-          aria-label="Replay speed"
-          value={replaySpeedMs}
-          onChange={(event) => setReplaySpeedMs(Number(event.target.value))}
-        >
-          <option value={1000}>1x</option>
-          <option value={500}>2x</option>
-          <option value={250}>4x</option>
-        </select>
-      </div>
-      <div className="toolbar-group toolbar-zone session-zone" aria-label="Session status">
-        <span className="toolbar-zone-label">Session</span>
-        <span className="toolbar-count">
-          {syncData ? `${visibleCount} / ${totalCount}` : "0 / 0"}
-          {currentTimestamp ? <small>{currentTimestamp.slice(0, 10)}</small> : null}
-        </span>
-          {dataWarningCount > 0 ? (
-            <span className="toolbar-data-warning" role="status">
-              Data warnings {dataWarningCount}
-            </span>
-          ) : dataReviewCount > 0 ? (
-            <span className="coverage-badge" role="status">
-              Data review {dataReviewCount}
-            </span>
-          ) : null}
-      </div>
-      <details className="toolbar-group toolbar-zone toolbar-utility-zone export-toolbar-group">
-        <summary aria-label="Export utility controls">
-          <span className="toolbar-zone-label">Export</span>
-          <span
-            className={exportBlocked ? "toolbar-data-warning" : "coverage-badge"}
-            role="status"
-            aria-label="Export preview"
+          </section>
+          <section aria-label="Export controls">
+          <strong>Export</strong>
+          <span className="toolbar-export-scope">{exportScopeLabel} · {exportPreviewStatus}</span>
+          <a
+            aria-disabled={!hasLabels}
+            className={hasLabels ? "toolbar-link primary" : "toolbar-link disabled"}
+            href={researchExportHref("csv")}
+            role="link"
+            onClick={(event) => {
+              if (!hasLabels) {
+                event.preventDefault();
+              }
+            }}
           >
-            {exportPreviewStatus}
-          </span>
-        </summary>
-        <div className="toolbar-drawer export-toolbar-group" aria-label="Export controls">
-          <span className="sr-only">Export</span>
-          <span className="toolbar-export-scope">{exportScopeLabel}</span>
+            Labels CSV
+          </a>
+          <a
+            aria-disabled={!hasLabels}
+            className={hasLabels ? "toolbar-link primary" : "toolbar-link disabled"}
+            href={researchExportHref("jsonl")}
+            role="link"
+            onClick={(event) => {
+              if (!hasLabels) {
+                event.preventDefault();
+              }
+            }}
+          >
+            JSONL
+          </a>
+          <a
+            aria-disabled={!hasLabels}
+            className={hasLabels ? "toolbar-link primary" : "toolbar-link disabled"}
+            href={pairedTradesHref}
+            role="link"
+            onClick={(event) => {
+              if (!hasLabels) {
+                event.preventDefault();
+              }
+            }}
+          >
+            Trades CSV
+          </a>
+          <a
+            aria-disabled={!hasLabels}
+            className={hasLabels ? "toolbar-link primary" : "toolbar-link disabled"}
+            href={trainingFeaturesHref}
+            role="link"
+            onClick={(event) => {
+              if (!hasLabels) {
+                event.preventDefault();
+              }
+            }}
+          >
+            Training CSV
+          </a>
           <a
             aria-disabled={!hasLabels || exportBlocked}
             className={hasLabels && !exportBlocked ? "toolbar-link" : "toolbar-link disabled"}
@@ -357,7 +403,7 @@ export function ReplayToolbar() {
               }
             }}
           >
-            CSV
+            Features CSV
           </a>
           <a
             aria-disabled={!hasLabels || exportBlocked}
@@ -370,8 +416,9 @@ export function ReplayToolbar() {
               }
             }}
           >
-            JSON
+            Full JSON
           </a>
+          </section>
         </div>
       </details>
     </nav>

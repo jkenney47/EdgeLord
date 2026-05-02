@@ -61,6 +61,8 @@ describe("database migrations", () => {
       expect.arrayContaining([
         "decision_phase",
         "capture_mode",
+        "label_source",
+        "training_eligible",
         "visible_until_timestamp",
         "potential_visual_leakage",
         "selected_bar_index",

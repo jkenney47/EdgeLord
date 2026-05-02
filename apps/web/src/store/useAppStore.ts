@@ -34,6 +34,7 @@ import type {
   ImportMarketDataResult,
   ExportValidationReport,
   InstrumentRole,
+  LabelSource,
   LabelType,
   MarketBias,
   PairedTickerRole,
@@ -68,6 +69,8 @@ export type SubmitLabelInput = {
   setupId?: string | null;
   tradeId?: string | null;
   parentLabelId?: string | null;
+  labelSource?: LabelSource;
+  trainingEligible?: boolean;
   decisionRole?: DecisionRole;
   bias?: Bias;
   tradeDirection?: TradeDirection;
@@ -278,14 +281,14 @@ export function createInitialState(): Pick<
   | "lastImportResult"
 > {
   return {
-    mode: "regular",
+    mode: "replay",
     replayIndex: 0,
     replaySpeedMs: 500,
     isReplayPlaying: false,
     replayStartDate: "",
     replayDateInput: "",
     replayDateError: null,
-    chartLayoutMode: "grid",
+    chartLayoutMode: "focused",
     chartInteractionMode: "cursor",
     activeTimeframe: "4H",
     focusedTicker: "SOXL",
@@ -1332,12 +1335,24 @@ export const useAppStore = create<AppState>((set, get) => ({
           )
         )
       ).flat();
+      const nextReplayIndex =
+        get().mode === "replay"
+          ? Math.min(get().replayIndex, Math.max(syncData.timestamps.length - 1, 0))
+          : Math.max(syncData.timestamps.length - 1, 0);
+      const nextTimestamp = syncData.timestamps[nextReplayIndex] ?? null;
       set({
         syncData,
         syncDataByTimeframe,
         dataCoverage,
         drawings,
-        replayIndex: Math.max(syncData.timestamps.length - 1, 0),
+        replayIndex: nextReplayIndex,
+        selectedCandle: nextTimestamp
+          ? {
+              ticker: get().focusedTicker,
+              timeframe: syncData.timeframe,
+              timestamp: nextTimestamp
+            }
+          : null,
         isLoadingChartData: false
       });
     } catch (error) {
@@ -1417,13 +1432,25 @@ export const useAppStore = create<AppState>((set, get) => ({
           )
         )
       ).flat();
+      const nextReplayIndex =
+        get().mode === "replay"
+          ? Math.min(get().replayIndex, Math.max(syncData.timestamps.length - 1, 0))
+          : Math.max(syncData.timestamps.length - 1, 0);
+      const nextTimestamp = syncData.timestamps[nextReplayIndex] ?? null;
       set({
         lastImportResult: result,
         syncData,
         syncDataByTimeframe,
         dataCoverage,
         drawings,
-        replayIndex: Math.max(syncData.timestamps.length - 1, 0),
+        replayIndex: nextReplayIndex,
+        selectedCandle: nextTimestamp
+          ? {
+              ticker: get().focusedTicker,
+              timeframe: syncData.timeframe,
+              timestamp: nextTimestamp
+            }
+          : null,
         isImporting: false
       });
     } catch (error) {
@@ -1468,6 +1495,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         labelType: input.labelType,
         decisionPhase: "at_close",
         captureMode: get().mode,
+        labelSource: input.labelSource,
+        trainingEligible: input.trainingEligible,
         visibleUntilTimestamp: context.candle.timestamp,
         potentialVisualLeakage: get().mode === "regular",
         selectedBarIndex: context.candleIndex,

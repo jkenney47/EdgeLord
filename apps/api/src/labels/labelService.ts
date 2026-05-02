@@ -8,6 +8,7 @@ import { outcomeRuleVersion } from "../outcomes/outcomeVersions.js";
 const labelTypeSchema = z.enum(["ENTRY", "EXIT", "SKIP", "INVALID"]);
 const decisionPhaseSchema = z.enum(["at_close", "at_open", "intrabar"]);
 const captureModeSchema = z.enum(["regular", "replay"]);
+const labelSourceSchema = z.enum(["actual_trade", "retrospective_replay", "retrospective_hindsight"]);
 const decisionRoleSchema = z.enum(["setup_start", "trigger", "entry", "management", "exit", "skip", "invalid"]);
 const biasSchema = z.enum(["long", "short", "neutral", "unclear"]);
 const marketBiasSchema = z.enum(["bullish_semis", "bearish_semis", "neutral", "unclear"]);
@@ -44,6 +45,8 @@ const createTradeEventSchema = z.object({
   notes: z.string().nullable().optional(),
   decisionPhase: decisionPhaseSchema.default("at_close"),
   captureMode: captureModeSchema.default("regular"),
+  labelSource: labelSourceSchema.optional(),
+  trainingEligible: z.boolean().optional(),
   visibleUntilTimestamp: z.string().min(1).nullable().optional(),
   potentialVisualLeakage: z.boolean().default(false),
   selectedBarIndex: z.number().int().min(0).nullable().optional(),
@@ -101,6 +104,8 @@ type TradeEventRow = {
   notes: string | null;
   decision_phase: "at_close" | "at_open" | "intrabar" | null;
   capture_mode: "regular" | "replay" | null;
+  label_source: "actual_trade" | "retrospective_replay" | "retrospective_hindsight" | null;
+  training_eligible: number | null;
   visible_until_timestamp: string | null;
   potential_visual_leakage: number | null;
   selected_bar_index: number | null;
@@ -161,6 +166,8 @@ export type TradeEventDto = {
   notes: string | null;
   decisionPhase: "at_close" | "at_open" | "intrabar";
   captureMode: "regular" | "replay";
+  labelSource: "actual_trade" | "retrospective_replay" | "retrospective_hindsight";
+  trainingEligible: boolean;
   visibleUntilTimestamp: string;
   potentialVisualLeakage: boolean;
   selectedBarIndex: number | null;
@@ -223,6 +230,25 @@ function defaultDecisionRole(labelType: TradeEventDto["labelType"]): TradeEventD
   return "invalid";
 }
 
+function defaultLabelSource(
+  captureMode: TradeEventDto["captureMode"],
+  potentialVisualLeakage: boolean
+): TradeEventDto["labelSource"] {
+  return captureMode === "replay" && !potentialVisualLeakage ? "retrospective_replay" : "retrospective_hindsight";
+}
+
+function defaultTrainingEligible(
+  labelSource: TradeEventDto["labelSource"],
+  captureMode: TradeEventDto["captureMode"],
+  potentialVisualLeakage: boolean
+): boolean {
+  return (
+    captureMode === "replay" &&
+    !potentialVisualLeakage &&
+    (labelSource === "actual_trade" || labelSource === "retrospective_replay")
+  );
+}
+
 function defaultOutcomeStatus(row: Pick<TradeEventRow, "outcome_available" | "outcome_status">): TradeEventDto["outcomeStatus"] {
   if (row.outcome_status) {
     return row.outcome_status;
@@ -240,6 +266,9 @@ function normalizedOutcomeStatus(
 
 function rowToDto(row: TradeEventRow): TradeEventDto {
   const labelType = row.label_type;
+  const captureMode = row.capture_mode ?? "regular";
+  const potentialVisualLeakage = row.potential_visual_leakage === 1;
+  const labelSource = row.label_source ?? defaultLabelSource(captureMode, potentialVisualLeakage);
 
   return {
     id: row.id,
@@ -254,9 +283,14 @@ function rowToDto(row: TradeEventRow): TradeEventDto {
     reasonCodes: parseJson(row.reason_codes_json) as string[],
     notes: row.notes,
     decisionPhase: row.decision_phase ?? "at_close",
-    captureMode: row.capture_mode ?? "regular",
+    captureMode,
+    labelSource,
+    trainingEligible:
+      row.training_eligible === null || row.training_eligible === undefined
+        ? defaultTrainingEligible(labelSource, captureMode, potentialVisualLeakage)
+        : row.training_eligible === 1,
     visibleUntilTimestamp: row.visible_until_timestamp ?? row.timestamp,
-    potentialVisualLeakage: row.potential_visual_leakage === 1,
+    potentialVisualLeakage,
     selectedBarIndex: row.selected_bar_index,
     setupId: row.setup_id,
     tradeId: row.trade_id,
@@ -328,6 +362,11 @@ export function createTradeEvent(db: SqliteDatabase, input: TradeEventInput): Tr
 
   const id = nanoid();
   const now = new Date().toISOString();
+  const labelSource =
+    parsed.data.labelSource ?? defaultLabelSource(parsed.data.captureMode, parsed.data.potentialVisualLeakage);
+  const trainingEligible =
+    parsed.data.trainingEligible ??
+    defaultTrainingEligible(labelSource, parsed.data.captureMode, parsed.data.potentialVisualLeakage);
   const outcomeStatus = normalizedOutcomeStatus(parsed.data.outcomeAvailable, parsed.data.outcomeStatus);
   const outcomeRule = parsed.data.outcomeRuleVersion ?? (parsed.data.outcomeAvailable ? outcomeRuleVersion : null);
 
@@ -346,6 +385,8 @@ export function createTradeEvent(db: SqliteDatabase, input: TradeEventInput): Tr
       notes,
       decision_phase,
       capture_mode,
+      label_source,
+      training_eligible,
       visible_until_timestamp,
       potential_visual_leakage,
       selected_bar_index,
@@ -382,7 +423,7 @@ export function createTradeEvent(db: SqliteDatabase, input: TradeEventInput): Tr
       drawing_context_json,
       created_at,
       updated_at
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     parsed.data.sessionId,
@@ -397,6 +438,8 @@ export function createTradeEvent(db: SqliteDatabase, input: TradeEventInput): Tr
     parsed.data.notes ?? null,
     parsed.data.decisionPhase,
     parsed.data.captureMode,
+    labelSource,
+    trainingEligible ? 1 : 0,
     parsed.data.visibleUntilTimestamp ?? parsed.data.timestamp,
     parsed.data.potentialVisualLeakage ? 1 : 0,
     parsed.data.selectedBarIndex ?? null,
@@ -482,6 +525,29 @@ export function updateTradeEvent(
     reasonCodes: parsed.data.reasonCodes ?? before.reasonCodes,
     decisionPhase: parsed.data.decisionPhase ?? before.decisionPhase,
     captureMode: parsed.data.captureMode ?? before.captureMode,
+    labelSource:
+      parsed.data.labelSource ??
+      (parsed.data.captureMode !== undefined || parsed.data.potentialVisualLeakage !== undefined
+        ? defaultLabelSource(
+            parsed.data.captureMode ?? before.captureMode,
+            parsed.data.potentialVisualLeakage ?? before.potentialVisualLeakage
+          )
+        : before.labelSource),
+    trainingEligible:
+      parsed.data.trainingEligible ??
+      (parsed.data.labelSource !== undefined ||
+      parsed.data.captureMode !== undefined ||
+      parsed.data.potentialVisualLeakage !== undefined
+        ? defaultTrainingEligible(
+            parsed.data.labelSource ??
+              defaultLabelSource(
+                parsed.data.captureMode ?? before.captureMode,
+                parsed.data.potentialVisualLeakage ?? before.potentialVisualLeakage
+              ),
+            parsed.data.captureMode ?? before.captureMode,
+            parsed.data.potentialVisualLeakage ?? before.potentialVisualLeakage
+          )
+        : before.trainingEligible),
     visibleUntilTimestamp:
       parsed.data.visibleUntilTimestamp === undefined
         ? before.visibleUntilTimestamp
@@ -572,6 +638,8 @@ export function updateTradeEvent(
       notes = ?,
       decision_phase = ?,
       capture_mode = ?,
+      label_source = ?,
+      training_eligible = ?,
       visible_until_timestamp = ?,
       potential_visual_leakage = ?,
       selected_bar_index = ?,
@@ -620,6 +688,8 @@ export function updateTradeEvent(
     merged.notes,
     merged.decisionPhase,
     merged.captureMode,
+    merged.labelSource,
+    merged.trainingEligible ? 1 : 0,
     merged.visibleUntilTimestamp,
     merged.potentialVisualLeakage ? 1 : 0,
     merged.selectedBarIndex,

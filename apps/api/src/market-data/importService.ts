@@ -10,6 +10,7 @@ export type ImportMarketDataRequest = {
   startDate: string;
   endDate: string;
   baseTimeframe: BaseTimeframe;
+  chunkDelayMs?: number;
 };
 
 export type ImportMarketDataResult = {
@@ -65,6 +66,10 @@ function splitDateRange(startDate: string, endDate: string): Array<{ startDate: 
   }
 
   return chunks;
+}
+
+function sleep(ms: number): Promise<void> {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
 function insertBaseBars(
@@ -347,7 +352,12 @@ export async function importMarketData(
     let aggregatedBarsInserted = 0;
     const baseBarsByChunk: BaseBar[][] = [];
 
-    for (const chunk of splitDateRange(options.request.startDate, options.request.endDate)) {
+    const chunks = splitDateRange(options.request.startDate, options.request.endDate);
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index];
+      if (index > 0) {
+        await sleep(options.request.chunkDelayMs ?? 0);
+      }
       const baseBars = await options.provider.getBars({
         tickers: options.request.tickers,
         timeframe: options.request.baseTimeframe,

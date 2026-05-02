@@ -86,11 +86,14 @@ pnpm workflow:minimal-labeler -- --acceptance
 pnpm workflow:minimal-labeler -- --api-smoke
 pnpm workflow:minimal-labeler -- --reset-db
 pnpm export:backup
+pnpm data:coverage
 ```
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
 
 `export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, and a manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
+
+`data:coverage` writes a SOXL/SOXS `1D`/`4H`/`2H` coverage report into `reports/` so you can tell whether you are still on sample data or have enough history for research.
 
 `--acceptance` starts a temporary API with a temporary SQLite database, seeds the sample bars, creates entry/exit/skip/hindsight labels, verifies the no-reversal state machine, and checks the export endpoints. It does not touch your real local labeling database.
 

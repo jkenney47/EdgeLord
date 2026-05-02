@@ -86,6 +86,7 @@ const readiness = {
     exportBackup: researchSummary.artifacts?.exportBackup ?? null,
     dataset: researchSummary.dataset ?? null,
     topHumanMimicRule: researchSummary.topHumanMimicRule ?? null,
+    topExitRule: researchSummary.topExitRule ?? null,
     topReturnOptimizedRule: researchSummary.topReturnOptimizedRule ?? null
   } : null
 };
@@ -119,6 +120,7 @@ if (failures.length === 0) {
     console.log(`- Rough rule mining: ${datasetReadiness.readyForRoughRuleMining ? "ready" : "not ready"} (${datasetReadiness.decisionRows} decisions / ${datasetReadiness.targets?.roughRuleMiningDecisionRows ?? 300} target)`);
     console.log(`- Return analysis: ${datasetReadiness.readyForReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades)`);
     console.log(`- Rough return analysis: ${datasetReadiness.readyForRoughReturnAnalysis ? "ready" : "not ready"} (${datasetReadiness.closedTrades} closed trades / ${datasetReadiness.targets?.roughReturnAnalysisClosedTrades ?? 30} target)`);
+    console.log(`- Exit rule mining: ${datasetReadiness.readyForExitRuleMining ? "ready" : "not ready"} (${datasetReadiness.tradeCandidateExitRows} exits / ${datasetReadiness.tradeCandidateHoldRows} holds)`);
   }
   console.log(`status: ${path.relative(root, summaryPath)}`);
   process.exit(0);

@@ -44,6 +44,8 @@ const splitRuleEvalPath = path.join(reportsDir, `${slug}-split-rule-eval.md`);
 const splitRuleEvalCsvPath = path.join(reportsDir, `${slug}-split-rule-eval.csv`);
 const entryOutcomePath = path.join(reportsDir, `${slug}-entry-outcomes.md`);
 const entryOutcomeCsvPath = path.join(reportsDir, `${slug}-entry-outcomes.csv`);
+const returnRulesPath = path.join(reportsDir, `${slug}-return-rules.md`);
+const returnRulesJsonPath = path.join(reportsDir, `${slug}-return-rules.json`);
 const strategyRulesPath = path.join(reportsDir, `${slug}-strategy-rules.v1.json`);
 const pineStrategyPath = path.join(reportsDir, `${slug}-strategy-soxl-soxs.pine`);
 fs.mkdirSync(backupDir);
@@ -70,6 +72,8 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath),
   entryOutcomes: path.relative(root, entryOutcomePath),
   entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
+  returnRules: path.relative(root, returnRulesPath),
+  returnRulesJson: path.relative(root, returnRulesJsonPath),
   strategyRules: path.relative(root, strategyRulesPath),
   pineStrategy: path.relative(root, pineStrategyPath)
 }, null, 2)}\n`);
@@ -172,6 +176,17 @@ execFileSync("python3", [
 });
 
 execFileSync("python3", [
+  "research/optimize_entry_rules.py",
+  "--training", path.join(backupDir, "training-features.csv"),
+  "--trades", path.join(backupDir, "trades.csv"),
+  "--output", returnRulesPath,
+  "--json-output", returnRulesJsonPath
+], {
+  cwd: root,
+  stdio: "inherit"
+});
+
+execFileSync("python3", [
   "research/generate_pine_stub.py",
   "--rules-json", rulesJsonPath,
   "--rules-output", strategyRulesPath,
@@ -188,5 +203,6 @@ console.log(`human_vs_rule: ${path.relative(root, comparisonPath)}`);
 console.log(`time_splits: ${path.relative(root, timeSplitsPath)}`);
 console.log(`split_rule_eval: ${path.relative(root, splitRuleEvalPath)}`);
 console.log(`entry_outcomes: ${path.relative(root, entryOutcomePath)}`);
+console.log(`return_rules: ${path.relative(root, returnRulesPath)}`);
 console.log(`strategy_rules: ${path.relative(root, strategyRulesPath)}`);
 console.log(`pine_strategy: ${path.relative(root, pineStrategyPath)}`);

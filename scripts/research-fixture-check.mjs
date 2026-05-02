@@ -43,24 +43,29 @@ const labelsCsv = writeFile("labels.csv", [
   "l1,retrospective_replay,1,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,0,10,,t1,,replay,2024-01-02T14:30:00.000Z,0,,,,2024-01-02T14:30:00.000Z",
   "l2,retrospective_replay,1,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,1,11,,t1,l1,replay,2024-01-03T14:30:00.000Z,0,,,,2024-01-03T14:30:00.000Z",
   "l3,retrospective_replay,1,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,2,9,,,,replay,2024-01-04T14:30:00.000Z,0,,,,2024-01-04T14:30:00.000Z",
-  "l4,retrospective_hindsight,0,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z"
+  "l4,retrospective_hindsight,0,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z",
+  "l5,retrospective_replay,1,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,4,20,,t2,,replay,2024-01-06T14:30:00.000Z,0,,,,2024-01-06T14:30:00.000Z",
+  "l6,retrospective_replay,1,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,5,18,,t2,l5,replay,2024-01-07T14:30:00.000Z,0,,,,2024-01-07T14:30:00.000Z"
 ].join("\n") + "\n");
 
 const trainingCsv = writeFile("training-features.csv", [
   "label_id,action,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
   "l1,ENTRY,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,10,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
   "l2,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
-  "l3,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,9,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false"
+  "l3,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,9,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
+  "l5,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,20,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
+  "l6,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
 ].join("\n") + "\n");
 
 const tradesCsv = writeFile("trades.csv", [
   "trade_id,ticker,status,entry_label_id,exit_label_id,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct",
-  "t1,SOXL,closed,l1,l2,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10"
+  "t1,SOXL,closed,l1,l2,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10",
+  "t2,SOXS,closed,l5,l6,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10"
 ].join("\n") + "\n");
 
 try {
   run(["research/dataset_report.py", "--labels", labelsCsv, "--training", trainingCsv, "--trades", tradesCsv, "--output", path.join(tempDir, "dataset-report.md")]);
-  assert(readFile("dataset-report.md").includes("entry labels are still early: 1/100"), "dataset report should include readiness guidance");
+  assert(readFile("dataset-report.md").includes("entry labels are still early:"), "dataset report should include readiness guidance");
 
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));
@@ -103,6 +108,16 @@ try {
   ]);
   assert(readFile("entry-outcomes.md").includes("EdgeLord Entry Outcome Analysis"), "entry outcome report should be written");
   assert(readFile("entry-outcomes.csv").includes("l1,SOXL,4H"), "entry outcome CSV should include the closed entry row");
+
+  run([
+    "research/optimize_entry_rules.py",
+    "--training", trainingCsv,
+    "--trades", tradesCsv,
+    "--output", path.join(tempDir, "return-rules.md"),
+    "--json-output", path.join(tempDir, "return-rules.json")
+  ]);
+  assert(readFile("return-rules.md").includes("EdgeLord Return-Optimized Entry Rules"), "return rules report should be written");
+  assert(JSON.parse(readFile("return-rules.json")).candidates.length > 0, "return rules JSON should include candidates");
 
   run([
     "research/generate_pine_stub.py",

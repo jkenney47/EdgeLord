@@ -33,6 +33,8 @@ It writes:
 - `reports/<timestamp>-split-rule-eval.csv`
 - `reports/<timestamp>-entry-outcomes.md`
 - `reports/<timestamp>-entry-outcomes.csv`
+- `reports/<timestamp>-return-rules.md`
+- `reports/<timestamp>-return-rules.json`
 - `reports/<timestamp>-strategy-rules.v1.json`
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
 
@@ -108,6 +110,18 @@ python3 research/entry_outcome_analysis.py \
 ```
 
 This is the first return-optimizer scaffold. It needs closed trades with training-eligible ENTRY labels before it can say anything useful.
+
+To rank simple entry filters by closed-trade return:
+
+```bash
+python3 research/optimize_entry_rules.py \
+  --training /path/to/training-features.csv \
+  --trades /path/to/trades.csv \
+  --output /path/to/return-rules.md \
+  --json-output /path/to/return-rules.json
+```
+
+This is separate from the human-mimic rule report. It asks which labeled-entry conditions had better returns, not which conditions best predict Joseph's ENTRY labels.
 
 To generate only the TradingView-facing scaffold from candidate rules:
 

@@ -7,6 +7,14 @@ description: Use when scanning, editing, verifying, browser-testing, or closing 
 
 Use this skill whenever the user asks to `proceed`, continue development, test the app, or implement the next EdgeLord minimal labeler slice.
 
+For a plain `proceed` request, use this one loop without asking again:
+
+1. Run `git status --short --branch` and `pnpm workflow:minimal-labeler`.
+2. Pick the next smallest useful slice in this order: data/import safety, label integrity, exports, research reports, Pine scaffold, then UI only if visible behavior changed or the user asks.
+3. Make the scoped edit.
+4. Run `pnpm closeout:minimal-labeler`.
+5. Commit and push when the tree is cleanly verified and the change is a coherent checkpoint.
+
 Run this from `/Users/JoeyKenney/Documents/EdgeLord` at the start of every labeler, state-machine, capture, import, or export loop:
 
 ```bash

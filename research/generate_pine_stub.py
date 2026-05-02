@@ -158,6 +158,8 @@ def promotion_status(
         warnings.append("Dataset is not ready for rule mining. Add replay-safe ENTRY and SKIP labels and resolve sequence issues.")
     if dataset_report and not readiness.get("readyForReturnAnalysis"):
         warnings.append("Dataset is not ready for return analysis. Add closed trades with EXIT labels before treating return rules as meaningful.")
+    if dataset_report and not readiness.get("readyForExitRuleMining"):
+        warnings.append("Dataset is not ready for exit-rule mining. Add closed trades with in-trade HOLD and EXIT candidate rows before treating exit signals as meaningful.")
     if dataset_report and not readiness.get("readyForRoughRuleMining"):
         warnings.append("Dataset is below rough rule-mining targets. Treat generated rules as plumbing checks, not strategy evidence.")
     if dataset_report and not readiness.get("readyForRoughReturnAnalysis"):
@@ -361,10 +363,13 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
     return_state = "ready" if readiness.get("readyForReturnAnalysis") else "not ready"
     rough_rule_state = "ready" if readiness.get("readyForRoughRuleMining") else "not ready"
     rough_return_state = "ready" if readiness.get("readyForRoughReturnAnalysis") else "not ready"
+    exit_rule_state = "ready" if readiness.get("readyForExitRuleMining") else "not ready"
     decision_rows = readiness.get("decisionRows", 0)
     entry_rows = readiness.get("entryRows", 0)
     skip_rows = readiness.get("skipRows", 0)
     closed_trades = readiness.get("closedTrades", 0)
+    exit_candidate_rows = readiness.get("tradeCandidateExitRows", 0)
+    hold_candidate_rows = readiness.get("tradeCandidateHoldRows", 0)
     sequence_issues = counts.get("sequenceIssues", 0)
     targets = readiness.get("targets", {})
     if not isinstance(targets, dict):
@@ -376,6 +381,7 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
     return [
         f"// Dataset rule-mining readiness: {rule_state} ({entry_rows} entries / {skip_rows} skips / {sequence_issues} sequence issues)",
         f"// Dataset return-analysis readiness: {return_state} ({closed_trades} closed trades)",
+        f"// Dataset exit-rule readiness: {exit_rule_state} ({exit_candidate_rows} exit candidates / {hold_candidate_rows} hold candidates)",
         f"// Rough rule-mining target: {rough_rule_state} ({decision_rows}/{decision_target} decisions, {entry_rows}/{entry_target} entries, {skip_rows}/{skip_target} skips)",
         f"// Rough return-analysis target: {rough_return_state} ({closed_trades}/{closed_target} closed trades)",
     ]

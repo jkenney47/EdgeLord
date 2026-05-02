@@ -257,6 +257,10 @@ try {
   assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
   assert(strategyRules.pineSupport?.humanMimicTopPairRule, "strategy rules JSON should include Pine feature support for the human pair rule");
   assert(strategyRules.pineSupport?.exitTopRule, "strategy rules JSON should include Pine feature support for the exit rule");
+  assert(strategyRules.inputSources?.humanMimicRules?.sha256, "strategy rules JSON should fingerprint human-mimic rule input");
+  assert(strategyRules.inputSources?.datasetReport?.sha256, "strategy rules JSON should fingerprint dataset-report input");
+  assert(strategyRules.pineFeatureMap?.version === "edgelord.pine_feature_map.v1", "strategy rules JSON should include the Pine feature map version");
+  assert(strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_close"), "strategy rules JSON should include mapped Pine columns");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(strategyRules.promotionChecklist.some((item) => item.includes("trade-candidates.csv HOLD-vs-EXIT")), "strategy rules checklist should mention HOLD-vs-EXIT candidates");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");

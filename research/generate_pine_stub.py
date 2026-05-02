@@ -1,16 +1,27 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 
-def read_pine_feature_expressions() -> dict[str, str]:
+def read_pine_feature_map() -> dict[str, Any]:
     path = Path(__file__).with_name("pine_feature_map.json")
     with path.open() as handle:
         payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("pine_feature_map.json must contain a JSON object")
+    return payload
+
+
+PINE_FEATURE_MAP = read_pine_feature_map()
+
+
+def read_pine_feature_expressions() -> dict[str, str]:
+    payload = PINE_FEATURE_MAP
     expressions = payload.get("expressions", {})
     if not isinstance(expressions, dict):
         raise ValueError("pine_feature_map.json must contain an expressions object")
@@ -18,6 +29,17 @@ def read_pine_feature_expressions() -> dict[str, str]:
 
 
 PINE_FEATURE_EXPRESSIONS = read_pine_feature_expressions()
+
+
+def file_metadata(path: Path | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+    body = path.read_bytes()
+    return {
+        "path": str(path),
+        "bytes": len(body),
+        "sha256": hashlib.sha256(body).hexdigest(),
+    }
 
 
 def read_rules(path: Path) -> dict[str, Any]:
@@ -200,6 +222,7 @@ def strategy_rules_payload(
     return_candidate: dict[str, Any] | None,
     exit_source: Path | None,
     exit_candidate: dict[str, Any] | None,
+    dataset_report_source: Path | None,
     dataset_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     warnings = [
@@ -215,6 +238,16 @@ def strategy_rules_payload(
         "humanMimicSource": str(human_source),
         "returnOptimizedSource": str(return_source) if return_source else None,
         "exitRuleSource": str(exit_source) if exit_source else None,
+        "inputSources": {
+            "humanMimicRules": file_metadata(human_source),
+            "returnOptimizedRules": file_metadata(return_source),
+            "exitRules": file_metadata(exit_source),
+            "datasetReport": file_metadata(dataset_report_source),
+        },
+        "pineFeatureMap": {
+            "version": PINE_FEATURE_MAP.get("version"),
+            "mappedColumns": sorted(PINE_FEATURE_EXPRESSIONS),
+        },
         "humanMimicTopRule": human_candidate,
         "humanMimicTopPairRule": human_pair_candidate,
         "returnOptimizedTopRule": return_candidate,
@@ -472,7 +505,7 @@ def main() -> None:
 
     args.rules_output.parent.mkdir(parents=True, exist_ok=True)
     args.rules_output.write_text(
-        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, human_pair_candidate, args.return_rules_json, return_candidate, args.exit_rules_json, exit_candidate, dataset_report), indent=2)}\n"
+        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, human_pair_candidate, args.return_rules_json, return_candidate, args.exit_rules_json, exit_candidate, args.dataset_report_json, dataset_report), indent=2)}\n"
     )
 
     args.pine_output.parent.mkdir(parents=True, exist_ok=True)

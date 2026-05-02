@@ -7,9 +7,12 @@ type Props = {
   mode: CaptureMode;
   labelSource: LabelSource;
   labels: Label[];
+  selectedLabels: Label[];
   openTrade: Trade | null;
   error: string | null;
+  autoAdvance: boolean;
   onLabelSource: (source: LabelSource) => void;
+  onAutoAdvance: (enabled: boolean) => void;
   onCapture: (action: LabelAction) => void;
   onUndo: () => void;
 };
@@ -33,9 +36,12 @@ export function CapturePanel({
   mode,
   labelSource,
   labels,
+  selectedLabels,
   openTrade,
   error,
+  autoAdvance,
   onLabelSource,
+  onAutoAdvance,
   onCapture,
   onUndo
 }: Props) {
@@ -59,6 +65,15 @@ export function CapturePanel({
               <span>L {selected.low.toFixed(2)}</span>
               <span>C {selected.close.toFixed(2)}</span>
             </div>
+            {selectedLabels.length > 0 ? (
+              <div className="selected-labels" aria-label="Selected candle labels">
+                {selectedLabels.map((label) => (
+                  <span key={label.id} className={label.training_eligible === 1 ? "label-eligible" : "label-excluded"}>
+                    {label.action} {labelSourceText[label.label_source]}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <p>Select a candle to label.</p>
@@ -79,6 +94,10 @@ export function CapturePanel({
             ? "Training eligible"
             : "Excluded by default"}
         </span>
+        <label className="toggle-row">
+          <input type="checkbox" checked={autoAdvance} onChange={(event) => onAutoAdvance(event.target.checked)} />
+          <span>Auto-advance</span>
+        </label>
       </section>
 
       <section className="panel-section">

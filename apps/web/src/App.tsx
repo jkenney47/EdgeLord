@@ -33,6 +33,7 @@ export function App() {
   const [index, setIndex] = useState(0);
   const [jumpDate, setJumpDate] = useState("");
   const [labelSource, setLabelSource] = useState<LabelSource>("retrospective_replay");
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const [labels, setLabels] = useState<Label[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [openTrade, setOpenTrade] = useState<Trade | null>(null);
@@ -49,6 +50,14 @@ export function App() {
     skips: labels.filter((label) => label.action === "SKIP").length
   }), [labels]);
   const closedTrades = useMemo(() => trades.filter((trade) => trade.status === "closed").length, [trades]);
+  const selectedLabels = useMemo(() => {
+    if (!selected) return [];
+    return labels.filter((label) =>
+      label.ticker === selected.ticker &&
+      label.timeframe === selected.timeframe &&
+      label.timestamp === selected.timestamp
+    );
+  }, [labels, selected]);
   const dataReadiness = useMemo(() => {
     const rawRows = barSummary.filter((row) => row.timeframe === "RAW");
     const chartRows = barSummary.filter((row) => row.timeframe !== "RAW");
@@ -152,10 +161,13 @@ export function App() {
         potentialVisualLeakage: mode === "regular" && labelSource !== "actual_trade"
       });
       await refreshState();
+      if (autoAdvance && mode === "replay") {
+        move(1);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [bars, labelSource, mode, openTrade, refreshState, selected, ticker, timeframe]);
+  }, [autoAdvance, bars, labelSource, mode, move, openTrade, refreshState, selected, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     const last = labels.at(-1);
@@ -249,9 +261,12 @@ export function App() {
           mode={mode}
           labelSource={labelSource}
           labels={labels}
+          selectedLabels={selectedLabels}
           openTrade={openTrade}
           error={error}
+          autoAdvance={autoAdvance}
           onLabelSource={setLabelSource}
+          onAutoAdvance={setAutoAdvance}
           onCapture={capture}
           onUndo={undo}
         />

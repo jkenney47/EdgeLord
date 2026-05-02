@@ -163,6 +163,18 @@ try {
   assert(csvValidation.version === "edgelord.csv_validation.v1", "CSV validation JSON should carry the expected version");
   assert(csvValidation.importable === true, "sample CSV should be importable");
   assert(csvValidation.researchReady === false, "sample CSV should not be research-ready");
+  const duplicateCsv = writeFile("duplicate-bars.csv", [
+    "ticker,timestamp,open,high,low,close,volume",
+    "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000",
+    "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000",
+    "SOXS,2024-01-02T14:30:00.000Z,20,21,19,20.5,2000"
+  ].join("\n") + "\n");
+  try {
+    runNode(["scripts/validate-csv.mjs", duplicateCsv]);
+    throw new Error("duplicate ticker timestamps should not pass CSV validation");
+  } catch (error) {
+    assert(error.status === 1, "duplicate ticker timestamps should fail with exit code 1");
+  }
   try {
     runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--research-ready"]);
     throw new Error("sample bars should not pass research-ready validation");

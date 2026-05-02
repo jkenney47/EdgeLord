@@ -128,6 +128,7 @@ for (const [lineIndex, line] of lines.slice(1).entries()) {
   const tickerStats = stats.get(ticker);
   if (tickerStats.timestamps.has(key)) {
     duplicateRows += 1;
+    errors.push(`row ${rowNumber}: duplicate ${ticker} timestamp ${iso}`);
   }
   tickerStats.timestamps.add(key);
   tickerStats.count += 1;
@@ -184,10 +185,6 @@ for (const ticker of expectedTickers) {
     readinessWarnings.push(`${ticker} spans ${tickerSpanYears.toFixed(1)} years, below --min-years ${minYears}`);
   }
 }
-if (duplicateRows > 0) {
-  readinessWarnings.push(`CSV contains ${duplicateRows} duplicate ticker/timestamp rows`);
-}
-
 if (readinessWarnings.length > 0) {
   console.log("");
   console.log("Research readiness warnings");

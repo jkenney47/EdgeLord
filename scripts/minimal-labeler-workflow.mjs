@@ -211,6 +211,14 @@ async function runAcceptance() {
     });
     console.log("ok seeded SOXL/SOXS bars");
 
+    const featureSnapshot = await fetchJson(baseUrl, `/features?ticker=SOXL&timeframe=4H&timestamp=${encodeURIComponent(soxlBars[1].timestamp)}`).then(({ response, body }) => {
+      assert(response.ok, `/features returned ${response.status}`);
+      return body.features;
+    });
+    assert(featureSnapshot.close === soxlBars[1].close, "Feature snapshot should use the selected candle close");
+    assert(featureSnapshot.pairedTicker === "SOXS", "Feature snapshot should include paired ETF context");
+    console.log("ok selected candle feature snapshot");
+
     const canonicalSkip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
       action: "SKIP",

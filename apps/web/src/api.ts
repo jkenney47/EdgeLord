@@ -3,6 +3,7 @@ export type Timeframe = "1D" | "4H" | "2H";
 export type LabelAction = "ENTRY" | "EXIT" | "SKIP" | "INVALID";
 export type LabelSource = "actual_trade" | "retrospective_replay" | "retrospective_hindsight";
 export type CaptureMode = "replay" | "regular";
+export type FeatureSnapshot = Record<string, number | string | boolean | null>;
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:4317";
 
@@ -137,6 +138,11 @@ export async function fetchBarsSummary(): Promise<BarSummaryRow[]> {
 
 export async function fetchDatasetPulse(): Promise<DatasetPulse> {
   return request<DatasetPulse>("/state/dataset");
+}
+
+export async function fetchFeatures(ticker: Ticker, timeframe: Timeframe, timestamp: string): Promise<FeatureSnapshot> {
+  const params = new URLSearchParams({ ticker, timeframe, timestamp });
+  return (await request<{ features: FeatureSnapshot }>(`/features?${params.toString()}`)).features;
 }
 
 export async function importCsv(csv: string, options: { replaceBars?: boolean } = {}): Promise<{

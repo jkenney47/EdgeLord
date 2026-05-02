@@ -9,6 +9,7 @@ import { CsvImportPathError, CsvImportValidationError, parseBarsCsv, readCsvFile
 import { buildDatasetPulse } from "./dataset";
 import { repoRoot } from "./db";
 import { exportManifest, exportSchemaCatalog, labelsCsv, labelsJsonl, tradeCandidatesCsv, tradesCsv, trainingFeaturesCsv } from "./export";
+import { buildFeatures } from "./indicators";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
 import type { ChartTimeframe, Ticker } from "./schema";
 import { getOpenTrade, getTrades } from "./trades";
@@ -85,6 +86,15 @@ app.get("/bars", async (request) => {
 });
 
 app.get("/bars/summary", async () => ({ rows: getBarsSummary() }));
+
+app.get("/features", async (request) => {
+  const query = z.object({
+    ticker: z.enum(["SOXL", "SOXS"]),
+    timeframe: z.enum(["1D", "4H", "2H"]),
+    timestamp: z.string()
+  }).parse(request.query);
+  return { features: buildFeatures(query.ticker as Ticker, query.timeframe as ChartTimeframe, query.timestamp) };
+});
 
 app.get("/labels", async () => ({ labels: getLabels() }));
 app.post("/labels", async (request, reply) => {

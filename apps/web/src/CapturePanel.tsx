@@ -1,4 +1,4 @@
-import type { Bar, CaptureMode, DatasetPulse, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
+import type { Bar, CaptureMode, DatasetPulse, FeatureSnapshot, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
 import { getCaptureBlockReason } from "./captureRules";
 import { getOpenTradeSelectionContext } from "./tradeReview";
 
@@ -9,6 +9,7 @@ type Props = {
   labelSource: LabelSource;
   labels: Label[];
   selectedLabels: Label[];
+  selectedFeatures: FeatureSnapshot | null;
   openTrade: Trade | null;
   error: string | null;
   captureStatus: string | null;
@@ -47,6 +48,7 @@ export function CapturePanel({
   labelSource,
   labels,
   selectedLabels,
+  selectedFeatures,
   openTrade,
   error,
   captureStatus,
@@ -76,6 +78,17 @@ export function CapturePanel({
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
   const showNextUnlabeledFocusAction = ["skip_coverage", "entry_coverage", "decision_coverage"].includes(nextTarget?.kind ?? "");
   const openTradeSelectionContext = getOpenTradeSelectionContext(selected, openTrade, ticker);
+  const featureRows: Array<[string, unknown]> = selectedFeatures ? [
+    ["EMA25", selectedFeatures.ema25],
+    ["SMA100", selectedFeatures.sma100],
+    ["ATR14", selectedFeatures.atr14],
+    ["Stoch K/D", `${formatFeatureValue(selectedFeatures.stochRsiK)} / ${formatFeatureValue(selectedFeatures.stochRsiD)}`],
+    ["EMA dist", selectedFeatures.distanceToEma25Pct],
+    ["5/20 return", `${formatFeatureValue(selectedFeatures.recent5ReturnPct)} / ${formatFeatureValue(selectedFeatures.recent20ReturnPct)}`],
+    ["Pair", `${selectedFeatures.pairedTicker ?? "-"} ${formatFeatureValue(selectedFeatures.pairedClose)}`],
+    ["Ratio", selectedFeatures.pairRatioClose],
+    ["D1/H4/H2", `${biasText(selectedFeatures.d1CloseAboveEma25)} / ${biasText(selectedFeatures.h4CloseAboveEma25)} / ${biasText(selectedFeatures.h2CloseAboveEma25)}`]
+  ] : [];
   return (
     <aside className="capture-panel">
       {nextTarget && nextAction ? (
@@ -111,6 +124,16 @@ export function CapturePanel({
               <span>L {selected.low.toFixed(2)}</span>
               <span>C {selected.close.toFixed(2)}</span>
             </div>
+            {featureRows.length > 0 ? (
+              <div className="feature-grid" aria-label="Selected candle feature snapshot">
+                {featureRows.map(([label, value]) => (
+                  <span key={label}>
+                    <strong>{label}</strong>
+                    <em>{formatFeatureValue(value)}</em>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {selectedLabels.length > 0 ? (
               <div className="selected-labels" aria-label="Selected candle labels">
                 {selectedLabels.map((label) => (
@@ -233,4 +256,21 @@ export function CapturePanel({
       </section>
     </aside>
   );
+}
+
+function formatFeatureValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "boolean") return value ? "Above" : "Below";
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return "-";
+    if (Math.abs(value) >= 1000) return value.toFixed(0);
+    if (Math.abs(value) >= 10) return value.toFixed(2);
+    return value.toFixed(3);
+  }
+  return String(value);
+}
+
+function biasText(value: unknown): string {
+  if (typeof value !== "boolean") return "-";
+  return value ? "Up" : "Down";
 }

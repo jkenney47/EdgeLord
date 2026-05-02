@@ -5,6 +5,7 @@ import {
   deleteLabel,
   fetchBars,
   fetchDatasetPulse,
+  fetchFeatures,
   fetchLabels,
   fetchOpenTrade,
   fetchTrades,
@@ -12,6 +13,7 @@ import {
   type Bar,
   type CaptureMode,
   type DatasetPulse,
+  type FeatureSnapshot,
   type Label,
   type LabelAction,
   type LabelSource,
@@ -57,6 +59,7 @@ export function App() {
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
+  const [selectedFeatures, setSelectedFeatures] = useState<FeatureSnapshot | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
@@ -115,6 +118,24 @@ export function App() {
   useEffect(() => {
     void refreshState();
   }, [refreshState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selected) {
+      setSelectedFeatures(null);
+      return;
+    }
+    void fetchFeatures(selected.ticker, selected.timeframe, selected.timestamp)
+      .then((features) => {
+        if (!cancelled) setSelectedFeatures(features);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedFeatures(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   useEffect(() => {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
@@ -401,6 +422,7 @@ export function App() {
           labelSource={labelSource}
           labels={labels}
           selectedLabels={selectedLabels}
+          selectedFeatures={selectedFeatures}
           openTrade={openTrade}
           error={error}
           captureStatus={captureStatus}

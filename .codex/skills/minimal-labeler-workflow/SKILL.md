@@ -1,6 +1,6 @@
 ---
 name: minimal-labeler-workflow
-description: Use when scanning, editing, or verifying EdgeLord minimal SOXL/SOXS labeler changes.
+description: Use when scanning, editing, verifying, browser-testing, or closing out EdgeLord minimal SOXL/SOXS labeler changes.
 ---
 
 # Minimal Labeler Workflow
@@ -52,13 +52,20 @@ pnpm workflow:minimal-labeler -- --reset-db
 
 Do not add drawing tools, trendlines, dashboards, dense review panels, broker integrations, alerts, watchlists, strategy mining UI, backtesting UI, or new indicators unless the user explicitly changes the product direction.
 
-For browser QA, use the Codex in-app browser at `http://127.0.0.1:5173/` after code changes and before final closeout when the slice affects visible chart, capture, replay, import, or export behavior.
+For browser QA, choose the best tool for the job:
 
-Browser rule for this repo:
+- Use the Codex in-app browser at `http://127.0.0.1:5173/` for visual truth: layout, clutter, spacing, chart framing, and user-flow feel.
+- Use Playwright when repeatability matters: keyboard flows, viewport sweeps, export links, form behavior, and regression checks.
+- Use code gates only for backend/data-only changes that do not affect visible behavior.
 
-- Use the Codex in-app browser for live visual and interaction QA.
-- Do not use standalone Playwright, Chrome DevTools, external browser sessions, or generic browser automation for EdgeLord UI review unless the user explicitly authorizes a fallback in that same turn.
-- The Browser plugin may expose an internal `tab.playwright` API after initializing backend `iab`; that is acceptable because it controls the Codex in-app browser, not a separate Playwright browser.
+Preferred in-app browser setup:
+
+1. Read the Browser Use skill before browser work.
+2. If the Node REPL JavaScript tool is not visible, search for `node_repl js`.
+3. Initialize Browser Use through `node_repl` with backend `iab`.
+4. Reuse the selected tab instead of reloading unless a reload is needed after code changes.
+
+The Browser plugin may expose an internal `tab.playwright` API after initializing backend `iab`; that is acceptable because it controls the Codex in-app browser.
 
 Default labeler loop:
 
@@ -66,5 +73,5 @@ Default labeler loop:
 pnpm workflow:minimal-labeler
 # edit the scoped slice
 pnpm closeout:minimal-labeler
-# if UI changed, reload and inspect http://127.0.0.1:5173/ in the Codex in-app browser
+# if UI changed, inspect http://127.0.0.1:5173/ in the Codex in-app browser; add Playwright only when repeatable automation is useful
 ```

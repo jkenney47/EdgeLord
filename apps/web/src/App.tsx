@@ -22,6 +22,7 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
+import { labelTargetProgress } from "./labelTargets";
 import { findReplayResumeIndex } from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
@@ -52,6 +53,7 @@ export function App() {
     skips: labels.filter((label) => label.action === "SKIP").length
   }), [labels]);
   const closedTrades = useMemo(() => trades.filter((trade) => trade.status === "closed").length, [trades]);
+  const targets = useMemo(() => labelTargetProgress(labels, trades), [labels, trades]);
   const selectedLabels = useMemo(() => {
     if (!selected) return [];
     return labels.filter((label) =>
@@ -310,6 +312,11 @@ export function App() {
         <span>Exits {labelStats.exits}</span>
         <span>Skips {labelStats.skips}</span>
         <span>Excluded {labelStats.ineligible}</span>
+        {targets.map((target) => (
+          <span key={target.key} className={target.complete ? "target-chip complete" : "target-chip"}>
+            {target.label} {target.current}/{target.target}
+          </span>
+        ))}
         <span className={`data-readiness ${dataReadiness.tone}`}>{dataReadiness.text}</span>
       </footer>
     </main>

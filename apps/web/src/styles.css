@@ -442,6 +442,17 @@ kbd {
   white-space: nowrap;
 }
 
+.target-chip {
+  border: 1px solid #3d4654;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.target-chip.complete {
+  border-color: rgba(46, 211, 173, 0.45);
+  color: #9ff3df;
+}
+
 .data-readiness {
   margin-left: auto;
   border: 1px solid #3d4654;

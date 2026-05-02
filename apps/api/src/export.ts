@@ -86,6 +86,25 @@ const tradeCandidatesCsvColumns = [
   ...featureColumns.map(([, column]) => column)
 ];
 
+const exportTrainingPolicy = {
+  eligibleWhen: [
+    "label_source is actual_trade and potential_visual_leakage is false",
+    "label_source is retrospective_replay, capture_mode is replay, and potential_visual_leakage is false"
+  ],
+  excludedByDefault: [
+    "retrospective_hindsight labels",
+    "regular-mode retrospective labels",
+    "labels with potential visual leakage",
+    "orphan EXIT labels"
+  ],
+  stateMachine: [
+    "ENTRY opens a long SOXL/SOXS trade only while flat",
+    "EXIT closes the currently open trade for the same ticker",
+    "SKIP is a flat-state negative example only",
+    "In-trade non-exit bars are exported as HOLD candidates in trade-candidates.csv after a trade is closed"
+  ]
+} as const;
+
 function csvValue(value: unknown): string {
   if (value === null || value === undefined) return "";
   const text = typeof value === "string" ? value : String(value);
@@ -239,18 +258,7 @@ export function exportManifest(labels: Label[], trades: Trade[]): Record<string,
       closedTrades: closedTradeIds.size,
       closedTradesWithCandidates: [...closedTradeIds].filter((tradeId) => tradeCandidateTradeIds.has(tradeId)).length
     },
-    trainingPolicy: {
-      eligibleWhen: [
-        "label_source is actual_trade and potential_visual_leakage is false",
-        "label_source is retrospective_replay, capture_mode is replay, and potential_visual_leakage is false"
-      ],
-      excludedByDefault: [
-        "retrospective_hindsight labels",
-        "regular-mode retrospective labels",
-        "labels with potential visual leakage",
-        "orphan EXIT labels"
-      ]
-    }
+    trainingPolicy: exportTrainingPolicy
   };
 }
 
@@ -298,18 +306,7 @@ export function exportSchemaCatalog(): Record<string, unknown> {
       pineSupport: pineSupportedColumns.has(column) ? "mapped" : "research_only",
       pineExpression: pineFeatureExpressions[column] ?? null
     })),
-    trainingPolicy: {
-      eligibleWhen: [
-        "label_source is actual_trade and potential_visual_leakage is false",
-        "label_source is retrospective_replay, capture_mode is replay, and potential_visual_leakage is false"
-      ],
-      excludedByDefault: [
-        "retrospective_hindsight labels",
-        "regular-mode retrospective labels",
-        "labels with potential visual leakage",
-        "orphan EXIT labels"
-      ]
-    }
+    trainingPolicy: exportTrainingPolicy
   };
 }
 

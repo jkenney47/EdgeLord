@@ -452,6 +452,7 @@ async function runAcceptance() {
     assert(manifest.tradeCandidates.rows > 0, "export manifest should count trade candidate rows");
     assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
     assert(manifest.tradeCandidates.closedTradesWithCandidates === 1, "export manifest should count closed trades with candidates");
+    assert(manifest.trainingPolicy.stateMachine.includes("SKIP is a flat-state negative example only"), "export manifest should document flat-state SKIP semantics");
     console.log("ok /export/manifest.json");
 
     const schema = await fetchJson(baseUrl, "/export/schema.json").then(({ response, body }) => {
@@ -463,6 +464,7 @@ async function runAcceptance() {
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineSupport === "mapped"), "export schema should describe Pine-supported features");
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineExpression === "close"), "export schema should expose Pine expressions");
     assert(schema.features.some((feature) => feature.column === "feature_pair_ratio_close" && feature.pineSupport === "research_only"), "export schema should flag research-only features");
+    assert(schema.trainingPolicy.stateMachine.includes("In-trade non-exit bars are exported as HOLD candidates in trade-candidates.csv after a trade is closed"), "export schema should document HOLD-vs-SKIP semantics");
     assertColumnsMatch(labelsCsv, schema.files["labels.csv"].columns, "labels.csv");
     assertColumnsMatch(tradesCsv, schema.files["trades.csv"].columns, "trades.csv");
     assertColumnsMatch(trainingCsv, schema.files["training-features.csv"].columns, "training-features.csv");

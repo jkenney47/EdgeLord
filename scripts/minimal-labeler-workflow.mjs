@@ -16,6 +16,31 @@ function run(command, commandArgs, options = {}) {
   });
 }
 
+function output(command, commandArgs) {
+  return execFileSync(command, commandArgs, {
+    cwd: root,
+    encoding: "utf8"
+  }).trim();
+}
+
+function scanProceedContext() {
+  console.log("EdgeLord Proceed Scan");
+  console.log("====================");
+  console.log(output("git", ["status", "--short", "--branch"]));
+  console.log("");
+  console.log("Recent checkpoints");
+  console.log(output("git", ["log", "--oneline", "-5"]));
+  console.log("");
+  console.log("Default next-slice order");
+  console.log("1. data/import safety");
+  console.log("2. label integrity");
+  console.log("3. exports");
+  console.log("4. research reports");
+  console.log("5. Pine scaffold");
+  console.log("6. UI only when visible behavior changed or the user asks");
+  console.log("");
+}
+
 async function isApiRunning(baseUrl) {
   try {
     const response = await fetch(`${baseUrl}/health`);
@@ -364,6 +389,7 @@ async function runAcceptance() {
 }
 
 const shouldCloseout = args.has("--closeout");
+const shouldProceed = args.has("--proceed");
 const shouldRunAcceptance = args.has("--acceptance") || shouldCloseout;
 const shouldRunApiSmoke = args.has("--api-smoke") || shouldCloseout;
 
@@ -375,6 +401,10 @@ if (args.has("--reset-db")) {
       console.log(`removed ${path.relative(root, target)}`);
     }
   }
+}
+
+if (shouldProceed) {
+  scanProceedContext();
 }
 
 if (shouldCloseout) {

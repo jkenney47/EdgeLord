@@ -9,7 +9,7 @@ Use this skill whenever the user asks to `proceed`, continue development, test t
 
 For a plain `proceed` request, use this one loop without asking again:
 
-1. Run `git status --short --branch` and `pnpm workflow:minimal-labeler`.
+1. Run `pnpm proceed:minimal-labeler`.
 2. Pick the next smallest useful slice in this order: data/import safety, label integrity, exports, research reports, Pine scaffold, then UI only if visible behavior changed or the user asks.
 3. Make the scoped edit.
 4. Run `pnpm closeout:minimal-labeler`.

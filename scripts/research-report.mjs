@@ -48,6 +48,7 @@ const returnRulesPath = path.join(reportsDir, `${slug}-return-rules.md`);
 const returnRulesJsonPath = path.join(reportsDir, `${slug}-return-rules.json`);
 const strategyRulesPath = path.join(reportsDir, `${slug}-strategy-rules.v1.json`);
 const pineStrategyPath = path.join(reportsDir, `${slug}-strategy-soxl-soxs.pine`);
+const researchSummaryPath = path.join(reportsDir, `${slug}-research-summary.json`);
 fs.mkdirSync(backupDir);
 
 const files = [];
@@ -75,7 +76,8 @@ fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   returnRules: path.relative(root, returnRulesPath),
   returnRulesJson: path.relative(root, returnRulesJsonPath),
   strategyRules: path.relative(root, strategyRulesPath),
-  pineStrategy: path.relative(root, pineStrategyPath)
+  pineStrategy: path.relative(root, pineStrategyPath),
+  researchSummary: path.relative(root, researchSummaryPath)
 }, null, 2)}\n`);
 
 execFileSync("python3", [
@@ -197,6 +199,36 @@ execFileSync("python3", [
   stdio: "inherit"
 });
 
+const returnRules = JSON.parse(fs.readFileSync(returnRulesJsonPath, "utf8"));
+const artifacts = {
+  exportBackup: path.relative(root, backupDir),
+  datasetReport: path.relative(root, reportPath),
+  candidateRules: path.relative(root, rulesPath),
+  candidateRulesJson: path.relative(root, rulesJsonPath),
+  humanVsRule: path.relative(root, comparisonPath),
+  humanVsRuleCsv: path.relative(root, comparisonCsvPath),
+  timeSplits: path.relative(root, timeSplitsPath),
+  timeSplitsCsv: path.relative(root, timeSplitsCsvPath),
+  splitRuleEval: path.relative(root, splitRuleEvalPath),
+  splitRuleEvalCsv: path.relative(root, splitRuleEvalCsvPath),
+  entryOutcomes: path.relative(root, entryOutcomePath),
+  entryOutcomesCsv: path.relative(root, entryOutcomeCsvPath),
+  returnRules: path.relative(root, returnRulesPath),
+  returnRulesJson: path.relative(root, returnRulesJsonPath),
+  strategyRules: path.relative(root, strategyRulesPath),
+  pineStrategy: path.relative(root, pineStrategyPath)
+};
+fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
+  version: "edgelord.research_summary.v1",
+  createdAt: new Date().toISOString(),
+  apiBaseUrl: baseUrl,
+  slug,
+  artifacts,
+  exports: files,
+  topHumanMimicRule: topRule ?? null,
+  topReturnOptimizedRule: returnRules.candidates?.[0] ?? null
+}, null, 2)}\n`);
+
 console.log(`backup: ${path.relative(root, backupDir)}`);
 console.log(`report: ${path.relative(root, reportPath)}`);
 console.log(`candidate_rules: ${path.relative(root, rulesPath)}`);
@@ -207,3 +239,4 @@ console.log(`entry_outcomes: ${path.relative(root, entryOutcomePath)}`);
 console.log(`return_rules: ${path.relative(root, returnRulesPath)}`);
 console.log(`strategy_rules: ${path.relative(root, strategyRulesPath)}`);
 console.log(`pine_strategy: ${path.relative(root, pineStrategyPath)}`);
+console.log(`research_summary: ${path.relative(root, researchSummaryPath)}`);

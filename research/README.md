@@ -37,6 +37,9 @@ It writes:
 - `reports/<timestamp>-return-rules.json`
 - `reports/<timestamp>-strategy-rules.v1.json`
 - `reports/<timestamp>-strategy-soxl-soxs.pine`
+- `reports/<timestamp>-research-summary.json`
+
+`research-summary.json` is the machine-readable index for downstream work. It points to every generated artifact and includes the top human-mimic and return-optimized rules when available.
 
 Or export CSV files manually and run:
 

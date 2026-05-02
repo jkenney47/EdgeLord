@@ -293,6 +293,19 @@ async function runAcceptance() {
     assert(skip.label.training_eligible === 1, "Replay skip should be a training-eligible negative example");
     console.log("ok replay skip is eligible");
 
+    const duplicateSkip = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: soxlBars[0].timestamp,
+      chartPrice: soxlBars[0].close,
+      captureMode: "replay",
+      visibleUntilTimestamp: soxlBars[0].timestamp
+    }, 400);
+    assert(/Duplicate .* SKIP label already exists/i.test(duplicateSkip.error ?? ""), "Duplicate label intents should be rejected");
+    console.log("ok duplicate label intents are blocked");
+
     const hindsight = await postLabel(baseUrl, {
       labelSource: "retrospective_hindsight",
       action: "SKIP",

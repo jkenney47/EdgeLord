@@ -63,6 +63,30 @@ export function getLabel(id: string): Label | null {
   return db.prepare("select * from labels where id = ? and deleted_at is null").get(id) as Label | undefined ?? null;
 }
 
+function assertUniqueLabelIntent(input: {
+  id?: string;
+  label_source: Label["label_source"];
+  action: Label["action"];
+  ticker: Label["ticker"];
+  timeframe: Label["timeframe"];
+  timestamp: string;
+}): void {
+  const duplicate = db.prepare(`
+    select id from labels
+    where deleted_at is null
+      and id != @id
+      and label_source = @label_source
+      and action = @action
+      and ticker = @ticker
+      and timeframe = @timeframe
+      and timestamp = @timestamp
+    limit 1
+  `).get({ ...input, id: input.id ?? "" }) as { id: string } | undefined;
+  if (duplicate) {
+    throw new Error(`Duplicate ${input.label_source} ${input.action} label already exists for ${input.ticker} ${input.timeframe} ${input.timestamp}.`);
+  }
+}
+
 export function createLabel(input: z.infer<typeof createLabelSchema>): { label: Label; openTrade: ReturnType<typeof getOpenTrade> } {
   if (input.action === "ENTRY") {
     const allowed = canEnter(input.ticker);
@@ -85,6 +109,13 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
   const leakage = input.potentialVisualLeakage ?? (input.captureMode === "regular" && input.labelSource !== "actual_trade");
   const { barIndex, chartPrice } = requireBarSnapshot(input);
   const features = buildFeatures(input.ticker, input.timeframe, input.timestamp);
+  assertUniqueLabelIntent({
+    label_source: input.labelSource,
+    action: input.action,
+    ticker: input.ticker,
+    timeframe: input.timeframe,
+    timestamp: input.timestamp
+  });
   const label: Label = {
     id: `label-${nanoid(12)}`,
     label_source: input.labelSource,
@@ -156,6 +187,7 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
   next.bar_index = barSnapshot.barIndex;
   next.chart_price = barSnapshot.chartPrice;
   next.features_json = JSON.stringify(buildFeatures(next.ticker, next.timeframe, next.timestamp));
+  assertUniqueLabelIntent(next as Label);
 
   const proposedLabels = getLabels().map((label) => label.id === id ? next as Label : label);
   const sequenceValidation = validateLabelSequence(proposedLabels);

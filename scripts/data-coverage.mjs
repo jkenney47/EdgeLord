@@ -17,6 +17,19 @@ function daysBetween(first, last) {
   return Math.max(0, (new Date(last).getTime() - new Date(first).getTime()) / 86_400_000);
 }
 
+function summarizeSources(bars) {
+  const sourceCounts = new Map();
+  for (const bar of bars) {
+    const source = bar.source || "unknown";
+    sourceCounts.set(source, (sourceCounts.get(source) ?? 0) + 1);
+  }
+
+  return [...sourceCounts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([source, count]) => `${source}:${count}`)
+    .join(", ");
+}
+
 async function getBars(ticker, timeframe) {
   const params = new URLSearchParams({ ticker, timeframe });
   const response = await fetch(`${baseUrl}/bars?${params.toString()}`);
@@ -27,6 +40,25 @@ async function getBars(ticker, timeframe) {
   return body.bars ?? [];
 }
 
+async function getBarsSummary() {
+  const response = await fetch(`${baseUrl}/bars/summary`);
+  if (!response.ok) {
+    throw new Error(`/bars/summary returned ${response.status}. Start the API with pnpm dev or set API_BASE_URL.`);
+  }
+  const body = await response.json();
+  return body.rows ?? [];
+}
+
+function sourceSet(rows, timeframe) {
+  return new Set(
+    rows
+      .filter((row) => row.timeframe === timeframe)
+      .map((row) => row.source)
+      .filter(Boolean)
+  );
+}
+
+const summaryRows = await getBarsSummary();
 const rows = [];
 for (const ticker of tickers) {
   for (const timeframe of timeframes) {
@@ -39,7 +71,8 @@ for (const ticker of tickers) {
       bars: bars.length,
       first,
       last,
-      spanDays: daysBetween(first, last)
+      spanDays: daysBetween(first, last),
+      sources: summarizeSources(bars)
     });
   }
 }
@@ -49,20 +82,42 @@ const lines = [
   "======================",
   `api: ${baseUrl}`,
   "",
-  "| Ticker | Timeframe | Bars | First | Last | Span Days |",
-  "| --- | --- | ---: | --- | --- | ---: |"
+  "| Ticker | Timeframe | Bars | First | Last | Span Days | Sources |",
+  "| --- | --- | ---: | --- | --- | ---: | --- |"
 ];
 
 for (const row of rows) {
-  lines.push(`| ${row.ticker} | ${row.timeframe} | ${row.bars} | ${row.first || "-"} | ${row.last || "-"} | ${row.spanDays.toFixed(1)} |`);
+  lines.push(`| ${row.ticker} | ${row.timeframe} | ${row.bars} | ${row.first || "-"} | ${row.last || "-"} | ${row.spanDays.toFixed(1)} | ${row.sources || "-"} |`);
+}
+
+lines.push("");
+lines.push("Raw Imports");
+lines.push("| Ticker | Source | Bars | First | Last |");
+lines.push("| --- | --- | ---: | --- | --- |");
+for (const row of summaryRows.filter((item) => item.timeframe === "RAW")) {
+  lines.push(`| ${row.ticker} | ${row.source} | ${row.bars} | ${row.first || "-"} | ${row.last || "-"} |`);
+}
+if (!summaryRows.some((item) => item.timeframe === "RAW")) {
+  lines.push("| - | - | 0 | - | - |");
 }
 
 const allRowsHaveData = rows.every((row) => row.bars > 0);
 const shortestSpan = Math.min(...rows.map((row) => row.spanDays));
+const rawSources = sourceSet(summaryRows, "RAW");
+const chartSources = sourceSet(summaryRows, "1D");
+const onlySampleData = rawSources.size === 1 && rawSources.has("sample");
+const hasSampleData = rawSources.has("sample");
+const hasCsvData = rawSources.has("csv");
 lines.push("");
 lines.push("Readiness");
 if (!allRowsHaveData) {
   lines.push("- Missing bars for at least one ticker/timeframe.");
+} else if (onlySampleData) {
+  lines.push("- Only bundled sample data is loaded. Import adjusted SOXL/SOXS CSV before serious labeling.");
+} else if (hasSampleData && hasCsvData) {
+  lines.push("- Sample and CSV data are mixed. Prefer re-importing with --replace-bars before serious labeling.");
+} else if (chartSources.size === 1 && chartSources.has("aggregate") && rawSources.size === 0) {
+  lines.push("- Chart bars exist without RAW import rows. Re-import adjusted CSV with --replace-bars before serious labeling.");
 } else if (shortestSpan < 365) {
   lines.push(`- Data is still too short for serious strategy work. Shortest span is ${shortestSpan.toFixed(1)} days.`);
 } else if (shortestSpan < 365 * 5) {

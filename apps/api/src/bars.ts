@@ -2,6 +2,15 @@ import { db } from "./db";
 import { aggregateBars } from "./aggregate";
 import type { Bar, ChartTimeframe, Ticker } from "./schema";
 
+export type BarSummaryRow = {
+  ticker: Ticker;
+  timeframe: string;
+  source: string;
+  bars: number;
+  first: string | null;
+  last: string | null;
+};
+
 const insertBar = db.prepare(`
   insert into bars (ticker, timeframe, timestamp, open, high, low, close, volume, source, adjusted)
   values (@ticker, @timeframe, @timestamp, @open, @high, @low, @close, @volume, @source, @adjusted)
@@ -48,6 +57,21 @@ export function getBars(ticker: Ticker, timeframe: ChartTimeframe): Bar[] {
     where ticker = ? and timeframe = ?
     order by timestamp asc
   `).all(ticker, timeframe) as Bar[];
+}
+
+export function getBarsSummary(): BarSummaryRow[] {
+  return db.prepare(`
+    select
+      ticker,
+      timeframe,
+      source,
+      count(*) as bars,
+      min(timestamp) as first,
+      max(timestamp) as last
+    from bars
+    group by ticker, timeframe, source
+    order by ticker asc, timeframe asc, source asc
+  `).all() as BarSummaryRow[];
 }
 
 export function getBarIndex(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): number {

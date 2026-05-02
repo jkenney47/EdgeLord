@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import path from "node:path";
 import { z } from "zod";
 
-import { clearBars, getBars, hasChartBars, importRawBars } from "./bars";
+import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from "./bars";
 import { parseBarsCsv, readCsvFile } from "./csvImport";
 import { repoRoot } from "./db";
 import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
@@ -52,6 +52,8 @@ app.get("/bars", async (request) => {
   }).parse(request.query);
   return { bars: getBars(query.ticker as Ticker, query.timeframe as ChartTimeframe) };
 });
+
+app.get("/bars/summary", async () => ({ rows: getBarsSummary() }));
 
 app.get("/labels", async () => ({ labels: getLabels() }));
 app.post("/labels", async (request, reply) => {

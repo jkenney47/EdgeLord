@@ -19,6 +19,11 @@ if (!fs.existsSync(csvPath)) {
   throw new Error(`CSV file not found: ${csvPath}`);
 }
 
+execFileSync("node", ["scripts/validate-csv.mjs", csvPath], {
+  cwd: root,
+  stdio: "inherit"
+});
+
 const csv = fs.readFileSync(csvPath, "utf8");
 const response = await fetch(`${baseUrl}/import/csv`, {
   method: "POST",

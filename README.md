@@ -87,6 +87,7 @@ pnpm workflow:minimal-labeler -- --api-smoke
 pnpm workflow:minimal-labeler -- --reset-db
 pnpm export:backup
 pnpm data:coverage
+pnpm validate:csv /path/to/adjusted-bars.csv
 pnpm import:csv /path/to/adjusted-bars.csv
 ```
 
@@ -95,6 +96,8 @@ pnpm import:csv /path/to/adjusted-bars.csv
 `export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, and a manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 
 `data:coverage` writes a SOXL/SOXS `1D`/`4H`/`2H` coverage report into `reports/` so you can tell whether you are still on sample data or have enough history for research.
+
+`validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values.
 
 `import:csv` imports a local adjusted OHLCV CSV into the running API, then writes a fresh coverage report.
 

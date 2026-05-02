@@ -18,6 +18,7 @@
     "export:backup": "node scripts/export-backup.mjs",
     "import:csv": "node scripts/import-csv.mjs",
     "research:report": "node scripts/research-report.mjs",
+    "validate:csv": "node scripts/validate-csv.mjs",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"
   },
   "devDependencies": {

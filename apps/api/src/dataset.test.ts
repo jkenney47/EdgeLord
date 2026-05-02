@@ -39,11 +39,11 @@ describe("buildDatasetPulse", () => {
   });
 
   it("pushes exit coverage before skip collection when entries are unpaired", () => {
-    const labels = [label("ENTRY", { trade_id: "trade", training_eligible: 1 })];
-    const pulse = buildDatasetPulse(barSummary, labels, []);
+    const labels = [label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 })];
+    const pulse = buildDatasetPulse(barSummary, labels, [trade("open")]);
 
     expect(pulse.nextTarget.kind).toBe("exit_coverage");
-    expect(pulse.nextActions[0]).toContain("EXIT labels");
+    expect(pulse.nextActions[0]).toContain("open SOXL trade");
   });
 
   it("pushes skip collection after exit coverage is caught up", () => {
@@ -54,7 +54,8 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade",
         parent_entry_label_id: "entry",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z"
+        timestamp: "2024-01-03T14:30:00.000Z",
+        chart_price: 29
       })
     ];
     const trades = [trade("closed")];
@@ -75,7 +76,8 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade",
         parent_entry_label_id: "entry",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z"
+        timestamp: "2024-01-03T14:30:00.000Z",
+        chart_price: 29
       }),
       label("ENTRY", {
         id: "hindsight-entry",
@@ -90,7 +92,8 @@ describe("buildDatasetPulse", () => {
         trade_id: "hindsight-trade",
         parent_entry_label_id: "hindsight-entry",
         training_eligible: 0,
-        timestamp: "2024-01-05T14:30:00.000Z"
+        timestamp: "2024-01-05T14:30:00.000Z",
+        chart_price: 29
       })
     ];
     const trades = [
@@ -99,7 +102,9 @@ describe("buildDatasetPulse", () => {
         ...trade("closed"),
         id: "hindsight-trade",
         entry_label_id: "hindsight-entry",
-        exit_label_id: "hindsight-exit"
+        exit_label_id: "hindsight-exit",
+        entry_timestamp: "2024-01-04T14:30:00.000Z",
+        exit_timestamp: "2024-01-05T14:30:00.000Z"
       }
     ];
 
@@ -118,7 +123,8 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade-1",
         parent_entry_label_id: "entry-1",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z"
+        timestamp: "2024-01-03T14:30:00.000Z",
+        chart_price: 29
       }),
       label("ENTRY", {
         id: "entry-2",
@@ -131,7 +137,8 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade-2",
         parent_entry_label_id: "entry-2",
         training_eligible: 1,
-        timestamp: "2024-01-05T14:30:00.000Z"
+        timestamp: "2024-01-05T14:30:00.000Z",
+        chart_price: 29
       }),
       label("SKIP", {
         id: "skip-1",
@@ -139,11 +146,20 @@ describe("buildDatasetPulse", () => {
         timestamp: "2024-01-06T14:30:00.000Z"
       })
     ];
-    const trades = [trade("closed"), {
+    const trades = [
+      {
+        ...trade("closed"),
+        id: "trade-1",
+        entry_label_id: "entry-1",
+        exit_label_id: "exit-1"
+      },
+      {
       ...trade("closed"),
       id: "trade-2",
       entry_label_id: "entry-2",
-      exit_label_id: "exit-2"
+      exit_label_id: "exit-2",
+      entry_timestamp: "2024-01-04T14:30:00.000Z",
+      exit_timestamp: "2024-01-05T14:30:00.000Z"
     }];
     const pulse = buildDatasetPulse(barSummary, labels, trades);
 
@@ -166,6 +182,33 @@ describe("buildDatasetPulse", () => {
     expect(pulse.integrity.ready).toBe(false);
     expect(pulse.integrity.entriesWithoutTrade).toBe(1);
     expect(pulse.integrity.sameCandleDecisionConflicts).toBe(1);
+    expect(pulse.nextTarget.kind).toBe("fix_integrity");
+  });
+
+  it("counts trade-ledger inconsistencies as integrity issues", () => {
+    const labels = [
+      label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
+      label("EXIT", {
+        id: "exit",
+        trade_id: "trade",
+        parent_entry_label_id: "entry",
+        training_eligible: 1,
+        timestamp: "2024-01-03T14:30:00.000Z",
+        chart_price: 29
+      })
+    ];
+    const trades = [
+      {
+        ...trade("closed"),
+        exit_price: 30,
+        return_pct: 99
+      }
+    ];
+
+    const pulse = buildDatasetPulse(barSummary, labels, trades);
+
+    expect(pulse.integrity.ready).toBe(false);
+    expect(pulse.integrity.tradeConsistencyIssues).toBeGreaterThan(0);
     expect(pulse.nextTarget.kind).toBe("fix_integrity");
   });
 });
@@ -211,6 +254,8 @@ function label(action: Label["action"], overrides: Partial<Label> = {}): Label {
 }
 
 function trade(status: Trade["status"]): Trade {
+  const entryPrice = 28.19;
+  const exitPrice = status === "closed" ? 29 : null;
   return {
     id: "trade",
     ticker: "SOXL",
@@ -218,9 +263,9 @@ function trade(status: Trade["status"]): Trade {
     exit_label_id: status === "closed" ? "exit" : null,
     entry_timestamp: "2024-01-02T14:30:00.000Z",
     exit_timestamp: status === "closed" ? "2024-01-03T14:30:00.000Z" : null,
-    entry_price: 28.19,
-    exit_price: status === "closed" ? 29 : null,
-    return_pct: status === "closed" ? 2.87 : null,
+    entry_price: entryPrice,
+    exit_price: exitPrice,
+    return_pct: exitPrice === null ? null : ((exitPrice - entryPrice) / entryPrice) * 100,
     status,
     created_at: "2024-01-02T14:30:00.000Z",
     updated_at: "2024-01-02T14:30:00.000Z"

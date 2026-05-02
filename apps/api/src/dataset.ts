@@ -8,6 +8,8 @@ const targets = {
   closedTrades: 30
 } as const;
 
+const priceTolerance = 0.0001;
+
 export type DatasetPulse = ReturnType<typeof buildDatasetPulse>;
 
 export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], trades: Trade[]) {
@@ -25,7 +27,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   const trainingExits = trainingLabels.filter((label) => label.action === "EXIT").length;
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
   const dataReadiness = summarizeDataReadiness(barSummary);
-  const integrity = summarizeLabelIntegrity(activeLabels);
+  const integrity = summarizeLabelIntegrity(activeLabels, trades);
   const exitTarget = Math.max(trainingEntries, 1);
   const targetProgress = [
     { key: "decisions", label: "Decisions", current: trainingLabels.length, target: targets.decisions },
@@ -138,7 +140,7 @@ function nextLabelingTarget(input: {
   return target("rule_review_ready", "Dataset is ready for first-pass rule review.", input.decisions, targets.decisions);
 }
 
-function summarizeLabelIntegrity(labels: Label[]) {
+function summarizeLabelIntegrity(labels: Label[], trades: Trade[]) {
   const eligibleOrphanExits = labels.filter((label) =>
     label.action === "EXIT" &&
     label.training_eligible === 1 &&
@@ -146,13 +148,15 @@ function summarizeLabelIntegrity(labels: Label[]) {
   );
   const entriesWithoutTrade = labels.filter((label) => label.action === "ENTRY" && !label.trade_id);
   const sameCandleDecisionConflicts = countSameCandleDecisionConflicts(labels);
-  const issueCount = eligibleOrphanExits.length + entriesWithoutTrade.length + sameCandleDecisionConflicts;
+  const tradeConsistencyIssues = countTradeConsistencyIssues(labels, trades);
+  const issueCount = eligibleOrphanExits.length + entriesWithoutTrade.length + sameCandleDecisionConflicts + tradeConsistencyIssues;
 
   return {
     issueCount,
     eligibleOrphanExits: eligibleOrphanExits.length,
     entriesWithoutTrade: entriesWithoutTrade.length,
     sameCandleDecisionConflicts,
+    tradeConsistencyIssues,
     ready: issueCount === 0
   };
 }
@@ -169,6 +173,75 @@ function countSameCandleDecisionConflicts(labels: Label[]): number {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.values()].filter((count) => count > 1).length;
+}
+
+function countTradeConsistencyIssues(labels: Label[], trades: Trade[]): number {
+  const labelsById = new Map(labels.map((label) => [label.id, label]));
+  const tradesById = new Map(trades.map((trade) => [trade.id, trade]));
+  let issues = 0;
+
+  const openTrades = trades.filter((trade) => trade.status === "open");
+  if (openTrades.length > 1) issues += 1;
+
+  for (const label of labels) {
+    if (label.action === "ENTRY" && !label.trade_id) issues += 1;
+    if ((label.action === "ENTRY" || label.action === "EXIT") && label.trade_id && !tradesById.has(label.trade_id)) {
+      issues += 1;
+    }
+    if ((label.action === "SKIP" || label.action === "INVALID") && (label.trade_id || label.parent_entry_label_id)) {
+      issues += 1;
+    }
+  }
+
+  for (const trade of trades) {
+    const entry = labelsById.get(trade.entry_label_id);
+    if (!entry) {
+      issues += 1;
+      continue;
+    }
+    if (entry.action !== "ENTRY") issues += 1;
+    if (entry.trade_id !== trade.id) issues += 1;
+    if (entry.ticker !== trade.ticker) issues += 1;
+    if (entry.timestamp !== trade.entry_timestamp) issues += 1;
+    if (!closeEnough(trade.entry_price, decisionPrice(entry))) issues += 1;
+
+    if (trade.status === "open") {
+      if (trade.exit_label_id || trade.exit_timestamp || trade.exit_price !== null || trade.return_pct !== null) issues += 1;
+      continue;
+    }
+
+    if (trade.status !== "closed" && trade.status !== "invalid") issues += 1;
+    if (trade.status !== "closed") continue;
+
+    if (!trade.exit_label_id) {
+      issues += 1;
+      continue;
+    }
+    const exit = labelsById.get(trade.exit_label_id);
+    if (!exit) {
+      issues += 1;
+      continue;
+    }
+    if (exit.action !== "EXIT") issues += 1;
+    if (exit.trade_id !== trade.id) issues += 1;
+    if (exit.parent_entry_label_id !== entry.id) issues += 1;
+    if (exit.ticker !== trade.ticker) issues += 1;
+    if (exit.timestamp !== trade.exit_timestamp) issues += 1;
+    if (!closeEnough(trade.exit_price, decisionPrice(exit))) issues += 1;
+    const expectedReturn = ((Number(trade.exit_price) - Number(trade.entry_price)) / Number(trade.entry_price)) * 100;
+    if (!closeEnough(trade.return_pct, expectedReturn)) issues += 1;
+  }
+
+  return issues;
+}
+
+function decisionPrice(label: Label): number {
+  return label.execution_price ?? label.chart_price;
+}
+
+function closeEnough(left: number | null, right: number | null): boolean {
+  if (left === null || right === null) return left === right;
+  return Math.abs(Number(left) - Number(right)) <= priceTolerance;
 }
 
 function target(kind: string, action: string, current: number, targetValue: number) {

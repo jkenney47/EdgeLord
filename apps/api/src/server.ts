@@ -5,7 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from "./bars";
-import { CsvImportValidationError, parseBarsCsv, readCsvFile, resolveCsvImportPath } from "./csvImport";
+import { CsvImportPathError, CsvImportValidationError, parseBarsCsv, readCsvFile, resolveCsvImportPath } from "./csvImport";
 import { buildDatasetPulse } from "./dataset";
 import { repoRoot } from "./db";
 import { exportManifest, exportSchemaCatalog, labelsCsv, labelsJsonl, tradeCandidatesCsv, tradesCsv, trainingFeaturesCsv } from "./export";
@@ -68,6 +68,9 @@ app.post("/import/csv", async (request, reply) => {
         issues: error.issues.slice(0, 25),
         issueCount: error.issues.length
       });
+    }
+    if (error instanceof CsvImportPathError) {
+      return reply.status(400).send({ error: error.message });
     }
     throw error;
   }

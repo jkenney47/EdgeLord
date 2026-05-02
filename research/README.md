@@ -62,7 +62,7 @@ python3 research/discover_rules.py \
   --json-output /path/to/candidate-rules.json
 ```
 
-Candidate rules are one-feature threshold prompts for research, not a tested strategy.
+Candidate rules include one-feature threshold prompts plus pairwise `AND` candidates across the best one-feature rules. They are research prompts, not a tested strategy.
 
 To compare one simple rule against human ENTRY/SKIP labels:
 

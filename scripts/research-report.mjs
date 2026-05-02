@@ -107,6 +107,7 @@ execFileSync("python3", [
 
 const rules = JSON.parse(fs.readFileSync(rulesJsonPath, "utf8"));
 const topRule = rules.candidates?.[0];
+const topPairRule = rules.pairCandidates?.[0];
 if (topRule) {
   execFileSync("python3", [
     "research/compare_rule.py",
@@ -238,6 +239,7 @@ fs.writeFileSync(researchSummaryPath, `${JSON.stringify({
     issues: datasetReport.issues
   },
   topHumanMimicRule: topRule ?? null,
+  topHumanMimicPairRule: topPairRule ?? null,
   topReturnOptimizedRule: returnRules.candidates?.[0] ?? null
 }, null, 2)}\n`);
 

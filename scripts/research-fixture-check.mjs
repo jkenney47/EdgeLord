@@ -102,7 +102,10 @@ try {
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));
   assert(Array.isArray(rules.candidates) && rules.candidates.length > 0, "candidate rules should include at least one rule");
+  assert(Array.isArray(rules.pairCandidates) && rules.pairCandidates.length > 0, "candidate rules should include pair candidates");
+  assert(Array.isArray(rules.pairCandidates[0].conditions), "pair candidates should carry explicit conditions");
   assert(readFile("candidate-rules.md").includes("Top Candidates"), "candidate rules report should include top candidates");
+  assert(readFile("candidate-rules.md").includes("Top Pair Candidates"), "candidate rules report should include pair candidates");
 
   const topRule = rules.candidates[0];
   run([

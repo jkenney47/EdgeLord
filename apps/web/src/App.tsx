@@ -24,6 +24,7 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
+import { normalizeLabelSourceForMode } from "./labelSourceMode";
 import {
   findFirstIndexAfterTimestamp,
   findNextUnlabeledIndex,
@@ -167,11 +168,8 @@ export function App() {
   }, [bars, labelSource, labels, pendingSelection, ticker, timeframe]);
 
   useEffect(() => {
-    if (mode === "replay" && labelSource === "retrospective_hindsight") {
-      setLabelSource("retrospective_replay");
-    } else if (labelSource === "retrospective_replay") {
-      setLabelSource("retrospective_hindsight");
-    }
+    const normalized = normalizeLabelSourceForMode(mode, labelSource);
+    if (normalized !== labelSource) setLabelSource(normalized);
   }, [labelSource, mode]);
 
   const selectBar = useCallback((bar: Bar) => {

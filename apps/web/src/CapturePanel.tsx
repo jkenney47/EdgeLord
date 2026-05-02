@@ -1,5 +1,6 @@
 import type { Bar, CaptureMode, DatasetPulse, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
 import { getCaptureBlockReason } from "./captureRules";
+import { getOpenTradeSelectionContext } from "./tradeReview";
 
 type Props = {
   selected: Bar | null;
@@ -74,6 +75,7 @@ export function CapturePanel({
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
   const showNextUnlabeledFocusAction = ["skip_coverage", "entry_coverage", "decision_coverage"].includes(nextTarget?.kind ?? "");
+  const openTradeSelectionContext = getOpenTradeSelectionContext(selected, openTrade, ticker);
   return (
     <aside className="capture-panel">
       {nextTarget && nextAction ? (
@@ -116,6 +118,17 @@ export function CapturePanel({
                     {label.action} {labelSourceText[label.label_source]}
                   </span>
                 ))}
+              </div>
+            ) : null}
+            {openTradeSelectionContext ? (
+              <div className={`trade-review ${openTradeSelectionContext.tone}`}>
+                <strong>{openTradeSelectionContext.title}</strong>
+                <span>{openTradeSelectionContext.detail}</span>
+                {openTradeSelectionContext.returnPct !== null ? (
+                  <span className={openTradeSelectionContext.returnPct >= 0 ? "return-positive" : "return-negative"}>
+                    Marked return {openTradeSelectionContext.returnPct.toFixed(2)}%
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </div>

@@ -290,6 +290,40 @@ a {
   flex-wrap: wrap;
 }
 
+.trade-review {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(159, 208, 255, 0.35);
+  border-radius: 5px;
+  padding: 8px;
+  background: rgba(159, 208, 255, 0.06);
+}
+
+.trade-review.warn {
+  border-color: rgba(244, 211, 94, 0.38);
+  background: rgba(244, 211, 94, 0.07);
+}
+
+.trade-review strong {
+  color: #f3f6fb;
+  font-size: 12px;
+}
+
+.trade-review span {
+  color: #a8b3c2;
+  font-size: 12px;
+}
+
+.return-positive {
+  color: #9ff3df !important;
+  font-weight: 800;
+}
+
+.return-negative {
+  color: #ffb4b8 !important;
+  font-weight: 800;
+}
+
 .field {
   display: grid;
   gap: 6px;

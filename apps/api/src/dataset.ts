@@ -19,12 +19,23 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   const trainingExits = trainingLabels.filter((label) => label.action === "EXIT").length;
   const trainingSkips = trainingLabels.filter((label) => label.action === "SKIP").length;
   const dataReadiness = summarizeDataReadiness(barSummary);
+  const exitTarget = Math.max(trainingEntries, 1);
   const targetProgress = [
     { key: "decisions", label: "Decisions", current: trainingLabels.length, target: targets.decisions },
     { key: "entries", label: "Entries", current: trainingEntries, target: targets.entries },
+    { key: "exits", label: "Exits", current: trainingExits, target: exitTarget },
     { key: "skips", label: "Skips", current: trainingSkips, target: targets.skips },
     { key: "closedTrades", label: "Closed", current: closedTrades.length, target: targets.closedTrades }
   ].map((item) => ({ ...item, complete: item.current >= item.target }));
+  const nextTarget = nextLabelingTarget({
+    dataReady: dataReadiness.code === "ready",
+    openTrade,
+    decisions: trainingLabels.length,
+    entries: trainingEntries,
+    exits: trainingExits,
+    skips: trainingSkips,
+    closedTrades: closedTrades.length
+  });
 
   return {
     version: "edgelord.dataset_pulse.v1",
@@ -49,15 +60,8 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
       } : null
     },
     targets: targetProgress,
-    nextActions: nextLabelingActions({
-      dataReady: dataReadiness.code === "ready",
-      openTrade,
-      decisions: trainingLabels.length,
-      entries: trainingEntries,
-      exits: trainingExits,
-      skips: trainingSkips,
-      closedTrades: closedTrades.length
-    })
+    nextTarget,
+    nextActions: [nextTarget.action]
   };
 }
 
@@ -89,7 +93,7 @@ function readiness(code: string, tone: "good" | "warn", text: string, shortestSp
   };
 }
 
-function nextLabelingActions(input: {
+function nextLabelingTarget(input: {
   dataReady: boolean;
   openTrade: Trade | null;
   decisions: number;
@@ -97,14 +101,36 @@ function nextLabelingActions(input: {
   exits: number;
   skips: number;
   closedTrades: number;
-}): string[] {
-  if (!input.dataReady) return ["Import adjusted SOXL/SOXS data before serious labeling."];
-  if (input.openTrade) return [`Close or continue the open ${input.openTrade.ticker} trade when the replay reaches your exit.`];
-  if (input.skips < Math.min(input.entries, targets.skips)) return ["Add SKIP labels near tempting setups so the model has negative examples."];
-  if (input.exits < input.entries) return ["Add EXIT labels for completed trade ideas."];
-  if (input.closedTrades < targets.closedTrades) return ["Build more closed trades for return analysis."];
-  if (input.decisions < targets.decisions) return ["Keep labeling replay-safe decisions toward the rough mining target."];
-  return ["Dataset is ready for first-pass rule review."];
+}) {
+  if (!input.dataReady) {
+    return target("data_ready", "Import adjusted SOXL/SOXS data before serious labeling.", 0, 1);
+  }
+  if (input.openTrade) {
+    return target("exit_coverage", `Close or continue the open ${input.openTrade.ticker} trade when the replay reaches your exit.`, input.exits, Math.max(input.entries, 1));
+  }
+  if (input.exits < input.entries) {
+    return target("exit_coverage", "Add EXIT labels for completed trade ideas.", input.exits, Math.max(input.entries, 1));
+  }
+  if (input.skips < Math.min(input.entries, targets.skips)) {
+    return target("skip_coverage", "Add SKIP labels near tempting setups so the model has negative examples.", input.skips, Math.max(input.entries, targets.skips));
+  }
+  if (input.closedTrades < targets.closedTrades) {
+    return target("closed_trade_coverage", "Build more closed trades for return analysis.", input.closedTrades, targets.closedTrades);
+  }
+  if (input.decisions < targets.decisions) {
+    return target("decision_coverage", "Keep labeling replay-safe decisions toward the rough mining target.", input.decisions, targets.decisions);
+  }
+  return target("rule_review_ready", "Dataset is ready for first-pass rule review.", input.decisions, targets.decisions);
+}
+
+function target(kind: string, action: string, current: number, targetValue: number) {
+  return {
+    kind,
+    action,
+    current,
+    target: targetValue,
+    remaining: Math.max(0, targetValue - current)
+  };
 }
 
 function countBy<T>(rows: T[], key: keyof T): Record<string, number> {

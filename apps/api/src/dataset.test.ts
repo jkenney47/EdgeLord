@@ -31,14 +31,29 @@ describe("buildDatasetPulse", () => {
     expect(pulse.labels.trainingEligible).toBe(2);
     expect(pulse.labels.excluded).toBe(1);
     expect(pulse.targets.find((target) => target.key === "decisions")?.current).toBe(2);
+    expect(pulse.targets.find((target) => target.key === "exits")?.target).toBe(1);
     expect(pulse.trades.openTrade?.ticker).toBe("SOXL");
+    expect(pulse.nextTarget.kind).toBe("exit_coverage");
     expect(pulse.nextActions[0]).toContain("open SOXL trade");
   });
 
-  it("pushes skip collection before more generic target guidance", () => {
+  it("pushes exit coverage before skip collection when entries are unpaired", () => {
     const labels = [label("ENTRY", { training_eligible: 1 })];
     const pulse = buildDatasetPulse(barSummary, labels, []);
 
+    expect(pulse.nextTarget.kind).toBe("exit_coverage");
+    expect(pulse.nextActions[0]).toContain("EXIT labels");
+  });
+
+  it("pushes skip collection after exit coverage is caught up", () => {
+    const labels = [
+      label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
+      label("EXIT", { id: "exit", trade_id: "trade", parent_entry_label_id: "entry", training_eligible: 1 })
+    ];
+    const trades = [trade("closed")];
+    const pulse = buildDatasetPulse(barSummary, labels, trades);
+
+    expect(pulse.nextTarget.kind).toBe("skip_coverage");
     expect(pulse.nextActions[0]).toContain("SKIP labels");
   });
 });

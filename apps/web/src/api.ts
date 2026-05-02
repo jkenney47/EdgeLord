@@ -54,12 +54,19 @@ export type DatasetPulse = {
     } | null;
   };
   targets: Array<{
-    key: "decisions" | "entries" | "skips" | "closedTrades";
+    key: "decisions" | "entries" | "exits" | "skips" | "closedTrades";
     label: string;
     current: number;
     target: number;
     complete: boolean;
   }>;
+  nextTarget: {
+    kind: string;
+    action: string;
+    current: number;
+    target: number;
+    remaining: number;
+  };
   nextActions: string[];
 };
 

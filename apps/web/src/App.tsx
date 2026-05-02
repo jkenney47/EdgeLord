@@ -63,6 +63,7 @@ export function App() {
   const closedTrades = datasetPulse?.trades.closed ?? trades.filter((trade) => trade.status === "closed").length;
   const targets = datasetPulse?.targets ?? [];
   const dataReadiness = datasetPulse?.dataReadiness ?? { tone: "warn" as const, text: "Checking data" };
+  const nextTarget = datasetPulse?.nextTarget ?? null;
   const nextAction = datasetPulse?.nextActions[0] ?? null;
   const selectedLabels = useMemo(() => {
     if (!selected) return [];
@@ -377,6 +378,11 @@ export function App() {
           </span>
         ))}
         <span className={`data-readiness ${dataReadiness.tone}`}>{dataReadiness.text}</span>
+        {nextTarget ? (
+          <span className="next-target">
+            Next {nextTarget.kind.replace(/_/g, " ")} {nextTarget.current}/{nextTarget.target}
+          </span>
+        ) : null}
         {nextAction ? <span className="next-action">{nextAction}</span> : null}
       </footer>
     </main>

@@ -33,6 +33,16 @@ def read_rules(path: Path) -> dict[str, Any]:
     return payload
 
 
+def read_optional_object(path: Path | None, label: str) -> dict[str, Any] | None:
+    if not path:
+        return None
+    with path.open() as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"{label} JSON must be an object")
+    return payload
+
+
 def top_candidate(payload: dict[str, Any]) -> dict[str, Any] | None:
     candidates = payload.get("candidates", [])
     if not isinstance(candidates, list) or not candidates:
@@ -73,11 +83,59 @@ def pine_feature_support(candidate: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def dataset_readiness_payload(dataset_report: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not dataset_report:
+        return None
+    return {
+        "sourceVersion": dataset_report.get("version"),
+        "counts": dataset_report.get("counts", {}),
+        "readiness": dataset_report.get("readiness", {}),
+        "issues": dataset_report.get("issues", {}),
+    }
+
+
+def promotion_status(
+    human_candidate: dict[str, Any] | None,
+    return_candidate: dict[str, Any] | None,
+    dataset_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    warnings: list[str] = []
+    readiness = {}
+    if dataset_report:
+        readiness_value = dataset_report.get("readiness", {})
+        if isinstance(readiness_value, dict):
+            readiness = readiness_value
+
+    if dataset_report and not readiness.get("readyForRuleMining"):
+        warnings.append("Dataset is not ready for rule mining. Add replay-safe ENTRY and SKIP labels and resolve sequence issues.")
+    if dataset_report and not readiness.get("readyForReturnAnalysis"):
+        warnings.append("Dataset is not ready for return analysis. Add closed trades with EXIT labels before treating return rules as meaningful.")
+    if not dataset_report:
+        warnings.append("No dataset readiness report was provided.")
+    if not human_candidate:
+        warnings.append("No human-mimic candidate rule is available yet.")
+    if not return_candidate:
+        warnings.append("No return-optimized candidate rule is available yet.")
+
+    human_support = pine_feature_support(human_candidate)
+    return_support = pine_feature_support(return_candidate)
+    if human_candidate and not human_support["supported"]:
+        warnings.extend(human_support["warnings"])
+    if return_candidate and not return_support["supported"]:
+        warnings.extend(return_support["warnings"])
+
+    return {
+        "status": "review_ready" if not warnings else "scaffold_only",
+        "warnings": warnings,
+    }
+
+
 def strategy_rules_payload(
     human_source: Path,
     human_candidate: dict[str, Any] | None,
     return_source: Path | None,
     return_candidate: dict[str, Any] | None,
+    dataset_report: dict[str, Any] | None,
 ) -> dict[str, Any]:
     warnings = [
         "Research scaffold only. Do not use for live trading.",
@@ -94,12 +152,15 @@ def strategy_rules_payload(
         "humanMimicTopRule": human_candidate,
         "returnOptimizedTopRule": return_candidate,
         "topRule": human_candidate,
+        "datasetReadiness": dataset_readiness_payload(dataset_report),
         "pineSupport": {
             "humanMimicTopRule": pine_feature_support(human_candidate),
             "returnOptimizedTopRule": pine_feature_support(return_candidate),
         },
+        "promotion": promotion_status(human_candidate, return_candidate, dataset_report),
         "promotionChecklist": [
             "Confirm the rule was generated from replay-safe training rows only.",
+            "Confirm the dataset readiness report is clean enough for the intended use.",
             "Confirm the feature is mapped to the same calculation in Pine.",
             "Inspect human-vs-rule disagreements before trusting the signal.",
             "Run walk-forward split evaluation after enough labels exist.",
@@ -151,7 +212,34 @@ def rule_comment(prefix: str, candidate: dict[str, Any] | None) -> list[str]:
     return [f"// {prefix}: {feature} {direction} {threshold}{suffix}"]
 
 
-def pine_stub(human_candidate: dict[str, Any] | None, return_candidate: dict[str, Any] | None) -> str:
+def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
+    if not dataset_report:
+        return ["// Dataset readiness: no dataset report provided"]
+
+    readiness = dataset_report.get("readiness", {})
+    counts = dataset_report.get("counts", {})
+    if not isinstance(readiness, dict):
+        readiness = {}
+    if not isinstance(counts, dict):
+        counts = {}
+
+    rule_state = "ready" if readiness.get("readyForRuleMining") else "not ready"
+    return_state = "ready" if readiness.get("readyForReturnAnalysis") else "not ready"
+    entry_rows = readiness.get("entryRows", 0)
+    skip_rows = readiness.get("skipRows", 0)
+    closed_trades = readiness.get("closedTrades", 0)
+    sequence_issues = counts.get("sequenceIssues", 0)
+    return [
+        f"// Dataset rule-mining readiness: {rule_state} ({entry_rows} entries / {skip_rows} skips / {sequence_issues} sequence issues)",
+        f"// Dataset return-analysis readiness: {return_state} ({closed_trades} closed trades)",
+    ]
+
+
+def pine_stub(
+    human_candidate: dict[str, Any] | None,
+    return_candidate: dict[str, Any] | None,
+    dataset_report: dict[str, Any] | None,
+) -> str:
     lines = [
         "//@version=5",
         'strategy("EdgeLord SOXL/SOXS Candidate Scaffold", overlay=true, pyramiding=0)',
@@ -161,6 +249,8 @@ def pine_stub(human_candidate: dict[str, Any] | None, return_candidate: dict[str
         "// This is not a live-trading strategy.",
         "",
     ]
+    lines.extend(readiness_comments(dataset_report))
+    lines.append("")
     lines.extend(rule_comment("Human-mimic candidate", human_candidate))
     lines.extend(rule_comment("Return-optimized candidate", return_candidate))
     lines.append("")
@@ -198,6 +288,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate EdgeLord strategy-rules JSON and a Pine Script scaffold.")
     parser.add_argument("--rules-json", required=True, type=Path, help="Path to candidate-rules.json")
     parser.add_argument("--return-rules-json", type=Path, help="Optional path to return-rules.json")
+    parser.add_argument("--dataset-report-json", type=Path, help="Optional path to dataset-report.json")
     parser.add_argument("--rules-output", required=True, type=Path, help="Path to write strategy_rules.v1.json")
     parser.add_argument("--pine-output", required=True, type=Path, help="Path to write strategy_soxl_soxs.pine")
     args = parser.parse_args()
@@ -205,14 +296,15 @@ def main() -> None:
     candidate_rules = read_rules(args.rules_json)
     human_candidate = top_candidate(candidate_rules)
     return_candidate = top_candidate(read_rules(args.return_rules_json)) if args.return_rules_json else None
+    dataset_report = read_optional_object(args.dataset_report_json, "dataset report")
 
     args.rules_output.parent.mkdir(parents=True, exist_ok=True)
     args.rules_output.write_text(
-        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, args.return_rules_json, return_candidate), indent=2)}\n"
+        f"{json.dumps(strategy_rules_payload(args.rules_json, human_candidate, args.return_rules_json, return_candidate, dataset_report), indent=2)}\n"
     )
 
     args.pine_output.parent.mkdir(parents=True, exist_ok=True)
-    args.pine_output.write_text(pine_stub(human_candidate, return_candidate))
+    args.pine_output.write_text(pine_stub(human_candidate, return_candidate, dataset_report))
 
 
 if __name__ == "__main__":

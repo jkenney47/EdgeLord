@@ -134,8 +134,9 @@ To generate only the TradingView-facing scaffold from candidate rules:
 python3 research/generate_pine_stub.py \
   --rules-json /path/to/candidate-rules.json \
   --return-rules-json /path/to/return-rules.json \
+  --dataset-report-json /path/to/dataset-report.json \
   --rules-output /path/to/strategy-rules.v1.json \
   --pine-output /path/to/strategy-soxl-soxs.pine
 ```
 
-The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. `strategy-rules.v1.json` records whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.
+The Pine file is a research scaffold. It carries both the human-mimic top rule and the return-optimized top rule, but implements only the human-mimic candidate signal until exit logic and return-optimized backtesting are stronger. `strategy-rules.v1.json` records dataset readiness, promotion warnings, and whether each top rule is currently mapped to a Pine expression. Unsupported features remain explicit TODOs instead of being silently approximated.

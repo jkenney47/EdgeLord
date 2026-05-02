@@ -155,15 +155,19 @@ try {
     "research/generate_pine_stub.py",
     "--rules-json", path.join(tempDir, "candidate-rules.json"),
     "--return-rules-json", path.join(tempDir, "return-rules.json"),
+    "--dataset-report-json", path.join(tempDir, "dataset-report.json"),
     "--rules-output", path.join(tempDir, "strategy-rules.v1.json"),
     "--pine-output", path.join(tempDir, "strategy-soxl-soxs.pine")
   ]);
   const strategyRules = JSON.parse(readFile("strategy-rules.v1.json"));
   assert(strategyRules.humanMimicTopRule, "strategy rules JSON should include the human rule");
   assert(strategyRules.returnOptimizedTopRule, "strategy rules JSON should include the return rule");
+  assert(strategyRules.datasetReadiness?.readiness?.readyForRuleMining === true, "strategy rules JSON should include dataset rule-mining readiness");
+  assert(strategyRules.promotion?.status === "review_ready", "strategy rules JSON should mark the fixture scaffold review-ready");
   assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   writeResearchSummaryFixture();
   const summary = JSON.parse(readFile("research-summary.json"));

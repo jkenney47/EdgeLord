@@ -51,17 +51,23 @@ describe("findReplayResumeIndex", () => {
   ];
 
   it("starts at the first candle when no matching labels exist", () => {
-    expect(findReplayResumeIndex(bars, [], "SOXL", "4H")).toBe(0);
-    expect(findReplayResumeIndex(bars, [label(bars[1].timestamp, { ticker: "SOXS" })], "SOXL", "4H")).toBe(0);
+    expect(findReplayResumeIndex(bars, [], "SOXL", "4H", "retrospective_replay")).toBe(0);
+    expect(findReplayResumeIndex(bars, [label(bars[1].timestamp, { ticker: "SOXS" })], "SOXL", "4H", "retrospective_replay")).toBe(0);
   });
 
   it("resumes after the latest matching labeled candle", () => {
-    expect(findReplayResumeIndex(bars, [label(bars[0].timestamp)], "SOXL", "4H")).toBe(1);
-    expect(findReplayResumeIndex(bars, [label(bars[0].timestamp), label(bars[1].timestamp)], "SOXL", "4H")).toBe(2);
+    expect(findReplayResumeIndex(bars, [label(bars[0].timestamp)], "SOXL", "4H", "retrospective_replay")).toBe(1);
+    expect(findReplayResumeIndex(bars, [label(bars[0].timestamp), label(bars[1].timestamp)], "SOXL", "4H", "retrospective_replay")).toBe(2);
   });
 
   it("stays on the final candle when the latest label is final", () => {
-    expect(findReplayResumeIndex(bars, [label(bars[2].timestamp)], "SOXL", "4H")).toBe(2);
+    expect(findReplayResumeIndex(bars, [label(bars[2].timestamp)], "SOXL", "4H", "retrospective_replay")).toBe(2);
+  });
+
+  it("does not let other label sources advance replay resume", () => {
+    expect(findReplayResumeIndex(bars, [
+      label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 0 })
+    ], "SOXL", "4H", "retrospective_replay")).toBe(0);
   });
 });
 
@@ -74,14 +80,20 @@ describe("findNextUnlabeledIndex", () => {
   ];
 
   it("finds the next unlabeled candle after the current index", () => {
-    expect(findNextUnlabeledIndex(bars, [label(bars[1].timestamp)], "SOXL", "4H", 0)).toBe(2);
+    expect(findNextUnlabeledIndex(bars, [label(bars[1].timestamp)], "SOXL", "4H", 0, "retrospective_replay")).toBe(2);
   });
 
   it("ignores labels from other ticker/timeframe combinations", () => {
     expect(findNextUnlabeledIndex(bars, [
       label(bars[1].timestamp, { ticker: "SOXS" }),
       label(bars[2].timestamp, { timeframe: "2H" })
-    ], "SOXL", "4H", 0)).toBe(1);
+    ], "SOXL", "4H", 0, "retrospective_replay")).toBe(1);
+  });
+
+  it("ignores labels from other sources", () => {
+    expect(findNextUnlabeledIndex(bars, [
+      label(bars[1].timestamp, { label_source: "actual_trade" })
+    ], "SOXL", "4H", 0, "retrospective_replay")).toBe(1);
   });
 
   it("returns null when no later unlabeled candle exists", () => {
@@ -89,7 +101,7 @@ describe("findNextUnlabeledIndex", () => {
       label(bars[1].timestamp),
       label(bars[2].timestamp),
       label(bars[3].timestamp)
-    ], "SOXL", "4H", 0)).toBeNull();
+    ], "SOXL", "4H", 0, "retrospective_replay")).toBeNull();
   });
 });
 
@@ -124,7 +136,8 @@ describe("findNextUnlabeledIndexAfterTimestamp", () => {
       [label(bars[1].timestamp)],
       "SOXL",
       "4H",
-      bars[0].timestamp
+      bars[0].timestamp,
+      "retrospective_replay"
     )).toBe(2);
   });
 
@@ -137,7 +150,19 @@ describe("findNextUnlabeledIndexAfterTimestamp", () => {
       ],
       "SOXL",
       "4H",
-      bars[0].timestamp
+      bars[0].timestamp,
+      "retrospective_replay"
+    )).toBe(1);
+  });
+
+  it("ignores later labels from other sources", () => {
+    expect(findNextUnlabeledIndexAfterTimestamp(
+      bars,
+      [label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 0 })],
+      "SOXL",
+      "4H",
+      bars[0].timestamp,
+      "retrospective_replay"
     )).toBe(1);
   });
 
@@ -147,7 +172,8 @@ describe("findNextUnlabeledIndexAfterTimestamp", () => {
       [label(bars[1].timestamp), label(bars[2].timestamp), label(bars[3].timestamp)],
       "SOXL",
       "4H",
-      bars[0].timestamp
+      bars[0].timestamp,
+      "retrospective_replay"
     )).toBeNull();
   });
 });

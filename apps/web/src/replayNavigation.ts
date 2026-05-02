@@ -1,17 +1,14 @@
-import type { Bar, Label, Timeframe, Ticker } from "./api";
+import type { Bar, Label, LabelSource, Timeframe, Ticker } from "./api";
 
 export function findReplayResumeIndex(
   bars: Bar[],
   labels: Label[],
   ticker: Ticker,
-  timeframe: Timeframe
+  timeframe: Timeframe,
+  labelSource: LabelSource
 ): number {
   if (bars.length === 0) return 0;
-  const labeledTimestamps = new Set(
-    labels
-      .filter((label) => label.ticker === ticker && label.timeframe === timeframe)
-      .map((label) => label.timestamp)
-  );
+  const labeledTimestamps = matchingLabelTimestamps(labels, ticker, timeframe, labelSource);
   let latestLabeledIndex = -1;
   for (const [index, bar] of bars.entries()) {
     if (labeledTimestamps.has(bar.timestamp)) {
@@ -26,13 +23,10 @@ export function findNextUnlabeledIndex(
   labels: Label[],
   ticker: Ticker,
   timeframe: Timeframe,
-  currentIndex: number
+  currentIndex: number,
+  labelSource: LabelSource
 ): number | null {
-  const labeledTimestamps = new Set(
-    labels
-      .filter((label) => label.ticker === ticker && label.timeframe === timeframe)
-      .map((label) => label.timestamp)
-  );
+  const labeledTimestamps = matchingLabelTimestamps(labels, ticker, timeframe, labelSource);
   const startIndex = Math.max(0, currentIndex + 1);
   for (let index = startIndex; index < bars.length; index += 1) {
     if (!labeledTimestamps.has(bars[index].timestamp)) {
@@ -52,17 +46,31 @@ export function findNextUnlabeledIndexAfterTimestamp(
   labels: Label[],
   ticker: Ticker,
   timeframe: Timeframe,
-  timestamp: string
+  timestamp: string,
+  labelSource: LabelSource
 ): number | null {
-  const labeledTimestamps = new Set(
-    labels
-      .filter((label) => label.ticker === ticker && label.timeframe === timeframe)
-      .map((label) => label.timestamp)
-  );
+  const labeledTimestamps = matchingLabelTimestamps(labels, ticker, timeframe, labelSource);
   for (const [index, bar] of bars.entries()) {
     if (bar.timestamp > timestamp && !labeledTimestamps.has(bar.timestamp)) {
       return index;
     }
   }
   return null;
+}
+
+function matchingLabelTimestamps(
+  labels: Label[],
+  ticker: Ticker,
+  timeframe: Timeframe,
+  labelSource: LabelSource
+): Set<string> {
+  return new Set(
+    labels
+      .filter((label) =>
+        label.ticker === ticker &&
+        label.timeframe === timeframe &&
+        label.label_source === labelSource
+      )
+      .map((label) => label.timestamp)
+  );
 }

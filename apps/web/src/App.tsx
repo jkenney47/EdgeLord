@@ -119,7 +119,14 @@ export function App() {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
     let nextIndex: number | null = null;
     if (pendingSelection.unlabeledAfterTimestamp) {
-      nextIndex = findNextUnlabeledIndexAfterTimestamp(bars, labels, ticker, timeframe, pendingSelection.unlabeledAfterTimestamp);
+      nextIndex = findNextUnlabeledIndexAfterTimestamp(
+        bars,
+        labels,
+        ticker,
+        timeframe,
+        pendingSelection.unlabeledAfterTimestamp,
+        labelSource
+      );
     } else if (pendingSelection.afterTimestamp) {
       nextIndex = findFirstIndexAfterTimestamp(bars, pendingSelection.afterTimestamp);
     } else {
@@ -134,10 +141,10 @@ export function App() {
       setCaptureStatus("No later candle available for review.");
       setPendingSelection(null);
     }
-  }, [bars, labels, pendingSelection, ticker, timeframe]);
+  }, [bars, labelSource, labels, pendingSelection, ticker, timeframe]);
 
   useEffect(() => {
-    if (mode === "replay") {
+    if (mode === "replay" && labelSource === "retrospective_hindsight") {
       setLabelSource("retrospective_replay");
     } else if (labelSource === "retrospective_replay") {
       setLabelSource("retrospective_hindsight");
@@ -234,14 +241,14 @@ export function App() {
   }, [bars, jumpDate]);
 
   const resumeReplay = useCallback(() => {
-    const nextIndex = findReplayResumeIndex(bars, labels, ticker, timeframe);
+    const nextIndex = findReplayResumeIndex(bars, labels, ticker, timeframe, labelSource);
     setIndex(nextIndex);
     setSelected(bars[nextIndex] ?? null);
     setCaptureStatus(bars[nextIndex] ? `Resumed at ${bars[nextIndex].timestamp.slice(0, 10)}.` : null);
-  }, [bars, labels, ticker, timeframe]);
+  }, [bars, labelSource, labels, ticker, timeframe]);
 
   const nextUnlabeled = useCallback(() => {
-    const nextIndex = findNextUnlabeledIndex(bars, labels, ticker, timeframe, index);
+    const nextIndex = findNextUnlabeledIndex(bars, labels, ticker, timeframe, index, labelSource);
     if (nextIndex === null) {
       setCaptureStatus("No later unlabeled candle.");
       return;
@@ -249,7 +256,7 @@ export function App() {
     setIndex(nextIndex);
     setSelected(bars[nextIndex] ?? null);
     setCaptureStatus(`Next unlabeled ${bars[nextIndex].timestamp.slice(0, 10)}.`);
-  }, [bars, index, labels, ticker, timeframe]);
+  }, [bars, index, labelSource, labels, ticker, timeframe]);
 
   const goToOpenTradeEntry = useCallback(() => {
     setError(null);
@@ -259,6 +266,7 @@ export function App() {
       setError("Open trade entry label is missing.");
       return;
     }
+    setLabelSource(entryLabel.label_source);
     setPendingSelection({
       ticker: entryLabel.ticker,
       timeframe: entryLabel.timeframe,
@@ -278,6 +286,7 @@ export function App() {
       setError("Open trade entry label is missing.");
       return;
     }
+    setLabelSource(entryLabel.label_source);
     setPendingSelection({
       ticker: entryLabel.ticker,
       timeframe: entryLabel.timeframe,
@@ -291,6 +300,7 @@ export function App() {
 
   const goToLabel = useCallback((label: Label) => {
     setError(null);
+    setLabelSource(label.label_source);
     setPendingSelection({
       ticker: label.ticker,
       timeframe: label.timeframe,

@@ -101,10 +101,16 @@ try {
   assert(readFile("dataset-report.md").includes("entry labels are still early:"), "dataset report should include readiness guidance");
   assert(readFile("dataset-report.md").includes("Training Label Sources"), "dataset report should include training source counts");
   assert(readFile("dataset-report.md").includes("State Machine Sequence Issues"), "dataset report should include state-machine sequence diagnostics");
+  assert(readFile("dataset-report.md").includes("Training Row Consistency"), "dataset report should include training row consistency diagnostics");
+  assert(readFile("dataset-report.md").includes("eligible labels match training rows"), "fixture training rows should match eligible labels");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
   assert(datasetReport.counts.orphanExits === 0, "dataset report should ignore excluded orphan exits");
   assert(datasetReport.counts.sequenceIssues === 0, "dataset report JSON should count sequence issues");
+  assert(datasetReport.counts.missingEligibleTrainingRows === 0, "dataset report should count missing eligible training rows");
+  assert(datasetReport.counts.extraTrainingRows === 0, "dataset report should count extra training rows");
+  assert(datasetReport.counts.duplicateTrainingRows === 0, "dataset report should count duplicate training rows");
+  assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(datasetReport.readiness.readyForRuleMining === true, "fixture dataset should be ready for basic rule mining");
   assert(datasetReport.readiness.readyForRoughRuleMining === false, "fixture dataset should stay below rough rule-mining targets");
   assert(datasetReport.readiness.targets.roughRuleMiningDecisionRows === 300, "dataset report JSON should include rough decision target");

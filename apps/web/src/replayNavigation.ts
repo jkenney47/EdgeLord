@@ -46,3 +46,23 @@ export function findFirstIndexAfterTimestamp(bars: Bar[], timestamp: string): nu
   const nextIndex = bars.findIndex((bar) => bar.timestamp > timestamp);
   return nextIndex >= 0 ? nextIndex : null;
 }
+
+export function findNextUnlabeledIndexAfterTimestamp(
+  bars: Bar[],
+  labels: Label[],
+  ticker: Ticker,
+  timeframe: Timeframe,
+  timestamp: string
+): number | null {
+  const labeledTimestamps = new Set(
+    labels
+      .filter((label) => label.ticker === ticker && label.timeframe === timeframe)
+      .map((label) => label.timestamp)
+  );
+  for (const [index, bar] of bars.entries()) {
+    if (bar.timestamp > timestamp && !labeledTimestamps.has(bar.timestamp)) {
+      return index;
+    }
+  }
+  return null;
+}

@@ -22,7 +22,12 @@ import {
 import { CapturePanel } from "./CapturePanel";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
-import { findFirstIndexAfterTimestamp, findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
+import {
+  findFirstIndexAfterTimestamp,
+  findNextUnlabeledIndex,
+  findNextUnlabeledIndexAfterTimestamp,
+  findReplayResumeIndex
+} from "./replayNavigation";
 import { ReplayControls } from "./ReplayControls";
 
 type PendingSelection = {
@@ -30,6 +35,7 @@ type PendingSelection = {
   timeframe: Timeframe;
   timestamp?: string;
   afterTimestamp?: string;
+  unlabeledAfterTimestamp?: string;
   status: string;
 };
 
@@ -110,16 +116,24 @@ export function App() {
 
   useEffect(() => {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
-    const nextIndex = pendingSelection.afterTimestamp
-      ? findFirstIndexAfterTimestamp(bars, pendingSelection.afterTimestamp)
-      : bars.findIndex((bar) => bar.timestamp === pendingSelection.timestamp);
+    let nextIndex: number | null = null;
+    if (pendingSelection.unlabeledAfterTimestamp) {
+      nextIndex = findNextUnlabeledIndexAfterTimestamp(bars, labels, ticker, timeframe, pendingSelection.unlabeledAfterTimestamp);
+    } else if (pendingSelection.afterTimestamp) {
+      nextIndex = findFirstIndexAfterTimestamp(bars, pendingSelection.afterTimestamp);
+    } else {
+      nextIndex = bars.findIndex((bar) => bar.timestamp === pendingSelection.timestamp);
+    }
     if (nextIndex !== null && nextIndex >= 0) {
       setIndex(nextIndex);
       setSelected(bars[nextIndex]);
       setCaptureStatus(pendingSelection.status);
       setPendingSelection(null);
+    } else if (pendingSelection.unlabeledAfterTimestamp || pendingSelection.afterTimestamp) {
+      setCaptureStatus("No later candle available for review.");
+      setPendingSelection(null);
     }
-  }, [bars, pendingSelection, ticker, timeframe]);
+  }, [bars, labels, pendingSelection, ticker, timeframe]);
 
   useEffect(() => {
     if (mode === "replay") {
@@ -266,7 +280,7 @@ export function App() {
     setPendingSelection({
       ticker: entryLabel.ticker,
       timeframe: entryLabel.timeframe,
-      afterTimestamp: entryLabel.timestamp,
+      unlabeledAfterTimestamp: entryLabel.timestamp,
       status: `Reviewing exit after ${entryLabel.timestamp.slice(0, 10)}.`
     });
     setMode("replay");

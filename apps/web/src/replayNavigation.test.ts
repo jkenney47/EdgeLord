@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { Bar, Label } from "./api";
-import { findFirstIndexAfterTimestamp, findNextUnlabeledIndex, findReplayResumeIndex } from "./replayNavigation";
+import {
+  findFirstIndexAfterTimestamp,
+  findNextUnlabeledIndex,
+  findNextUnlabeledIndexAfterTimestamp,
+  findReplayResumeIndex
+} from "./replayNavigation";
 
 function bar(timestamp: string): Bar {
   return {
@@ -102,5 +107,47 @@ describe("findFirstIndexAfterTimestamp", () => {
 
   it("returns null when there is no later candle", () => {
     expect(findFirstIndexAfterTimestamp(bars, bars[2].timestamp)).toBeNull();
+  });
+});
+
+describe("findNextUnlabeledIndexAfterTimestamp", () => {
+  const bars = [
+    bar("2024-01-02T14:30:00.000Z"),
+    bar("2024-01-03T14:30:00.000Z"),
+    bar("2024-01-04T14:30:00.000Z"),
+    bar("2024-01-05T14:30:00.000Z")
+  ];
+
+  it("skips labeled candles after the entry timestamp", () => {
+    expect(findNextUnlabeledIndexAfterTimestamp(
+      bars,
+      [label(bars[1].timestamp)],
+      "SOXL",
+      "4H",
+      bars[0].timestamp
+    )).toBe(2);
+  });
+
+  it("ignores labels from other ticker/timeframe combinations", () => {
+    expect(findNextUnlabeledIndexAfterTimestamp(
+      bars,
+      [
+        label(bars[1].timestamp, { ticker: "SOXS" }),
+        label(bars[2].timestamp, { timeframe: "2H" })
+      ],
+      "SOXL",
+      "4H",
+      bars[0].timestamp
+    )).toBe(1);
+  });
+
+  it("returns null when all later candles are labeled", () => {
+    expect(findNextUnlabeledIndexAfterTimestamp(
+      bars,
+      [label(bars[1].timestamp), label(bars[2].timestamp), label(bars[3].timestamp)],
+      "SOXL",
+      "4H",
+      bars[0].timestamp
+    )).toBeNull();
   });
 });

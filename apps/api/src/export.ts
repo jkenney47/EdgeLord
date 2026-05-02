@@ -1,6 +1,7 @@
 import { getBars } from "./bars";
 import { buildFeatures } from "./indicators";
 import type { Label, Trade } from "./schema";
+import pineFeatureMap from "../../../research/pine_feature_map.json" with { type: "json" };
 
 export const featureColumns = [
   ["close", "feature_close"],
@@ -58,22 +59,8 @@ const featureCatalog = [
   ["h2CloseAboveEma25", "feature_h2_close_above_ema25", "boolean", "Whether 2H close is above its EMA 25."]
 ] as const;
 
-const pineSupportedColumns = new Set([
-  "feature_close",
-  "feature_ema25",
-  "feature_sma100",
-  "feature_atr14",
-  "feature_close_above_ema25",
-  "feature_close_above_sma100",
-  "feature_distance_to_ema25_pct",
-  "feature_distance_to_sma100_pct",
-  "feature_recent_5_return_pct",
-  "feature_recent_10_return_pct",
-  "feature_recent_20_return_pct",
-  "feature_recent_20_high",
-  "feature_recent_20_low",
-  "feature_close_rank_recent_20"
-]);
+const pineFeatureExpressions = pineFeatureMap.expressions as Record<string, string>;
+const pineSupportedColumns = new Set(Object.keys(pineFeatureExpressions));
 
 const labelsCsvColumns = [
   "id", "label_source", "training_eligible", "action", "ticker", "timeframe", "timestamp", "bar_index", "chart_price",
@@ -294,7 +281,8 @@ export function exportSchemaCatalog(): Record<string, unknown> {
       type,
       description,
       computedFromFutureData: false,
-      pineSupport: pineSupportedColumns.has(column) ? "mapped" : "research_only"
+      pineSupport: pineSupportedColumns.has(column) ? "mapped" : "research_only",
+      pineExpression: pineFeatureExpressions[column] ?? null
     })),
     trainingPolicy: {
       eligibleWhen: [

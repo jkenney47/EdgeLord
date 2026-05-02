@@ -7,22 +7,17 @@ from pathlib import Path
 from typing import Any
 
 
-PINE_FEATURE_EXPRESSIONS: dict[str, str] = {
-    "feature_close": "close",
-    "feature_ema25": "ta.ema(close, 25)",
-    "feature_sma100": "ta.sma(close, 100)",
-    "feature_atr14": "ta.atr(14)",
-    "feature_close_above_ema25": "close > ta.ema(close, 25)",
-    "feature_close_above_sma100": "close > ta.sma(close, 100)",
-    "feature_distance_to_ema25_pct": "((close - ta.ema(close, 25)) / ta.ema(close, 25)) * 100",
-    "feature_distance_to_sma100_pct": "((close - ta.sma(close, 100)) / ta.sma(close, 100)) * 100",
-    "feature_recent_5_return_pct": "((close - close[5]) / close[5]) * 100",
-    "feature_recent_10_return_pct": "((close - close[10]) / close[10]) * 100",
-    "feature_recent_20_return_pct": "((close - close[20]) / close[20]) * 100",
-    "feature_recent_20_high": "ta.highest(high, 20)",
-    "feature_recent_20_low": "ta.lowest(low, 20)",
-    "feature_close_rank_recent_20": "((close - ta.lowest(low, 20)) / math.max(ta.highest(high, 20) - ta.lowest(low, 20), syminfo.mintick))",
-}
+def read_pine_feature_expressions() -> dict[str, str]:
+    path = Path(__file__).with_name("pine_feature_map.json")
+    with path.open() as handle:
+        payload = json.load(handle)
+    expressions = payload.get("expressions", {})
+    if not isinstance(expressions, dict):
+        raise ValueError("pine_feature_map.json must contain an expressions object")
+    return {str(key): str(value) for key, value in expressions.items()}
+
+
+PINE_FEATURE_EXPRESSIONS = read_pine_feature_expressions()
 
 
 def read_rules(path: Path) -> dict[str, Any]:

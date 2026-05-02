@@ -403,6 +403,7 @@ async function runAcceptance() {
     assert(schema.version === "edgelord.export_schema.v1", "export schema version is unexpected");
     assert(schema.files["training-features.csv"].targetColumns.includes("target_entry"), "export schema should describe training targets");
     assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineSupport === "mapped"), "export schema should describe Pine-supported features");
+    assert(schema.features.some((feature) => feature.column === "feature_close" && feature.pineExpression === "close"), "export schema should expose Pine expressions");
     assert(schema.features.some((feature) => feature.column === "feature_pair_ratio_close" && feature.pineSupport === "research_only"), "export schema should flag research-only features");
     console.log("ok /export/schema.json");
 

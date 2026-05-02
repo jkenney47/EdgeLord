@@ -76,12 +76,12 @@ const labelsCsv = writeFile("labels.csv", [
 ].join("\n") + "\n");
 
 const trainingCsv = writeFile("training-features.csv", [
-  "label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,execution_price,decision_price,visible_until_timestamp,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
-  "l1,retrospective_replay,replay,ENTRY,1,0,0,0,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,,10,2024-01-02T14:30:00.000Z,10,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
-  "l2,retrospective_replay,replay,EXIT,0,1,0,0,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,,11,2024-01-03T14:30:00.000Z,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
-  "l3,retrospective_replay,replay,SKIP,0,0,1,0,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,,9,2024-01-04T14:30:00.000Z,9,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
-  "l5,retrospective_replay,replay,ENTRY,1,0,0,0,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,,20,2024-01-06T14:30:00.000Z,20,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
-  "l6,retrospective_replay,replay,EXIT,0,1,0,0,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,,18,2024-01-07T14:30:00.000Z,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+  "label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,execution_price,decision_price,visible_until_timestamp,feature_close,feature_volume,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
+  "l1,retrospective_replay,replay,ENTRY,1,0,0,0,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,,10,2024-01-02T14:30:00.000Z,10,1000,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
+  "l2,retrospective_replay,replay,EXIT,0,1,0,0,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,,11,2024-01-03T14:30:00.000Z,11,1100,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
+  "l3,retrospective_replay,replay,SKIP,0,0,1,0,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,,9,2024-01-04T14:30:00.000Z,9,900,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
+  "l5,retrospective_replay,replay,ENTRY,1,0,0,0,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,,20,2024-01-06T14:30:00.000Z,20,2000,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
+  "l6,retrospective_replay,replay,EXIT,0,1,0,0,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,,18,2024-01-07T14:30:00.000Z,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
 ].join("\n") + "\n");
 
 const tradesCsv = writeFile("trades.csv", [
@@ -91,11 +91,11 @@ const tradesCsv = writeFile("trades.csv", [
 ].join("\n") + "\n");
 
 const tradeCandidatesCsv = writeFile("trade-candidates.csv", [
-  "candidate_id,trade_id,entry_label_id,exit_label_id,action,target_exit,target_hold,ticker,timeframe,timestamp,bar_index,in_trade_bar_index,chart_price,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct,feature_close,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
-  "t1:hold,t1,l1,l2,HOLD,0,1,SOXL,4H,2024-01-02T18:30:00.000Z,1,1,10.5,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,10.5,9.2,8.2,0.5,35,38,true,true,14.1,28,3,6,9,10.5,7,0.87,SOXS,89,0.118,10.5,true,10.5,true,10.5,true",
-  "t1:exit,t1,l1,l2,EXIT,1,0,SOXL,4H,2024-01-03T14:30:00.000Z,2,2,11,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,11,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
-  "t2:hold,t2,l5,l6,HOLD,0,1,SOXS,4H,2024-01-06T18:30:00.000Z,5,1,19,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,19,20.5,19,0.8,55,58,false,true,-7.3,0,-2,-1,0,22,18,0.25,SOXL,10.5,1.81,19,false,19,false,19,false",
-  "t2:exit,t2,l5,l6,EXIT,1,0,SOXS,4H,2024-01-07T14:30:00.000Z,6,2,18,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,18,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+  "candidate_id,trade_id,entry_label_id,exit_label_id,action,target_exit,target_hold,ticker,timeframe,timestamp,bar_index,in_trade_bar_index,chart_price,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct,feature_close,feature_volume,feature_ema25,feature_sma100,feature_atr14,feature_stoch_rsi_k,feature_stoch_rsi_d,feature_close_above_ema25,feature_close_above_sma100,feature_distance_to_ema25_pct,feature_distance_to_sma100_pct,feature_recent_5_return_pct,feature_recent_10_return_pct,feature_recent_20_return_pct,feature_recent_20_high,feature_recent_20_low,feature_close_rank_recent_20,feature_paired_ticker,feature_paired_close,feature_pair_ratio_close,feature_d1_close,feature_d1_close_above_ema25,feature_h4_close,feature_h4_close_above_ema25,feature_h2_close,feature_h2_close_above_ema25",
+  "t1:hold,t1,l1,l2,HOLD,0,1,SOXL,4H,2024-01-02T18:30:00.000Z,1,1,10.5,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,10.5,1050,9.2,8.2,0.5,35,38,true,true,14.1,28,3,6,9,10.5,7,0.87,SOXS,89,0.118,10.5,true,10.5,true,10.5,true",
+  "t1:exit,t1,l1,l2,EXIT,1,0,SOXL,4H,2024-01-03T14:30:00.000Z,2,2,11,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,11,1100,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
+  "t2:hold,t2,l5,l6,HOLD,0,1,SOXS,4H,2024-01-06T18:30:00.000Z,5,1,19,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,19,1900,20.5,19,0.8,55,58,false,true,-7.3,0,-2,-1,0,22,18,0.25,SOXL,10.5,1.81,19,false,19,false,19,false",
+  "t2:exit,t2,l5,l6,EXIT,1,0,SOXS,4H,2024-01-07T14:30:00.000Z,6,2,18,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
 ].join("\n") + "\n");
 
 try {
@@ -288,7 +288,7 @@ try {
   assert(strategyRules.inputSources?.humanMimicRules?.sha256, "strategy rules JSON should fingerprint human-mimic rule input");
   assert(strategyRules.inputSources?.datasetReport?.sha256, "strategy rules JSON should fingerprint dataset-report input");
   assert(strategyRules.pineFeatureMap?.version === "edgelord.pine_feature_map.v1", "strategy rules JSON should include the Pine feature map version");
-  assert(strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_close"), "strategy rules JSON should include mapped Pine columns");
+  assert(strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_close") && strategyRules.pineFeatureMap?.mappedColumns?.includes("feature_volume"), "strategy rules JSON should include mapped Pine columns");
   assert(Array.isArray(strategyRules.promotionChecklist), "strategy rules JSON should include a promotion checklist");
   assert(strategyRules.promotionChecklist.some((item) => item.includes("trade-candidates.csv HOLD-vs-EXIT")), "strategy rules checklist should mention HOLD-vs-EXIT candidates");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");

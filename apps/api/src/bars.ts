@@ -76,7 +76,7 @@ export function getBarsSummary(): BarSummaryRow[] {
 
 export function getBarIndex(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): number {
   const bars = getBars(ticker, timeframe);
-  return Math.max(0, bars.findIndex((bar) => bar.timestamp === timestamp));
+  return bars.findIndex((bar) => bar.timestamp === timestamp);
 }
 
 export function hasChartBars(): boolean {

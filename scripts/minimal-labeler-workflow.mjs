@@ -337,6 +337,19 @@ async function runAcceptance() {
     assert(guardedImport.activeLabels > 0, "Replace-bars guard should report active labels");
     assert(/Refusing to replace bars/i.test(guardedImport.error ?? ""), "Replace-bars guard should explain the refusal");
     console.log("ok replace-bars refuses to strand existing labels");
+
+    const missingBarLabel = await postLabel(baseUrl, {
+      labelSource: "retrospective_replay",
+      action: "SKIP",
+      ticker: "SOXL",
+      timeframe: "4H",
+      timestamp: "2099-01-01T14:30:00.000Z",
+      chartPrice: 1,
+      captureMode: "replay",
+      visibleUntilTimestamp: "2099-01-01T14:30:00.000Z"
+    }, 400);
+    assert(/No SOXL 4H bar exists/i.test(missingBarLabel.error ?? ""), "Missing candle labels should be rejected");
+    console.log("ok labels require an existing candle");
   } catch (error) {
     const output = api.getOutput().trim();
     if (output) {

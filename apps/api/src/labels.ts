@@ -31,6 +31,14 @@ function trainingEligible(labelSource: LabelSource, captureMode: CaptureMode, le
   return labelSource === "actual_trade" || (labelSource === "retrospective_replay" && captureMode === "replay");
 }
 
+function requireBarIndex(input: { ticker: Label["ticker"]; timeframe: Label["timeframe"]; timestamp: string }): number {
+  const barIndex = getBarIndex(input.ticker, input.timeframe, input.timestamp);
+  if (barIndex < 0) {
+    throw new Error(`No ${input.ticker} ${input.timeframe} bar exists at ${input.timestamp}`);
+  }
+  return barIndex;
+}
+
 export function getLabels(): Label[] {
   return db.prepare("select * from labels where deleted_at is null order by created_at asc").all() as Label[];
 }
@@ -64,6 +72,7 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
       : null;
   const parentEntryLabelId = input.action === "EXIT" ? openTrade?.entry_label_id ?? null : null;
   const leakage = input.potentialVisualLeakage ?? (input.captureMode === "regular" && input.labelSource !== "actual_trade");
+  const barIndex = requireBarIndex(input);
   const features = buildFeatures(input.ticker, input.timeframe, input.timestamp);
   const label: Label = {
     id: `label-${nanoid(12)}`,
@@ -73,7 +82,7 @@ export function createLabel(input: z.infer<typeof createLabelSchema>): { label: 
     ticker: input.ticker,
     timeframe: input.timeframe,
     timestamp: input.timestamp,
-    bar_index: getBarIndex(input.ticker, input.timeframe, input.timestamp),
+    bar_index: barIndex,
     chart_price: input.chartPrice,
     execution_price: input.executionPrice ?? null,
     trade_id: tradeId,
@@ -132,7 +141,7 @@ export function patchLabel(id: string, patch: z.infer<typeof patchLabelSchema>):
     updated_at: nowIso()
   };
   next.training_eligible = trainingEligible(next.label_source, next.capture_mode, Boolean(next.potential_visual_leakage)) ? 1 : 0;
-  next.bar_index = getBarIndex(next.ticker, next.timeframe, next.timestamp);
+  next.bar_index = requireBarIndex(next);
   next.features_json = JSON.stringify(buildFeatures(next.ticker, next.timeframe, next.timestamp));
 
   db.prepare(`

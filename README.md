@@ -29,7 +29,7 @@ If no imported data exists, the API seeds a tiny adjusted SOXL/SOXS sample fixtu
 
 ## CSV Import
 
-`POST /import/csv` accepts either raw CSV text or JSON:
+Use `Import CSV` in the app top bar, or call the API directly. `POST /import/csv` accepts either raw CSV text or JSON:
 
 ```json
 { "path": "data/my-adjusted-bars.csv" }
@@ -75,3 +75,13 @@ Training features include only training-eligible labels by default.
 ```bash
 pnpm verify
 ```
+
+For the common local workflow:
+
+```bash
+pnpm workflow:minimal-labeler
+pnpm workflow:minimal-labeler -- --api-smoke
+pnpm workflow:minimal-labeler -- --reset-db
+```
+
+`--reset-db` removes the local SQLite files in `data/`. Use it only when you intentionally want a clean local labeling database.

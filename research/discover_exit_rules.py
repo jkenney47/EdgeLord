@@ -68,6 +68,40 @@ def score_rule(rows: list[dict[str, str]], column: str, threshold: float, direct
     }
 
 
+def target_issues(rows: list[dict[str, str]], source: str) -> list[dict[str, str]]:
+    issues: list[dict[str, str]] = []
+    if source == "trade_candidates":
+        expected_by_action = {
+            "EXIT": {"target_exit": "1", "target_hold": "0"},
+            "HOLD": {"target_exit": "0", "target_hold": "1"},
+        }
+        id_column = "candidate_id"
+    else:
+        expected_by_action = {
+            "EXIT": {"target_exit": "1"},
+            "ENTRY": {"target_exit": "0"},
+            "SKIP": {"target_exit": "0"},
+        }
+        id_column = "label_id"
+
+    for row in rows:
+        action = row.get("action", "")
+        expected = expected_by_action.get(action)
+        if not expected:
+            continue
+        mismatched = [
+            column for column, expected_value in expected.items()
+            if row.get(column, "") != expected_value
+        ]
+        if mismatched:
+            issues.append({
+                "id": row.get(id_column, ""),
+                "action": action,
+                "reason": f"target columns do not match action: {', '.join(mismatched)}",
+            })
+    return issues
+
+
 def discover(input_rows: list[dict[str, str]], non_exit_actions: set[str]) -> list[Rule]:
     rows = [row for row in input_rows if row.get("action") in non_exit_actions | {"EXIT"}]
     if not rows:
@@ -92,7 +126,7 @@ def discover(input_rows: list[dict[str, str]], non_exit_actions: set[str]) -> li
     )
 
 
-def format_report(input_rows: list[dict[str, str]], candidates: list[Rule], source: str, non_exit_actions: set[str]) -> str:
+def format_report(input_rows: list[dict[str, str]], candidates: list[Rule], source: str, non_exit_actions: set[str], issues: list[dict[str, str]]) -> str:
     rows = [row for row in input_rows if row.get("action") in non_exit_actions | {"EXIT"}]
     exit_count = sum(1 for row in rows if row.get("action") == "EXIT")
     non_exit_count = sum(1 for row in rows if row.get("action") in non_exit_actions)
@@ -114,13 +148,28 @@ def format_report(input_rows: list[dict[str, str]], candidates: list[Rule], sour
         f"source: {source}",
         f"exit_rows: {exit_count}",
         f"non_exit_rows: {non_exit_count}",
+        f"target_encoding_issues: {len(issues)}",
         "",
         "Notes",
         *notes,
         "",
-        "Top Candidates",
+        "Target Encoding",
     ]
 
+    if not issues:
+        lines.append("- actions match exit target columns")
+    else:
+        for issue in issues[:25]:
+            lines.append(f"- {issue['id']} {issue['action']}: {issue['reason']}")
+
+    lines.extend([
+        "",
+        "Top Candidates",
+    ])
+
+    if issues:
+        lines.append("- Fix target encoding before mining exit rules.")
+        return "\n".join(lines) + "\n"
     if not candidates:
         lines.append("- Need numeric feature coverage plus EXIT and non-EXIT training rows.")
         return "\n".join(lines) + "\n"
@@ -153,15 +202,16 @@ def main() -> None:
         rows = read_csv(args.training)
         source = "training_features"
         non_exit_actions = {"ENTRY", "SKIP"}
-    candidates = discover(rows, non_exit_actions)
-    report = format_report(rows, candidates, source, non_exit_actions)
+    issues = target_issues(rows, source)
+    candidates = [] if issues else discover(rows, non_exit_actions)
+    report = format_report(rows, candidates, source, non_exit_actions, issues)
     print(report, end="")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(report)
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        args.json_output.write_text(f"{json.dumps({'source': source, 'candidates': candidates}, indent=2)}\n")
+        args.json_output.write_text(f"{json.dumps({'source': source, 'targetEncodingIssues': issues, 'candidates': candidates}, indent=2)}\n")
 
 
 if __name__ == "__main__":

@@ -205,7 +205,10 @@ try {
   ]);
   assert(readFile("exit-rules.md").includes("EdgeLord Exit Rule Candidates"), "exit rules report should be written");
   assert(readFile("exit-rules.md").includes("source: trade_candidates"), "exit rules should prefer in-trade candidates");
-  assert(JSON.parse(readFile("exit-rules.json")).candidates.length > 0, "exit rules JSON should include candidates");
+  assert(readFile("exit-rules.md").includes("target_encoding_issues: 0"), "exit rules should report target encoding issue count");
+  const exitRules = JSON.parse(readFile("exit-rules.json"));
+  assert(Array.isArray(exitRules.targetEncodingIssues) && exitRules.targetEncodingIssues.length === 0, "exit rules JSON should expose target encoding issues");
+  assert(exitRules.candidates.length > 0, "exit rules JSON should include candidates");
 
   run([
     "research/generate_pine_stub.py",

@@ -69,6 +69,7 @@ Opposite ETF entry is blocked while a trade is open. Switching requires an expli
 - `GET /export/trades.csv`
 - `GET /export/training-features.csv`
 - `GET /export/labels.jsonl`
+- `GET /export/manifest.json`
 
 Training features include only training-eligible labels by default and carry label source / capture mode metadata so research can segment actual trades from replay labels.
 
@@ -102,7 +103,7 @@ pnpm labels:integrity
 
 `closeout:minimal-labeler` is the default local closeout command. It runs lint, tests, typecheck, web build, temporary acceptance, and live API smoke when the dev API is already running.
 
-`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, and a manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
+`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `labels.jsonl`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 
 `data:coverage` writes SOXL/SOXS `1D`/`4H`/`2H` coverage reports into `reports/` so you can tell whether you are still on sample data or have enough history for research. It writes both markdown and JSON; the JSON includes a readiness code such as `sample_only`, `too_short`, or `ready`.
 

@@ -11,7 +11,8 @@ const exportFiles = [
   ["labels.csv", "/export/labels.csv"],
   ["trades.csv", "/export/trades.csv"],
   ["training-features.csv", "/export/training-features.csv"],
-  ["labels.jsonl", "/export/labels.jsonl"]
+  ["labels.jsonl", "/export/labels.jsonl"],
+  ["manifest.api.json", "/export/manifest.json"]
 ];
 
 function timestampSlug(date = new Date()) {

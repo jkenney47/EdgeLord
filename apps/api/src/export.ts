@@ -88,3 +88,59 @@ export function labelsJsonl(labels: Label[]): string {
     features: JSON.parse(label.features_json || "{}")
   })).join("\n");
 }
+
+export function exportManifest(labels: Label[], trades: Trade[]): Record<string, unknown> {
+  const activeLabels = labels.filter((label) => label.deleted_at === null);
+  const trainingEligibleLabels = activeLabels.filter((label) => label.training_eligible === 1);
+  return {
+    version: "edgelord.export_manifest.v1",
+    createdAt: new Date().toISOString(),
+    files: [
+      "labels.csv",
+      "trades.csv",
+      "training-features.csv",
+      "labels.jsonl"
+    ],
+    labels: {
+      total: activeLabels.length,
+      trainingEligible: trainingEligibleLabels.length,
+      excluded: activeLabels.length - trainingEligibleLabels.length,
+      byAction: countBy(activeLabels, "action"),
+      bySource: countBy(activeLabels, "label_source"),
+      byCaptureMode: countBy(activeLabels, "capture_mode"),
+      byTicker: countBy(activeLabels, "ticker"),
+      byTimeframe: countBy(activeLabels, "timeframe")
+    },
+    trades: {
+      total: trades.length,
+      byStatus: countBy(trades, "status"),
+      open: trades.filter((trade) => trade.status === "open").map((trade) => ({
+        id: trade.id,
+        ticker: trade.ticker,
+        entryLabelId: trade.entry_label_id,
+        entryTimestamp: trade.entry_timestamp,
+        entryPrice: trade.entry_price
+      }))
+    },
+    trainingPolicy: {
+      eligibleWhen: [
+        "label_source is actual_trade and potential_visual_leakage is false",
+        "label_source is retrospective_replay, capture_mode is replay, and potential_visual_leakage is false"
+      ],
+      excludedByDefault: [
+        "retrospective_hindsight labels",
+        "regular-mode retrospective labels",
+        "labels with potential visual leakage",
+        "orphan EXIT labels"
+      ]
+    }
+  };
+}
+
+function countBy<T>(rows: T[], key: keyof T): Record<string, number> {
+  return rows.reduce<Record<string, number>>((counts, row) => {
+    const value = String(row[key] ?? "(blank)");
+    counts[value] = (counts[value] ?? 0) + 1;
+    return counts;
+  }, {});
+}

@@ -341,6 +341,16 @@ async function runAcceptance() {
     assert(jsonlRows.every((row) => row.features && typeof row.features === "object"), "labels.jsonl should include feature snapshots");
     console.log("ok /export/labels.jsonl");
 
+    const manifest = await fetchJson(baseUrl, "/export/manifest.json").then(({ response, body }) => {
+      assert(response.ok, `/export/manifest.json returned ${response.status}`);
+      return body;
+    });
+    assert(manifest.version === "edgelord.export_manifest.v1", "export manifest version is unexpected");
+    assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
+    assert(manifest.labels.excluded === 1, "export manifest should count excluded labels");
+    assert(manifest.trades.byStatus.closed === 1, "export manifest should count closed trades");
+    console.log("ok /export/manifest.json");
+
     await deleteLabel(baseUrl, entry.label.id);
     const orphanState = await fetchJson(baseUrl, "/labels").then(({ response, body }) => {
       assert(response.ok, `/labels returned ${response.status}`);

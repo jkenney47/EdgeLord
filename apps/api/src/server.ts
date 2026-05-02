@@ -7,7 +7,7 @@ import { z } from "zod";
 import { clearBars, getBars, getBarsSummary, hasChartBars, importRawBars } from "./bars";
 import { CsvImportValidationError, parseBarsCsv, readCsvFile } from "./csvImport";
 import { repoRoot } from "./db";
-import { labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
+import { exportManifest, labelsCsv, labelsJsonl, tradesCsv, trainingFeaturesCsv } from "./export";
 import { createLabel, createLabelSchema, deleteLabel, getActiveLabelCount, getLabels, patchLabel, patchLabelSchema } from "./labels";
 import type { ChartTimeframe, Ticker } from "./schema";
 import { getOpenTrade, getTrades } from "./trades";
@@ -108,6 +108,7 @@ app.get("/export/labels.csv", async (_request, reply) => reply.type("text/csv").
 app.get("/export/trades.csv", async (_request, reply) => reply.type("text/csv").send(tradesCsv(getTrades())));
 app.get("/export/training-features.csv", async (_request, reply) => reply.type("text/csv").send(trainingFeaturesCsv(getLabels())));
 app.get("/export/labels.jsonl", async (_request, reply) => reply.type("application/x-ndjson").send(labelsJsonl(getLabels())));
+app.get("/export/manifest.json", async () => exportManifest(getLabels(), getTrades()));
 
 const port = Number(process.env.API_PORT ?? 4317);
 await app.listen({ host: "127.0.0.1", port });

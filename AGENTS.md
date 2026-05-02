@@ -2,6 +2,8 @@
 
 EdgeLord is now a minimal SOXL/SOXS trade labeler. Do not rebuild the old TradingView-style workstation.
 
+When continuing EdgeLord development, use the repo-local skill at `.agents/skills/edgelord-minimal-labeler/SKILL.md` first. It captures the preferred command sequence for proceed/checkpoint/data/import/browser-verification work so future turns do not rediscover it.
+
 Allowed scope:
 
 - Load adjusted SOXL/SOXS OHLCV CSV data.

@@ -92,6 +92,7 @@ pnpm data:coverage
 pnpm data:status
 pnpm validate:csv /path/to/adjusted-bars.csv
 pnpm validate:csv /path/to/adjusted-bars.csv --research-ready
+pnpm validate:csv /path/to/adjusted-bars.csv --research-ready --json-output reports/csv-validation.json
 pnpm import:csv /path/to/adjusted-bars.csv
 pnpm import:csv /path/to/adjusted-bars.csv --research-ready
 pnpm import:csv /path/to/adjusted-bars.csv --replace-bars
@@ -107,7 +108,7 @@ pnpm labels:integrity
 
 `data:status` runs coverage, label integrity, export backup, and the dataset readiness report as one post-import health check. Run it after importing real adjusted data and periodically while labeling. It writes `reports/<timestamp>-data-status.json` with command results and pointers to the latest coverage, integrity, and research summary artifacts.
 
-`validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values. Add `--research-ready` to fail when duplicate rows exist or either ticker starts after the target start date / has too little history. Defaults: `--target-start 2011-01-01 --min-years 10`.
+`validate:csv` checks a local adjusted OHLCV CSV for required columns, SOXL/SOXS rows, duplicate ticker/timestamps, valid dates, positive OHLCV, and internally consistent OHLC values. Add `--research-ready` to fail when duplicate rows exist or either ticker starts after the target start date / has too little history. Defaults: `--target-start 2011-01-01 --min-years 10`. Add `--json-output reports/csv-validation.json` when you want a machine-readable importability and research-readiness verdict.
 
 `import:csv` imports a local adjusted OHLCV CSV into the running API, then writes a fresh coverage report. Use `--research-ready` when importing the real backfill so short/incomplete files fail before they touch the database. Use `--replace-bars` when importing a full historical dataset so old sample/cache bars do not remain mixed into the chart cache. Replacement is blocked while active labels exist unless you also pass `--force-replace-bars`; export a backup first, then run `labels:integrity` afterward because labels/trades are not deleted.
 

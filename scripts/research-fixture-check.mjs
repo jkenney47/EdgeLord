@@ -158,7 +158,11 @@ try {
   assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
   assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
 
-  runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv"]);
+  runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--json-output", path.join(tempDir, "csv-validation.json")]);
+  const csvValidation = JSON.parse(readFile("csv-validation.json"));
+  assert(csvValidation.version === "edgelord.csv_validation.v1", "CSV validation JSON should carry the expected version");
+  assert(csvValidation.importable === true, "sample CSV should be importable");
+  assert(csvValidation.researchReady === false, "sample CSV should not be research-ready");
   try {
     runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--research-ready"]);
     throw new Error("sample bars should not pass research-ready validation");

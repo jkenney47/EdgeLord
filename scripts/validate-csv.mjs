@@ -19,11 +19,12 @@ function optionValue(name, fallback) {
 }
 
 const targetStart = optionValue("--target-start", "2011-01-01");
+const jsonOutput = optionValue("--json-output", "");
 const minYears = Number(optionValue("--min-years", "10"));
 if (!Number.isFinite(minYears) || minYears < 0) {
   throw new Error("--min-years must be a non-negative number");
 }
-const optionNamesWithValues = new Set(["--target-start", "--min-years"]);
+const optionNamesWithValues = new Set(["--target-start", "--min-years", "--json-output"]);
 let skipNext = false;
 const csvArg = rawArgs.find((arg) => {
   if (skipNext) {
@@ -38,7 +39,7 @@ const csvArg = rawArgs.find((arg) => {
 });
 
 if (!csvArg || csvArg === "--help" || csvArg === "-h") {
-  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N]");
+  console.log("Usage: pnpm validate:csv /path/to/adjusted-bars.csv [--research-ready] [--target-start YYYY-MM-DD] [--min-years N] [--json-output reports/import-check.json]");
   console.log("");
   console.log(`Required columns: ${requiredColumns.join(",")}`);
   console.log("");
@@ -193,6 +194,38 @@ if (readinessWarnings.length > 0) {
   for (const warning of readinessWarnings) {
     console.log(`- ${warning}`);
   }
+}
+
+const summary = {
+  version: "edgelord.csv_validation.v1",
+  createdAt: new Date().toISOString(),
+  csvPath: path.relative(root, csvPath),
+  rows: lines.length - 1,
+  validRows,
+  duplicateTickerTimestamps: duplicateRows,
+  targetStart,
+  minYears,
+  researchReadyRequested: researchReady,
+  tickers: Object.fromEntries(expectedTickers.map((ticker) => {
+    const tickerStats = stats.get(ticker);
+    return [ticker, {
+      rows: tickerStats.count,
+      first: tickerStats.first || null,
+      last: tickerStats.last || null,
+      spanYears: spanYears(tickerStats.first, tickerStats.last)
+    }];
+  })),
+  errors,
+  warnings: readinessWarnings,
+  importable: errors.length === 0 && missingTickers.length === 0,
+  researchReady: errors.length === 0 && missingTickers.length === 0 && readinessWarnings.length === 0
+};
+
+if (jsonOutput) {
+  const target = path.resolve(root, jsonOutput);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(`json: ${path.relative(root, target)}`);
 }
 
 if (researchReady && readinessWarnings.length > 0) {

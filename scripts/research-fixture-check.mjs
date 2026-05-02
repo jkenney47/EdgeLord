@@ -14,6 +14,14 @@ function run(args) {
   });
 }
 
+function runNode(args, options = {}) {
+  return execFileSync("node", args, {
+    cwd: root,
+    stdio: "pipe",
+    ...options
+  });
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
@@ -94,6 +102,14 @@ try {
   ]);
   assert(readFile("strategy-rules.v1.json").includes('"version": "strategy_rules.v1"'), "strategy rules JSON should be written");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
+
+  runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv"]);
+  try {
+    runNode(["scripts/validate-csv.mjs", "data/sample-bars.csv", "--research-ready"]);
+    throw new Error("sample bars should not pass research-ready validation");
+  } catch (error) {
+    assert(error.status === 1, "research-ready validation should fail with exit code 1 for sample bars");
+  }
 
   console.log("ok research fixture check");
 } finally {

@@ -7,15 +7,29 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 const replaceBars = process.argv.includes("--replace-bars");
 const forceReplaceBars = process.argv.includes("--force-replace-bars");
-const csvArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
+const researchReady = process.argv.includes("--research-ready");
+const optionNamesWithValues = new Set(["--target-start", "--min-years"]);
+let skipNext = false;
+const csvArg = process.argv.slice(2).find((arg) => {
+  if (skipNext) {
+    skipNext = false;
+    return false;
+  }
+  if (optionNamesWithValues.has(arg)) {
+    skipNext = true;
+    return false;
+  }
+  return !arg.startsWith("--");
+});
 
 if (!csvArg || csvArg === "--help" || csvArg === "-h") {
-  console.log("Usage: pnpm import:csv /path/to/adjusted-bars.csv [--replace-bars] [--force-replace-bars]");
+  console.log("Usage: pnpm import:csv /path/to/adjusted-bars.csv [--replace-bars] [--force-replace-bars] [--research-ready] [--target-start YYYY-MM-DD] [--min-years N]");
   console.log("");
   console.log("CSV columns: ticker,timestamp,open,high,low,close,volume");
   console.log("--replace-bars deletes existing cached bars before importing.");
   console.log("--force-replace-bars allows replacement when active labels exist. Run pnpm export:backup and pnpm labels:integrity first.");
-  process.exit(csvArg ? 0 : 1);
+  console.log("--research-ready requires SOXL/SOXS coverage suitable for strategy research before importing.");
+  process.exit(process.argv.some((arg) => arg === "--help" || arg === "-h") ? 0 : 1);
 }
 
 const csvPath = path.resolve(root, csvArg);
@@ -23,7 +37,20 @@ if (!fs.existsSync(csvPath)) {
   throw new Error(`CSV file not found: ${csvPath}`);
 }
 
-execFileSync("node", ["scripts/validate-csv.mjs", csvPath], {
+const validationArgs = ["scripts/validate-csv.mjs", csvPath];
+if (researchReady) validationArgs.push("--research-ready");
+for (const optionName of optionNamesWithValues) {
+  const index = process.argv.indexOf(optionName);
+  if (index >= 0 && process.argv[index + 1] && !process.argv[index + 1].startsWith("--")) {
+    validationArgs.push(optionName, process.argv[index + 1]);
+  }
+  const equalsArg = process.argv.find((arg) => arg.startsWith(`${optionName}=`));
+  if (equalsArg) {
+    validationArgs.push(equalsArg);
+  }
+}
+
+execFileSync("node", validationArgs, {
   cwd: root,
   stdio: "inherit"
 });

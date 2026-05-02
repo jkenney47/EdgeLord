@@ -143,6 +143,34 @@ try {
   assert(Array.isArray(datasetReport.labelingPlan), "dataset report JSON should include a machine-readable labeling plan");
   assert(datasetReport.labelingPlan.some((item) => item.kind === "decision_coverage"), "labeling plan should include decision coverage");
 
+  const inTradeSkipLabelsCsv = writeFile("in-trade-skip-labels.csv", [
+    "id,label_source,training_eligible,action,ticker,timeframe,timestamp,bar_index,chart_price,execution_price,trade_id,parent_entry_label_id,capture_mode,visible_until_timestamp,potential_visual_leakage,confidence,setup_quality,reason_codes,notes,created_at",
+    "bad_entry,retrospective_replay,1,ENTRY,SOXL,4H,2024-02-01T14:30:00.000Z,0,10,,bad_trade,,replay,2024-02-01T14:30:00.000Z,0,,,,2024-02-01T14:30:00.000Z",
+    "bad_skip,retrospective_replay,1,SKIP,SOXL,4H,2024-02-01T18:30:00.000Z,1,10.5,,,,replay,2024-02-01T18:30:00.000Z,0,,,,2024-02-01T18:30:00.000Z",
+    "bad_exit,retrospective_replay,1,EXIT,SOXL,4H,2024-02-02T14:30:00.000Z,2,11,,bad_trade,bad_entry,replay,2024-02-02T14:30:00.000Z,0,,,,2024-02-02T14:30:00.000Z"
+  ].join("\n") + "\n");
+  const inTradeSkipTrainingCsv = writeFile("in-trade-skip-training.csv", [
+    "label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp,trade_id,parent_entry_label_id,chart_price,execution_price,decision_price,visible_until_timestamp",
+    "bad_entry,retrospective_replay,replay,ENTRY,1,0,0,0,SOXL,4H,2024-02-01T14:30:00.000Z,bad_trade,,10,,10,2024-02-01T14:30:00.000Z",
+    "bad_skip,retrospective_replay,replay,SKIP,0,0,1,0,SOXL,4H,2024-02-01T18:30:00.000Z,,,10.5,,10.5,2024-02-01T18:30:00.000Z",
+    "bad_exit,retrospective_replay,replay,EXIT,0,1,0,0,SOXL,4H,2024-02-02T14:30:00.000Z,bad_trade,bad_entry,11,,11,2024-02-02T14:30:00.000Z"
+  ].join("\n") + "\n");
+  const inTradeSkipTradesCsv = writeFile("in-trade-skip-trades.csv", [
+    "trade_id,ticker,status,entry_label_id,exit_label_id,entry_timestamp,exit_timestamp,entry_price,exit_price,return_pct",
+    "bad_trade,SOXL,closed,bad_entry,bad_exit,2024-02-01T14:30:00.000Z,2024-02-02T14:30:00.000Z,10,11,10"
+  ].join("\n") + "\n");
+  run([
+    "research/dataset_report.py",
+    "--labels", inTradeSkipLabelsCsv,
+    "--training", inTradeSkipTrainingCsv,
+    "--trades", inTradeSkipTradesCsv,
+    "--output", path.join(tempDir, "in-trade-skip-report.md"),
+    "--json-output", path.join(tempDir, "in-trade-skip-report.json")
+  ]);
+  const inTradeSkipReport = JSON.parse(readFile("in-trade-skip-report.json"));
+  assert(inTradeSkipReport.counts.sequenceIssues === 1, "dataset report should flag training-eligible SKIP labels inside open trades");
+  assert(inTradeSkipReport.issues.sequenceIssues[0].reason.includes("SKIP while SOXL trade"), "in-trade SKIP issue should explain the state-machine violation");
+
   run(["research/discover_rules.py", "--training", trainingCsv, "--output", path.join(tempDir, "candidate-rules.md"), "--json-output", path.join(tempDir, "candidate-rules.json")]);
   const rules = JSON.parse(readFile("candidate-rules.json"));
   assert(Array.isArray(rules.candidates) && rules.candidates.length > 0, "candidate rules should include at least one rule");

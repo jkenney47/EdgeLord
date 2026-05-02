@@ -16,6 +16,7 @@
     "closeout:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --closeout",
     "data:coverage": "node scripts/data-coverage.mjs --write",
     "export:backup": "node scripts/export-backup.mjs",
+    "import:csv": "node scripts/import-csv.mjs",
     "research:report": "node scripts/research-report.mjs",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"
   },

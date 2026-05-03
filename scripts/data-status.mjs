@@ -30,6 +30,16 @@ function nextReadyLabelingTarget(plan) {
   return plan.find((item) => item?.status === "ready" && Number(item?.remaining ?? 0) > 0) ?? null;
 }
 
+function normalizeAppTargetAction(action) {
+  if (typeof action !== "string") return { action: "", staleDoctrine: false };
+  const staleReplayPhrase = ["when", "the", "replay", "reaches"].join(" ");
+  if (!new RegExp(staleReplayPhrase, "i").test(action)) return { action, staleDoctrine: false };
+  return {
+    action: action.replace(new RegExp(staleReplayPhrase, "i"), "when you reach"),
+    staleDoctrine: true
+  };
+}
+
 async function fetchJson(route) {
   const response = await fetch(`${apiBaseUrl}${route}`);
   if (!response.ok) {
@@ -164,8 +174,12 @@ if (failures.length === 0) {
   }
   if (readiness.app?.nextTarget) {
     const appTarget = readiness.app.nextTarget;
+    const appAction = normalizeAppTargetAction(appTarget.action);
     console.log(`- App focus target: ${appTarget.kind} (${appTarget.current}/${appTarget.target}, ${appTarget.remaining} remaining)`);
-    console.log(`  ${appTarget.action}`);
+    console.log(`  ${appAction.action}`);
+    if (appAction.staleDoctrine) {
+      console.log("  note: live API returned stale replay-only wording; restart the API to refresh app focus copy.");
+    }
   }
   if (nextLabelingTarget) {
     console.log(`- Research labeling target: ${nextLabelingTarget.kind} (${nextLabelingTarget.current}/${nextLabelingTarget.target}, ${nextLabelingTarget.remaining} remaining)`);

@@ -305,20 +305,6 @@ async function runAcceptance() {
     assert(exit.openTrade === null, "Exit should close the open trade");
     console.log("ok exit closes trade");
 
-    const hindsight = await postLabel(baseUrl, {
-      labelSource: "retrospective_hindsight",
-      action: "SKIP",
-      ticker: "SOXS",
-      timeframe: "4H",
-      timestamp: soxsBars[1].timestamp,
-      chartPrice: soxsBars[1].close,
-      captureMode: "regular",
-      visibleUntilTimestamp: soxsBars[1].timestamp,
-      potentialVisualLeakage: true
-    });
-    assert(hindsight.label.training_eligible === 0, "Hindsight/future-visible label should not be training eligible");
-    console.log("ok hindsight label excluded from training");
-
     const trades = await fetchJson(baseUrl, "/trades").then(({ response, body }) => {
       assert(response.ok, `/trades returned ${response.status}`);
       assert(body.trades.length === 1, "Expected one paired trade");
@@ -378,6 +364,20 @@ async function runAcceptance() {
     assert(closedAfterPatch === null, "Patching invalid back to exit should close the trade again");
     console.log("ok patch invalid back to exit rebuilds trade state");
 
+    const hindsight = await postLabel(baseUrl, {
+      labelSource: "retrospective_hindsight",
+      action: "SKIP",
+      ticker: "SOXS",
+      timeframe: "4H",
+      timestamp: soxsBars[1].timestamp,
+      chartPrice: soxsBars[1].close,
+      captureMode: "regular",
+      visibleUntilTimestamp: soxsBars[1].timestamp,
+      potentialVisualLeakage: true
+    });
+    assert(hindsight.label.training_eligible === 1, "Hindsight/future-visible label should be training eligible");
+    console.log("ok hindsight label included in training");
+
     const hindsightEntry = await postLabel(baseUrl, {
       labelSource: "retrospective_hindsight",
       action: "ENTRY",
@@ -400,10 +400,10 @@ async function runAcceptance() {
       visibleUntilTimestamp: soxsBars[3].timestamp,
       potentialVisualLeakage: true
     });
-    assert(hindsightEntry.label.training_eligible === 0, "Hindsight entry should be excluded from training");
-    assert(hindsightExit.label.training_eligible === 0, "Hindsight exit should be excluded from training");
+    assert(hindsightEntry.label.training_eligible === 1, "Hindsight entry should be training eligible");
+    assert(hindsightExit.label.training_eligible === 1, "Hindsight exit should be training eligible");
     assert(hindsightExit.label.trade_id === hindsightEntry.label.trade_id, "Hindsight exit should close the hindsight trade");
-    console.log("ok ineligible hindsight trade is captured but excluded from training");
+    console.log("ok hindsight trade is captured and included in training");
 
     const skip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",
@@ -446,7 +446,7 @@ async function runAcceptance() {
 
     const labelsCsv = await fetch(`${baseUrl}/export/labels.csv`).then((response) => response.text());
     assert(labelsCsv.startsWith("id,label_source,training_eligible,action"), "labels.csv header is unexpected");
-    assert(labelsCsv.includes("retrospective_hindsight,0,SKIP"), "labels.csv should show excluded hindsight label");
+    assert(labelsCsv.includes("retrospective_hindsight,1,SKIP"), "labels.csv should show eligible hindsight label");
     console.log("ok /export/labels.csv");
 
     const tradesCsv = await fetch(`${baseUrl}/export/trades.csv`).then((response) => response.text());
@@ -457,14 +457,14 @@ async function runAcceptance() {
     const trainingCsv = await fetch(`${baseUrl}/export/training-features.csv`).then((response) => response.text());
     const trainingRows = trainingCsv.trim().split("\n");
     assert(trainingRows[0].startsWith("label_id,label_source,capture_mode,action,target_entry,target_exit,target_skip,target_invalid,ticker,timeframe,timestamp"), "training-features.csv header is unexpected");
-    assert(trainingRows.length === 4, `Expected 3 training rows plus header, got ${trainingRows.length}`);
+    assert(trainingRows.length === 7, `Expected 6 training rows plus header, got ${trainingRows.length}`);
     assert(trainingRows[0].includes("execution_price,decision_price"), "training-features.csv should expose execution and decision prices");
     assert(trainingRows[0].includes("feature_close,feature_volume,feature_ema25"), "training-features.csv should export close and volume feature columns");
     assert(trainingCsv.includes(",ENTRY,1,0,0,0,"), "training-features.csv should include explicit ENTRY target columns");
     assert(trainingCsv.includes(",SKIP,0,0,1,0,"), "training-features.csv should include explicit SKIP target columns");
-    assert(!trainingCsv.includes(hindsight.label.id), "training-features.csv should exclude hindsight label");
-    assert(!trainingCsv.includes(hindsightEntry.label.id), "training-features.csv should exclude hindsight entry labels");
-    assert(!trainingCsv.includes(hindsightExit.label.id), "training-features.csv should exclude hindsight exit labels");
+    assert(trainingCsv.includes(hindsight.label.id), "training-features.csv should include hindsight label");
+    assert(trainingCsv.includes(hindsightEntry.label.id), "training-features.csv should include hindsight entry labels");
+    assert(trainingCsv.includes(hindsightExit.label.id), "training-features.csv should include hindsight exit labels");
     assert(!trainingCsv.includes(exit.label.id), "training-features.csv should exclude deleted labels");
     console.log("ok /export/training-features.csv excludes ineligible labels");
 
@@ -474,7 +474,7 @@ async function runAcceptance() {
       "trade-candidates.csv header is unexpected"
     );
     assert(tradeCandidatesCsv.includes("EXIT,1,0"), "trade-candidates.csv should include exit candidate rows for closed trades");
-    assert(!tradeCandidatesCsv.includes(hindsightEntry.label.trade_id), "trade-candidates.csv should exclude ineligible hindsight trades");
+    assert(tradeCandidatesCsv.includes(hindsightEntry.label.trade_id), "trade-candidates.csv should include hindsight trades");
     console.log("ok /export/trade-candidates.csv");
 
     const labelsJsonl = await fetch(`${baseUrl}/export/labels.jsonl`).then((response) => response.text());
@@ -489,16 +489,16 @@ async function runAcceptance() {
     });
     assert(manifest.version === "edgelord.export_manifest.v1", "export manifest version is unexpected");
     assert(manifest.files.includes("schema.json"), "export manifest should include schema.json");
-    assert(manifest.labels.trainingEligible === 3, "export manifest should count training-eligible labels");
-    assert(manifest.labels.excluded === 3, "export manifest should count excluded labels");
+    assert(manifest.labels.trainingEligible === 6, "export manifest should count training-eligible labels");
+    assert(manifest.labels.excluded === 0, "export manifest should count excluded labels");
     assert(manifest.trades.byStatus.closed === 2, "export manifest should count closed trades");
     assert(manifest.trades.closed === 2, "export manifest should expose closed trade count");
-    assert(manifest.trades.trainingEligibleClosed === 1, "export manifest should expose training-eligible closed trade count");
-    assert(manifest.trades.ineligibleClosed === 1, "export manifest should expose ineligible closed trade count");
+    assert(manifest.trades.trainingEligibleClosed === 2, "export manifest should expose training-eligible closed trade count");
+    assert(manifest.trades.ineligibleClosed === 0, "export manifest should expose ineligible closed trade count");
     assert(manifest.tradeCandidates.rows > 0, "export manifest should count trade candidate rows");
-    assert(manifest.tradeCandidates.byAction.EXIT === 1, "export manifest should count exit candidate rows");
-    assert(manifest.tradeCandidates.closedTrades === 1, "export manifest should only require candidates for training-eligible closed trades");
-    assert(manifest.tradeCandidates.closedTradesWithCandidates === 1, "export manifest should count closed trades with candidates");
+    assert(manifest.tradeCandidates.byAction.EXIT === 2, "export manifest should count exit candidate rows");
+    assert(manifest.tradeCandidates.closedTrades === 2, "export manifest should require candidates for all training-eligible closed trades");
+    assert(manifest.tradeCandidates.closedTradesWithCandidates === 2, "export manifest should count closed trades with candidates");
     assert(Array.isArray(manifest.tradeCandidates.missingClosedTradeCandidateIds) && manifest.tradeCandidates.missingClosedTradeCandidateIds.length === 0, "export manifest should expose missing trade candidate ids");
     assert(Array.isArray(manifest.tradeCandidates.extraCandidateTradeIds) && manifest.tradeCandidates.extraCandidateTradeIds.length === 0, "export manifest should expose extra trade candidate ids");
     assert(Array.isArray(manifest.tradeCandidates.duplicateCandidateIds) && manifest.tradeCandidates.duplicateCandidateIds.length === 0, "export manifest should expose duplicate candidate ids");
@@ -528,15 +528,15 @@ async function runAcceptance() {
     });
     assert(datasetPulse.version === "edgelord.dataset_pulse.v1", "dataset pulse version is unexpected");
     assert(datasetPulse.integrity?.ready === true, "dataset pulse should report clean integrity for the acceptance flow");
-    assert(datasetPulse.labels.trainingEligible === 3, "dataset pulse should count training-eligible labels");
+    assert(datasetPulse.labels.trainingEligible === 6, "dataset pulse should count training-eligible labels");
     assert(datasetPulse.trades.closed === 2, "dataset pulse should count closed trades");
-    assert(datasetPulse.trades.trainingEligibleClosed === 1, "dataset pulse should count training-eligible closed trades separately");
-    assert(datasetPulse.trades.ineligibleClosed === 1, "dataset pulse should expose ineligible closed trade count");
+    assert(datasetPulse.trades.trainingEligibleClosed === 2, "dataset pulse should count training-eligible closed trades separately");
+    assert(datasetPulse.trades.ineligibleClosed === 0, "dataset pulse should expose ineligible closed trade count");
     assert(datasetPulse.tradeCandidates.rows > 0, "dataset pulse should expose trade-candidate rows for eligible closed trades");
-    assert(datasetPulse.tradeCandidates.closedTrades === 1, "dataset pulse should expose eligible closed trades for trade candidates");
-    assert(datasetPulse.tradeCandidates.closedTradesWithCandidates === 1, "dataset pulse should expose closed trades with trade candidates");
-    assert(datasetPulse.targets.some((target) => target.key === "closedTrades" && target.current === 1), "dataset pulse closed target should ignore ineligible hindsight trades");
-    assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 1), "dataset pulse should include skip target progress");
+    assert(datasetPulse.tradeCandidates.closedTrades === 2, "dataset pulse should expose eligible closed trades for trade candidates");
+    assert(datasetPulse.tradeCandidates.closedTradesWithCandidates === 2, "dataset pulse should expose closed trades with trade candidates");
+    assert(datasetPulse.targets.some((target) => target.key === "closedTrades" && target.current === 2), "dataset pulse closed target should count hindsight trades");
+    assert(datasetPulse.targets.some((target) => target.key === "skips" && target.current === 2), "dataset pulse should include skip target progress");
     console.log("ok /state/dataset");
 
     await deleteLabel(baseUrl, entry.label.id);

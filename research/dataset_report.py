@@ -409,9 +409,9 @@ def labeling_target_plan(
 
     target_rows = [
         ("exit_coverage", exits, max(entries, 1), "Add EXIT labels for open/unfinished entries so trades can be paired and evaluated."),
-        ("skip_coverage", skips, max(entries, SKIP_ROUGH_TARGET), "Add replay-safe SKIP labels near tempting setups to create negative examples."),
-        ("entry_coverage", entries, ENTRY_ROUGH_TARGET, "Add replay-safe ENTRY labels across SOXL and SOXS setups."),
-        ("decision_coverage", decisions, DECISION_ROUGH_TARGET, "Add more replay-safe decision rows until rough rule mining has enough examples."),
+        ("skip_coverage", skips, max(entries, SKIP_ROUGH_TARGET), "Add SKIP labels near tempting setups to create negative examples."),
+        ("entry_coverage", entries, ENTRY_ROUGH_TARGET, "Add ENTRY labels across SOXL and SOXS setups."),
+        ("decision_coverage", decisions, DECISION_ROUGH_TARGET, "Add more decision rows until rough rule mining has enough examples."),
         ("closed_trade_coverage", closed, CLOSED_TRADE_ROUGH_TARGET, "Close labeled trades with explicit EXIT labels so return analysis and exit rules can run."),
     ]
 
@@ -642,9 +642,9 @@ def strategy_readiness(
     if consistency_issues:
         blockers["humanMimic"].append(f"fix {consistency_issues} dataset consistency issue(s)")
     if entry_count == 0:
-        blockers["humanMimic"].append("add at least one replay-safe ENTRY label")
+        blockers["humanMimic"].append("add at least one ENTRY label")
     if skip_count == 0:
-        blockers["humanMimic"].append("add at least one replay-safe SKIP label")
+        blockers["humanMimic"].append("add at least one SKIP label")
     if decision_count < DECISION_ROUGH_TARGET:
         blockers["humanMimic"].append(f"rough target needs {DECISION_ROUGH_TARGET - decision_count} more decision row(s)")
     if entry_count < ENTRY_ROUGH_TARGET:
@@ -657,7 +657,7 @@ def strategy_readiness(
     if closed_trade_count == 0:
         blockers["returnOptimizer"].append("add at least one training-eligible closed trade")
     if exit_count == 0:
-        blockers["returnOptimizer"].append("add at least one replay-safe EXIT label")
+        blockers["returnOptimizer"].append("add at least one EXIT label")
     if closed_trade_count < CLOSED_TRADE_ROUGH_TARGET:
         blockers["returnOptimizer"].append(f"rough target needs {CLOSED_TRADE_ROUGH_TARGET - closed_trade_count} more eligible closed trade(s)")
     if exit_count < ENTRY_ROUGH_TARGET:
@@ -936,7 +936,7 @@ def next_label_recommendations(
         lines.append("  1. Fix dataset consistency, state-machine, or orphan trade-link issues before adding modeling labels.")
         return lines
     if entries == 0:
-        lines.append("  1. Start with replay-safe ENTRY labels on SOXL/SOXS 4H setups.")
+        lines.append("  1. Start with ENTRY labels on SOXL/SOXS 4H setups.")
         lines.append("  2. Add explicit SKIP labels near setups you considered but rejected.")
         lines.append("  3. Pair every ENTRY with an explicit EXIT when the trade idea ends.")
         return lines
@@ -955,7 +955,7 @@ def next_label_recommendations(
     if excluded:
         lines.append(f"  6. Review excluded labels before modeling: {excluded} excluded rows.")
     if len(lines) == 1:
-        lines.append("  1. Keep labeling replay-safe entries, exits, and skips until at least 300 decision rows exist.")
+        lines.append("  1. Keep labeling entries, exits, and skips until at least 300 decision rows exist.")
     return lines
 
 

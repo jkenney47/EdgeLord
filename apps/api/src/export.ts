@@ -90,13 +90,11 @@ const tradeCandidatesCsvColumns = [
 
 const exportTrainingPolicy = {
   eligibleWhen: [
-    "label_source is actual_trade and potential_visual_leakage is false",
-    "label_source is retrospective_replay, capture_mode is replay, and potential_visual_leakage is false"
+    "label_source is actual_trade",
+    "label_source is retrospective_replay",
+    "label_source is retrospective_hindsight"
   ],
   excludedByDefault: [
-    "retrospective_hindsight labels",
-    "regular-mode retrospective labels",
-    "labels with potential visual leakage",
     "orphan EXIT labels"
   ],
   stateMachine: [

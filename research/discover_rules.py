@@ -182,7 +182,7 @@ def format_report(training: list[dict[str, str]], candidates: list[Rule], pair_c
         "Notes",
         "- These are one-feature threshold candidates, not a tested strategy.",
         "- Treat them as research prompts for human review and later walk-forward testing.",
-        "- Use only replay-safe/training-eligible exports for serious analysis.",
+        "- Use the training-eligible exports for serious analysis.",
         "",
         "Top Candidates",
     ]

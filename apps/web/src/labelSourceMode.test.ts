@@ -16,7 +16,7 @@ describe("normalizeLabelSourceForMode", () => {
     expect(normalizeLabelSourceForMode("replay", "retrospective_hindsight")).toBe("retrospective_replay");
   });
 
-  it("moves replay labels to hindsight labels in regular mode", () => {
-    expect(normalizeLabelSourceForMode("regular", "retrospective_replay")).toBe("retrospective_hindsight");
+  it("keeps replay labels in regular mode", () => {
+    expect(normalizeLabelSourceForMode("regular", "retrospective_replay")).toBe("retrospective_replay");
   });
 });

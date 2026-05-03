@@ -1,11 +1,10 @@
-import type { Bar, CaptureMode, DatasetPulse, FeatureSnapshot, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
+import type { Bar, DatasetPulse, FeatureSnapshot, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
 import { getCaptureBlockReason } from "./captureRules";
 import { getOpenTradeSelectionContext } from "./tradeReview";
 
 type Props = {
   selected: Bar | null;
   ticker: Ticker;
-  mode: CaptureMode;
   labelSource: LabelSource;
   labels: Label[];
   selectedLabels: Label[];
@@ -45,7 +44,6 @@ const labelSourceText: Record<LabelSource, string> = {
 export function CapturePanel({
   selected,
   ticker,
-  mode,
   labelSource,
   labels,
   selectedLabels,
@@ -185,10 +183,8 @@ export function CapturePanel({
             <option value="retrospective_hindsight">Retrospective hindsight</option>
           </select>
         </label>
-        <span className={mode === "replay" && labelSource !== "retrospective_hindsight" ? "badge good" : "badge warn"}>
-          {labelSource === "actual_trade" || (mode === "replay" && labelSource === "retrospective_replay")
-            ? "Training eligible"
-            : "Excluded by default"}
+        <span className="badge good">
+          Training eligible
         </span>
         {labelSource === "actual_trade" ? (
           <label className="field">

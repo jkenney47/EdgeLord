@@ -192,7 +192,7 @@ def promotion_status(
         exit_rules = {}
 
     if dataset_report and not (human_mimic.get("ready") if human_mimic else readiness.get("readyForRuleMining")):
-        warnings.append("Dataset is not ready for rule mining. Add replay-safe ENTRY and SKIP labels and resolve sequence issues.")
+        warnings.append("Dataset is not ready for rule mining. Add ENTRY and SKIP labels and resolve sequence issues.")
     if dataset_report and not (return_optimizer.get("ready") if return_optimizer else readiness.get("readyForReturnAnalysis")):
         warnings.append("Dataset is not ready for return analysis. Add closed trades with EXIT labels before treating return rules as meaningful.")
     if dataset_report and not (exit_rules.get("ready") if exit_rules else readiness.get("readyForExitRuleMining")):
@@ -277,7 +277,7 @@ def strategy_rules_payload(
         },
         "promotion": promotion_status(human_candidate, human_pair_candidate, return_candidate, exit_candidate, dataset_report),
         "promotionChecklist": [
-            "Confirm the rule was generated from replay-safe training rows only.",
+            "Confirm the rule was generated from the intended training rows.",
             "Confirm the dataset readiness report is clean enough for the intended use.",
             "Confirm the feature is mapped to the same calculation in Pine.",
             "Inspect human-vs-rule disagreements before trusting the signal.",
@@ -483,7 +483,7 @@ def pine_stub(
     else:
         lines.extend([
             "// No human-mimic candidate rule is available yet.",
-            "// Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`.",
+            "// Add ENTRY and SKIP labels, then rerun `pnpm research:report`.",
             "candidateSignal = false",
         ])
 

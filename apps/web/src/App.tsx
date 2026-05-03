@@ -467,7 +467,6 @@ export function App() {
         <CapturePanel
           selected={selected}
           ticker={ticker}
-          mode={mode}
           labelSource={labelSource}
           labels={labels}
           selectedLabels={selectedLabels}

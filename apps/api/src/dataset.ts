@@ -157,7 +157,7 @@ function nextLabelingTarget(input: {
     return target("fix_integrity", "Fix label integrity issues before adding modeling labels.", 0, input.integrityIssueCount);
   }
   if (input.openTrade) {
-    return target("exit_coverage", `Close or continue the open ${input.openTrade.ticker} trade when the replay reaches your exit.`, input.exits, Math.max(input.entries, 1));
+    return target("exit_coverage", `Close or continue the open ${input.openTrade.ticker} trade when you reach your exit.`, input.exits, Math.max(input.entries, 1));
   }
   if (input.exits < input.entries) {
     return target("exit_coverage", "Add EXIT labels for completed trade ideas.", input.exits, Math.max(input.entries, 1));
@@ -170,7 +170,7 @@ function nextLabelingTarget(input: {
     return target("closed_trade_coverage", "Build more closed trades for return analysis.", input.closedTrades, targets.closedTrades);
   }
   if (input.decisions < targets.decisions) {
-    return target("decision_coverage", "Keep labeling replay-safe decisions toward the rough mining target.", input.decisions, targets.decisions);
+    return target("decision_coverage", "Keep labeling decisions toward the rough mining target.", input.decisions, targets.decisions);
   }
   return target("rule_review_ready", "Dataset is ready for first-pass rule review.", input.decisions, targets.decisions);
 }

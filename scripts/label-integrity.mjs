@@ -87,8 +87,7 @@ const featureSnapshotIssues = [];
 const tradeConsistencyIssues = [];
 
 function expectedTrainingEligible(label) {
-  if (Number(label.potential_visual_leakage) === 1) return false;
-  return label.label_source === "actual_trade" || (label.label_source === "retrospective_replay" && label.capture_mode === "replay");
+  return ["actual_trade", "retrospective_replay", "retrospective_hindsight"].includes(label.label_source);
 }
 
 function inspectSequence(items) {

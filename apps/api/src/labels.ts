@@ -27,8 +27,9 @@ export const createLabelSchema = z.object({
 export const patchLabelSchema = createLabelSchema.partial();
 
 function trainingEligible(labelSource: LabelSource, captureMode: CaptureMode, leakage: boolean): boolean {
-  if (leakage) return false;
-  return labelSource === "actual_trade" || (labelSource === "retrospective_replay" && captureMode === "replay");
+  void captureMode;
+  void leakage;
+  return labelSource === "actual_trade" || labelSource === "retrospective_replay" || labelSource === "retrospective_hindsight";
 }
 
 function requireBarSnapshot(input: { ticker: Label["ticker"]; timeframe: Label["timeframe"]; timestamp: string }): {

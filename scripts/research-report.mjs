@@ -122,7 +122,7 @@ if (topRule) {
     "=================================",
     "No candidate rule is available yet.",
     "",
-    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+    "Add ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(comparisonPath, report);
   fs.writeFileSync(comparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason,feature,direction,threshold,feature_value\n");
@@ -146,7 +146,7 @@ if (topPairRule?.conditions) {
     "======================================",
     "No pair candidate rule is available yet.",
     "",
-    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+    "Add ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(pairComparisonPath, report);
   fs.writeFileSync(pairComparisonCsvPath, "label_id,timestamp,ticker,timeframe,human_action,model_action,category,review_priority,review_reason,feature,direction,threshold,feature_value\n");
@@ -183,7 +183,7 @@ if (topRule) {
     "==============================",
     "No candidate rule is available yet.",
     "",
-    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+    "Add ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(splitRuleEvalPath, report);
   fs.writeFileSync(splitRuleEvalCsvPath, "split,rows,human_entries,model_entries,precision,recall,agreement,true_positive,false_positive,false_negative,true_negative\n");
@@ -208,7 +208,7 @@ if (topPairRule?.conditions) {
     "===================================",
     "No pair candidate rule is available yet.",
     "",
-    "Add replay-safe ENTRY and SKIP labels, then rerun `pnpm research:report`."
+    "Add ENTRY and SKIP labels, then rerun `pnpm research:report`."
   ].join("\n") + "\n";
   fs.writeFileSync(pairSplitRuleEvalPath, report);
   fs.writeFileSync(pairSplitRuleEvalCsvPath, "split,rows,human_entries,model_entries,precision,recall,agreement,true_positive,false_positive,false_negative,true_negative\n");

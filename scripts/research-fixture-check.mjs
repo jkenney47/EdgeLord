@@ -61,6 +61,15 @@ function writeResearchSummaryFixture() {
         duplicateCandidateIds: [],
       },
     },
+    dataset: {
+      trainingCoverage: {
+        years: { "2024": 5 },
+        tickerTimeframes: { "SOXL:4H": 3, "SOXS:4H": 2 },
+        yearActions: { "2024:ENTRY": 2 },
+        weakestYears: [{ year: "2024", rows: 5 }],
+        weakestTickerTimeframes: [{ tickerTimeframe: "SOXS:4H", rows: 2 }]
+      }
+    },
     topHumanMimicRule: null,
     nextLabelingTarget: null,
     promotion: {
@@ -358,6 +367,8 @@ try {
   assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
   assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
   assert(summary.exportManifest.tradeCandidates.rows === 4, "research summary should embed export manifest trade candidate coverage");
+  assert(summary.dataset.trainingCoverage.years["2024"] === 5, "research summary should embed training coverage by year");
+  assert(summary.dataset.trainingCoverage.weakestTickerTimeframes[0].tickerTimeframe === "SOXS:4H", "research summary should embed weak coverage buckets");
   assert(summary.nextLabelingTarget === null, "fixture research summary should report no ready next target when only rough targets remain complete/blocked");
   assert(summary.promotion?.status === "scaffold_only", "research summary should expose Pine promotion status");
 

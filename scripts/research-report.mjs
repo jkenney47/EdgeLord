@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -28,7 +29,10 @@ async function download(route, target) {
   }
   const body = await response.text();
   fs.writeFileSync(target, body);
-  return Buffer.byteLength(body, "utf8");
+  return {
+    bytes: Buffer.byteLength(body, "utf8"),
+    sha256: crypto.createHash("sha256").update(body, "utf8").digest("hex")
+  };
 }
 
 fs.mkdirSync(exportsDir, { recursive: true });
@@ -64,8 +68,8 @@ fs.mkdirSync(backupDir);
 const files = [];
 for (const [name, route] of exportFiles) {
   const target = path.join(backupDir, name);
-  const bytes = await download(route, target);
-  files.push({ name, route, bytes });
+  const { bytes, sha256 } = await download(route, target);
+  files.push({ name, route, bytes, sha256 });
 }
 const apiManifest = JSON.parse(fs.readFileSync(path.join(backupDir, "manifest.api.json"), "utf8"));
 

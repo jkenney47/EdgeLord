@@ -22,6 +22,7 @@ import {
   type Trade
 } from "./api";
 import { CapturePanel } from "./CapturePanel";
+import { captureFeedback } from "./captureFeedback";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
 import { normalizeLabelSourceForMode } from "./labelSourceMode";
@@ -227,7 +228,7 @@ export function App() {
       });
       await refreshState();
       const shouldAdvance = autoAdvance && mode === "replay" && index < bars.length - 1;
-      setCaptureStatus(`${result.label.action} saved${shouldAdvance ? "; advanced" : ""}.`);
+      setCaptureStatus(captureFeedback(result.label.action, shouldAdvance));
       if (shouldAdvance) {
         move(1);
       }

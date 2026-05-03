@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import path from "node:path";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
+const apiBaseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 const cliArgs = process.argv.slice(2);
 if (cliArgs[0] === "--") cliArgs.shift();
 const [message, ...files] = cliArgs;
@@ -11,6 +12,7 @@ function usage() {
   console.error("Usage: pnpm slice:commit -- \"Commit message\" <file...>");
   console.error("");
   console.error("Runs the full minimal-labeler slice gate, reviews the selected diff, stages only the listed files, commits, pushes, and prints final status.");
+  console.error("Starts a temporary dev server when the live API is not already running.");
   console.error("Refuses generated/local-only paths such as .codex/, data/, exports/, and reports/.");
 }
 
@@ -21,6 +23,51 @@ function run(command, args, options = {}) {
     stdio: "inherit",
     ...options
   });
+}
+
+async function apiIsHealthy() {
+  try {
+    const response = await fetch(`${apiBaseUrl}/health`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForApi(timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await apiIsHealthy()) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`Timed out waiting for ${apiBaseUrl}/health`);
+}
+
+async function withLiveApi(callback) {
+  if (await apiIsHealthy()) {
+    await callback();
+    return;
+  }
+
+  console.log(`\n$ pnpm dev:api # temporary live API for slice gate`);
+  const child = spawn("pnpm", ["dev:api"], {
+    cwd: root,
+    stdio: "inherit",
+    detached: false
+  });
+  try {
+    await waitForApi();
+    await callback();
+  } finally {
+    child.kill("SIGINT");
+    await new Promise((resolve) => {
+      child.once("exit", resolve);
+      setTimeout(() => {
+        child.kill("SIGTERM");
+        resolve();
+      }, 5_000);
+    });
+  }
 }
 
 if (!message || files.length === 0 || message === "--help" || message === "-h") {
@@ -51,10 +98,12 @@ if (!selectedStatus) {
   throw new Error("None of the selected files have changes to commit.");
 }
 
-run("pnpm", ["slice:minimal-labeler"]);
-run("git", ["diff", "--stat"]);
-run("git", ["diff", "--", ...files]);
-run("git", ["add", ...files]);
-run("git", ["commit", "-m", message]);
-run("git", ["push"]);
-run("git", ["status", "--short", "--branch"]);
+await withLiveApi(async () => {
+  run("pnpm", ["slice:minimal-labeler"]);
+  run("git", ["diff", "--stat"]);
+  run("git", ["diff", "--", ...files]);
+  run("git", ["add", ...files]);
+  run("git", ["commit", "-m", message]);
+  run("git", ["push"]);
+  run("git", ["status", "--short", "--branch"]);
+});

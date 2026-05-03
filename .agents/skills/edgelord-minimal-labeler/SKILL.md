@@ -48,7 +48,7 @@ After edits, run:
 pnpm slice:commit -- "<imperative summary>" <changed files>
 ```
 
-This wrapper runs `pnpm slice:minimal-labeler`, prints the selected diff for review, stages only the listed files, commits, pushes, and prints final status. Keep using explicit file paths so unrelated local changes such as `.codex/config.toml` are not staged.
+This wrapper starts a temporary `pnpm dev:api` server when the live API is not already healthy, runs `pnpm slice:minimal-labeler`, prints the selected diff for review, stages only the listed files, commits, pushes, and prints final status. Keep using explicit file paths so unrelated local changes such as `.codex/config.toml` are not staged.
 
 The wrapper refuses `.codex/`, `data/`, `exports/`, and `reports/` paths, and it exits before running the heavy gate if none of the selected files have changes. If a generated artifact is truly needed in git, stop and handle it manually instead of bypassing the guard casually.
 

@@ -92,6 +92,7 @@ const researchSummary = readJson(latestArtifacts.researchSummaryJson);
 const datasetPulse = failures.length === 0 ? await fetchJson("/state/dataset") : null;
 const readiness = {
   dataCoverage: dataCoverage?.readiness ?? null,
+  unresolvedTargetGap: dataCoverage?.readiness?.unresolvedTargetGap ?? null,
   labelIntegrity: labelIntegrity ? {
     labels: labelIntegrity.labels,
     readyForModeling: labelIntegrity.readyForModeling,
@@ -136,6 +137,10 @@ if (failures.length === 0) {
   console.log("- All data status checks completed.");
   if (readiness.dataCoverage) {
     console.log(`- Data coverage: ${readiness.dataCoverage.code} (${readiness.dataCoverage.readyForResearch ? "research-ready" : "not research-ready"})`);
+  }
+  if (readiness.unresolvedTargetGap) {
+    const gap = readiness.unresolvedTargetGap;
+    console.log(`- Unresolved target gap: ${gap.missingStart.slice(0, 10)} -> ${gap.missingEnd.slice(0, 10)} (${gap.gapYears.toFixed(1)} years)`);
   }
   if (readiness.labelIntegrity) {
     console.log(`- Label integrity: ${readiness.labelIntegrity.readyForModeling ? "ready" : "issues found"}`);

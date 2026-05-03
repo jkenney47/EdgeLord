@@ -17,6 +17,10 @@ function daysBetween(first, last) {
   return Math.max(0, (new Date(last).getTime() - new Date(first).getTime()) / 86_400_000);
 }
 
+function yearsFromDays(days) {
+  return days / 365.25;
+}
+
 function summarizeSources(bars) {
   const sourceCounts = new Map();
   for (const bar of bars) {
@@ -109,6 +113,16 @@ const earliestChartTimestamp = rows
   .sort()[0] ?? "";
 const targetStart = "2011-01-01T00:00:00.000Z";
 const alpacaKnownStart = "2016-01-04T14:30:00.000Z";
+const targetGapDays = earliestChartTimestamp > targetStart ? daysBetween(targetStart, earliestChartTimestamp) : 0;
+const unresolvedTargetGap = targetGapDays > 0 ? {
+  targetStart,
+  earliestChartTimestamp,
+  missingStart: targetStart,
+  missingEnd: earliestChartTimestamp,
+  gapDays: targetGapDays,
+  gapYears: yearsFromDays(targetGapDays),
+  status: "unresolved_external_data_source"
+} : null;
 const rawSources = sourceSet(summaryRows, "RAW");
 const chartSources = sourceSet(summaryRows, "1D");
 const onlySampleData = rawSources.size === 1 && rawSources.has("sample");
@@ -144,7 +158,7 @@ if (!allRowsHaveData) {
 } else if (earliestChartTimestamp > targetStart) {
   readinessCode = "alpaca_era_ready";
   readinessMessages.push(`Data span is ready for Alpaca-era research, starting ${earliestChartTimestamp.slice(0, 10)}.`);
-  readinessMessages.push(`The 2011-2015 SOXL/SOXS history gap remains unresolved; current Alpaca SIP minute coverage starts around ${alpacaKnownStart.slice(0, 10)}.`);
+  readinessMessages.push(`The ${targetStart.slice(0, 10)} -> ${earliestChartTimestamp.slice(0, 10)} SOXL/SOXS history gap remains unresolved (${yearsFromDays(targetGapDays).toFixed(1)} years); current Alpaca SIP minute coverage starts around ${alpacaKnownStart.slice(0, 10)}.`);
 } else {
   readinessMessages.push(`Data span is ready for broader research. Shortest span is ${shortestSpan.toFixed(1)} days.`);
 }
@@ -170,6 +184,7 @@ if (process.argv.includes("--write")) {
       readyForResearch: readinessCode === "ready" || readinessCode === "alpaca_era_ready",
       targetStart,
       earliestChartTimestamp,
+      unresolvedTargetGap,
       shortestSpanDays: shortestSpan,
       messages: readinessMessages
     },

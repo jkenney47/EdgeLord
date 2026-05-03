@@ -47,12 +47,12 @@ type PendingSelection = {
 export function App() {
   const [ticker, setTicker] = useState<Ticker>("SOXL");
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
-  const [mode, setMode] = useState<CaptureMode>("replay");
+  const [mode, setMode] = useState<CaptureMode>("regular");
   const [bars, setBars] = useState<Bar[]>([]);
   const [selected, setSelected] = useState<Bar | null>(null);
   const [index, setIndex] = useState(0);
   const [jumpDate, setJumpDate] = useState("");
-  const [labelSource, setLabelSource] = useState<LabelSource>("retrospective_replay");
+  const [labelSource, setLabelSource] = useState<LabelSource>("retrospective_hindsight");
   const [executionPrice, setExecutionPrice] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [labels, setLabels] = useState<Label[]>([]);
@@ -294,6 +294,7 @@ export function App() {
 
   const resumeReplay = useCallback(() => {
     const nextIndex = findReplayResumeIndex(bars, labels, ticker, timeframe, labelSource);
+    setMode("replay");
     setIndex(nextIndex);
     setSelected(bars[nextIndex] ?? null);
     setCaptureStatus(bars[nextIndex] ? `Resumed at ${bars[nextIndex].timestamp.slice(0, 10)}.` : null);
@@ -325,7 +326,7 @@ export function App() {
       timestamp: entryLabel.timestamp,
       status: `Selected open trade entry ${entryLabel.timestamp.slice(0, 10)}.`
     });
-    setMode("replay");
+    setMode("regular");
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
   }, [labels, openTrade]);
@@ -345,7 +346,7 @@ export function App() {
       unlabeledAfterTimestamp: entryLabel.timestamp,
       status: `Reviewing exit after ${entryLabel.timestamp.slice(0, 10)}.`
     });
-    setMode("replay");
+    setMode("regular");
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
   }, [labels, openTrade]);
@@ -364,7 +365,7 @@ export function App() {
       unlabeledAfterTimestamp: entryLabel.timestamp,
       status: `Auto-focused exit review after ${entryLabel.timestamp.slice(0, 10)}.`
     });
-    setMode("replay");
+    setMode("regular");
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
   }, [bars.length, labels, nextTarget?.kind, openTrade, pendingSelection]);
@@ -378,7 +379,7 @@ export function App() {
       timestamp: label.timestamp,
       status: `Selected ${label.action} label ${label.timestamp.slice(0, 10)}.`
     });
-    setMode("replay");
+    setMode("regular");
     setTicker(label.ticker);
     setTimeframe(label.timeframe);
   }, []);

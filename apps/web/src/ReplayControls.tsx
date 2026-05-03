@@ -57,8 +57,8 @@ export function ReplayControls({
         ))}
       </div>
       <div className="segmented" aria-label="Mode">
+        <button className={mode === "regular" ? "active" : ""} onClick={() => onMode("regular")}>Chart review</button>
         <button className={mode === "replay" ? "active" : ""} onClick={() => onMode("replay")}>Replay</button>
-        <button className={mode === "regular" ? "active" : ""} onClick={() => onMode("regular")}>Regular</button>
       </div>
       <button onClick={onPrev} disabled={index <= 0}>Prev</button>
       <button onClick={onNext} disabled={index >= total - 1}>Next</button>
@@ -67,7 +67,7 @@ export function ReplayControls({
         <input value={jumpDate} placeholder="YYYY-MM-DD" onChange={(event) => onJumpDate(event.target.value)} />
       </label>
       <button onClick={onJump}>Jump</button>
-      <button onClick={onResume} disabled={total === 0}>Resume</button>
+      <button onClick={onResume} disabled={total === 0}>Resume replay</button>
       <button onClick={onNextUnlabeled} disabled={index >= total - 1}>Next unlabeled</button>
       <label className="file-import">
         <span>Import CSV</span>

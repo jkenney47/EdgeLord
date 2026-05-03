@@ -126,12 +126,20 @@ const readiness = {
   } : null
 };
 const nextLabelingTarget = readiness.research?.nextLabelingTarget ?? nextReadyLabelingTarget(readiness.research?.dataset?.labelingPlan);
+const appTargetAction = normalizeAppTargetAction(readiness.app?.nextTarget?.action);
+const warnings = [
+  ...(appTargetAction.staleDoctrine ? [{
+    code: "stale_live_api_focus_copy",
+    message: "Live API returned stale replay-only app focus wording; restart the API to refresh app focus copy."
+  }] : [])
+];
 const summary = {
   version: "edgelord.data_status.v1",
   startedAt: startedAt.toISOString(),
   finishedAt: finishedAt.toISOString(),
   apiBaseUrl,
   ok: failures.length === 0,
+  warnings,
   results,
   failures,
   readiness,
@@ -174,11 +182,10 @@ if (failures.length === 0) {
   }
   if (readiness.app?.nextTarget) {
     const appTarget = readiness.app.nextTarget;
-    const appAction = normalizeAppTargetAction(appTarget.action);
     console.log(`- App focus target: ${appTarget.kind} (${appTarget.current}/${appTarget.target}, ${appTarget.remaining} remaining)`);
-    console.log(`  ${appAction.action}`);
-    if (appAction.staleDoctrine) {
-      console.log("  note: live API returned stale replay-only wording; restart the API to refresh app focus copy.");
+    console.log(`  ${appTargetAction.action}`);
+    if (appTargetAction.staleDoctrine) {
+      console.log(`  note: ${warnings.find((warning) => warning.code === "stale_live_api_focus_copy")?.message}`);
     }
   }
   if (nextLabelingTarget) {

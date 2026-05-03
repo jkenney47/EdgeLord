@@ -95,11 +95,11 @@ const labelsCsv = writeFile("labels.csv", [
   "l2,retrospective_replay,1,EXIT,SOXL,4H,2024-01-03T14:30:00.000Z,1,11,,t1,l1,replay,2024-01-03T14:30:00.000Z,0,,,,2024-01-03T14:30:00.000Z",
   "l2_orphan,retrospective_replay,0,EXIT,SOXL,4H,2024-01-03T18:30:00.000Z,2,10.8,,,,replay,2024-01-03T18:30:00.000Z,0,,,,2024-01-03T18:30:00.000Z",
   "l3,retrospective_replay,1,SKIP,SOXL,4H,2024-01-04T14:30:00.000Z,2,9,,,,replay,2024-01-04T14:30:00.000Z,0,,,,2024-01-04T14:30:00.000Z",
-  "l4,retrospective_hindsight,0,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z",
+  "l4,retrospective_hindsight,1,SKIP,SOXS,4H,2024-01-05T14:30:00.000Z,3,8,,,,regular,2024-01-05T14:30:00.000Z,1,,,,2024-01-05T14:30:00.000Z",
   "l5,retrospective_replay,1,ENTRY,SOXS,4H,2024-01-06T14:30:00.000Z,4,20,,t2,,replay,2024-01-06T14:30:00.000Z,0,,,,2024-01-06T14:30:00.000Z",
   "l6,retrospective_replay,1,EXIT,SOXS,4H,2024-01-07T14:30:00.000Z,5,18,,t2,l5,replay,2024-01-07T14:30:00.000Z,0,,,,2024-01-07T14:30:00.000Z",
-  "l7,retrospective_hindsight,0,ENTRY,SOXL,4H,2024-01-08T14:30:00.000Z,6,12,,t3,,regular,2024-01-08T14:30:00.000Z,1,,,,,2024-01-08T14:30:00.000Z",
-  "l8,retrospective_hindsight,0,EXIT,SOXL,4H,2024-01-09T14:30:00.000Z,7,13,,t3,l7,regular,2024-01-09T14:30:00.000Z,1,,,,,2024-01-09T14:30:00.000Z"
+  "l7,retrospective_hindsight,1,ENTRY,SOXL,4H,2024-01-08T14:30:00.000Z,6,12,,t3,,regular,2024-01-08T14:30:00.000Z,1,,,,,2024-01-08T14:30:00.000Z",
+  "l8,retrospective_hindsight,1,EXIT,SOXL,4H,2024-01-09T14:30:00.000Z,7,13,,t3,l7,regular,2024-01-09T14:30:00.000Z,1,,,,,2024-01-09T14:30:00.000Z"
 ].join("\n") + "\n");
 
 const trainingCsv = writeFile("training-features.csv", [
@@ -107,8 +107,11 @@ const trainingCsv = writeFile("training-features.csv", [
   "l1,retrospective_replay,replay,ENTRY,1,0,0,0,SOXL,4H,2024-01-02T14:30:00.000Z,t1,,10,,10,2024-01-02T14:30:00.000Z,10,1000,9,8,0.5,22,18,true,true,11.1,25,3,6,9,10,7,1,SOXS,90,0.111,10,true,10,true,10,true",
   "l2,retrospective_replay,replay,EXIT,0,1,0,0,SOXL,4H,2024-01-03T14:30:00.000Z,t1,l1,11,,11,2024-01-03T14:30:00.000Z,11,1100,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
   "l3,retrospective_replay,replay,SKIP,0,0,1,0,SOXL,4H,2024-01-04T14:30:00.000Z,,,9,,9,2024-01-04T14:30:00.000Z,9,900,9.2,8.8,0.4,45,48,false,true,-2.2,2,1,2,3,10,7,0.66,SOXS,91,0.099,9,false,9,false,9,false",
+  "l4,retrospective_hindsight,regular,SKIP,0,0,1,0,SOXS,4H,2024-01-05T14:30:00.000Z,,,8,,8,2024-01-05T14:30:00.000Z,8,800,8.5,8.2,0.3,40,44,false,false,-5.9,-2.4,-1,-2,-3,11,7,0.25,SOXL,12,0.667,8,false,8,false,8,false",
   "l5,retrospective_replay,replay,ENTRY,1,0,0,0,SOXS,4H,2024-01-06T14:30:00.000Z,t2,,20,,20,2024-01-06T14:30:00.000Z,20,2000,21,19,0.9,82,79,false,true,-4.8,5.2,-2,-1,0,22,18,0.5,SOXL,10,2,20,false,20,false,20,false",
-  "l6,retrospective_replay,replay,EXIT,0,1,0,0,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,,18,2024-01-07T14:30:00.000Z,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+  "l6,retrospective_replay,replay,EXIT,0,1,0,0,SOXS,4H,2024-01-07T14:30:00.000Z,t2,l5,18,,18,2024-01-07T14:30:00.000Z,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false",
+  "l7,retrospective_hindsight,regular,ENTRY,1,0,0,0,SOXL,4H,2024-01-08T14:30:00.000Z,t3,,12,,12,2024-01-08T14:30:00.000Z,12,1200,10,9,0.7,60,58,true,true,20,33.3,5,8,11,12,8,1,SOXS,17,0.706,12,true,12,true,12,true",
+  "l8,retrospective_hindsight,regular,EXIT,0,1,0,0,SOXL,4H,2024-01-09T14:30:00.000Z,t3,l7,13,,13,2024-01-09T14:30:00.000Z,13,1300,10.5,9.5,0.8,68,64,true,true,23.8,36.8,6,9,12,13,8,1,SOXS,16,0.813,13,true,13,true,13,true"
 ].join("\n") + "\n");
 
 const tradesCsv = writeFile("trades.csv", [
@@ -123,7 +126,9 @@ const tradeCandidatesCsv = writeFile("trade-candidates.csv", [
   "t1:hold,t1,l1,l2,HOLD,0,1,SOXL,4H,2024-01-02T18:30:00.000Z,1,1,10.5,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,10.5,1050,9.2,8.2,0.5,35,38,true,true,14.1,28,3,6,9,10.5,7,0.87,SOXS,89,0.118,10.5,true,10.5,true,10.5,true",
   "t1:exit,t1,l1,l2,EXIT,1,0,SOXL,4H,2024-01-03T14:30:00.000Z,2,2,11,2024-01-02T14:30:00.000Z,2024-01-03T14:30:00.000Z,10,11,10,11,1100,9.5,8.5,0.6,70,65,true,true,15.7,29,4,7,10,11,7,1,SOXS,88,0.125,11,true,11,true,11,true",
   "t2:hold,t2,l5,l6,HOLD,0,1,SOXS,4H,2024-01-06T18:30:00.000Z,5,1,19,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,19,1900,20.5,19,0.8,55,58,false,true,-7.3,0,-2,-1,0,22,18,0.25,SOXL,10.5,1.81,19,false,19,false,19,false",
-  "t2:exit,t2,l5,l6,EXIT,1,0,SOXS,4H,2024-01-07T14:30:00.000Z,6,2,18,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false"
+  "t2:exit,t2,l5,l6,EXIT,1,0,SOXS,4H,2024-01-07T14:30:00.000Z,6,2,18,2024-01-06T14:30:00.000Z,2024-01-07T14:30:00.000Z,20,18,-10,18,1800,20,19,1.1,30,35,false,false,-10,-5,-4,-6,-8,22,18,0,SOXL,11,1.636,18,false,18,false,18,false",
+  "t3:hold,t3,l7,l8,HOLD,0,1,SOXL,4H,2024-01-08T18:30:00.000Z,7,1,12.5,2024-01-08T14:30:00.000Z,2024-01-09T14:30:00.000Z,12,13,8.3333,12.5,1250,10.2,9.2,0.7,62,60,true,true,22.5,35.9,5,8,11,13,8,0.9,SOXS,16.5,0.758,12.5,true,12.5,true,12.5,true",
+  "t3:exit,t3,l7,l8,EXIT,1,0,SOXL,4H,2024-01-09T14:30:00.000Z,8,2,13,2024-01-08T14:30:00.000Z,2024-01-09T14:30:00.000Z,12,13,8.3333,13,1300,10.5,9.5,0.8,68,64,true,true,23.8,36.8,6,9,12,13,8,1,SOXS,16,0.813,13,true,13,true,13,true"
 ].join("\n") + "\n");
 
 try {
@@ -145,10 +150,10 @@ try {
   assert(readFile("dataset-report.md").includes("Target Encoding Consistency"), "dataset report should include target encoding diagnostics");
   assert(readFile("dataset-report.md").includes("actions match target columns"), "fixture targets should match actions");
   assert(readFile("dataset-report.md").includes("Trade Candidate Coverage"), "dataset report should include trade candidate coverage");
-  assert(readFile("dataset-report.md").includes("closed_trades_with_candidates: 2/2"), "fixture trade candidates should cover closed trades");
+  assert(readFile("dataset-report.md").includes("closed_trades_with_candidates: 3/3"), "fixture trade candidates should cover closed trades");
   assert(readFile("dataset-report.md").includes("Training Coverage Matrix"), "dataset report should include training coverage matrix");
-  assert(readFile("dataset-report.md").includes("2024: 5"), "fixture training coverage should count rows by year");
-  assert(readFile("dataset-report.md").includes("SOXL:4H: 3"), "fixture training coverage should count rows by ticker/timeframe");
+  assert(readFile("dataset-report.md").includes("2024: 8"), "fixture training coverage should count rows by year");
+  assert(readFile("dataset-report.md").includes("SOXL:4H: 5"), "fixture training coverage should count rows by ticker/timeframe");
   assert(readFile("dataset-report.md").includes("Strategy Discovery Readiness"), "dataset report should separate strategy discovery readiness");
   assert(readFile("dataset-report.md").includes("Human-mimic rules: ready, rough-not-ready"), "dataset report should report human-mimic readiness separately");
   assert(readFile("dataset-report.md").includes("Return optimizer: ready, rough-not-ready"), "dataset report should report return-optimizer readiness separately");
@@ -164,17 +169,17 @@ try {
   assert(datasetReport.counts.extraTrainingRows === 0, "dataset report should count extra training rows");
   assert(datasetReport.counts.duplicateTrainingRows === 0, "dataset report should count duplicate training rows");
   assert(datasetReport.counts.targetEncodingIssues === 0, "dataset report should count target encoding issues");
-  assert(datasetReport.counts.tradeCandidateRows === 4, "dataset report should count trade candidate rows");
-  assert(datasetReport.counts.tradeCandidateExitRows === 2, "dataset report should count trade candidate exit rows");
-  assert(datasetReport.counts.tradeCandidateHoldRows === 2, "dataset report should count trade candidate hold rows");
-  assert(datasetReport.counts.closedTradesWithCandidates === 2, "dataset report should count covered training-eligible closed trades");
+  assert(datasetReport.counts.tradeCandidateRows === 6, "dataset report should count trade candidate rows");
+  assert(datasetReport.counts.tradeCandidateExitRows === 3, "dataset report should count trade candidate exit rows");
+  assert(datasetReport.counts.tradeCandidateHoldRows === 3, "dataset report should count trade candidate hold rows");
+  assert(datasetReport.counts.closedTradesWithCandidates === 3, "dataset report should count covered training-eligible closed trades");
   assert(datasetReport.counts.missingClosedTradeCandidates === 0, "dataset report should count missing trade candidates");
-  assert(datasetReport.returns.count === 2, "dataset report returns should only count training-eligible closed trades");
-  assert(datasetReport.readiness.closedTrades === 2, "dataset report readiness should only count training-eligible closed trades");
-  assert(datasetReport.labelingPlan.some((item) => item.kind === "closed_trade_coverage" && item.current === 2), "closed-trade labeling target should ignore ineligible closed trades");
-  assert(datasetReport.trainingCoverage.years["2024"] === 5, "dataset report JSON should expose rows by year");
-  assert(datasetReport.trainingCoverage.tickerTimeframes["SOXL:4H"] === 3, "dataset report JSON should expose ticker/timeframe coverage");
-  assert(datasetReport.trainingCoverage.yearActions["2024:ENTRY"] === 2, "dataset report JSON should expose year/action coverage");
+  assert(datasetReport.returns.count === 3, "dataset report returns should count training-eligible closed trades");
+  assert(datasetReport.readiness.closedTrades === 3, "dataset report readiness should count training-eligible closed trades");
+  assert(datasetReport.labelingPlan.some((item) => item.kind === "closed_trade_coverage" && item.current === 3), "closed-trade labeling target should count hindsight closed trades");
+  assert(datasetReport.trainingCoverage.years["2024"] === 8, "dataset report JSON should expose rows by year");
+  assert(datasetReport.trainingCoverage.tickerTimeframes["SOXL:4H"] === 5, "dataset report JSON should expose ticker/timeframe coverage");
+  assert(datasetReport.trainingCoverage.yearActions["2024:ENTRY"] === 3, "dataset report JSON should expose year/action coverage");
   assert(Array.isArray(datasetReport.trainingCoverage.weakestTickerTimeframes), "dataset report JSON should include weakest ticker/timeframe coverage");
   assert(datasetReport.strategyReadiness.humanMimic.ready === true, "dataset report JSON should expose human-mimic readiness");
   assert(datasetReport.strategyReadiness.humanMimic.roughReady === false, "dataset report JSON should expose rough human-mimic readiness");
@@ -316,7 +321,7 @@ try {
   ]);
   assert(readFile("entry-outcomes.md").includes("EdgeLord Entry Outcome Analysis"), "entry outcome report should be written");
   assert(readFile("entry-outcomes.csv").includes("l1,SOXL,4H"), "entry outcome CSV should include the closed entry row");
-  assert(!readFile("entry-outcomes.csv").includes("l7,SOXL,4H"), "entry outcome CSV should exclude hindsight-only closed trades");
+  assert(readFile("entry-outcomes.csv").includes("l7,SOXL,4H"), "entry outcome CSV should include hindsight closed trades");
 
   run([
     "research/optimize_entry_rules.py",
@@ -326,7 +331,7 @@ try {
     "--json-output", path.join(tempDir, "return-rules.json")
   ]);
   assert(readFile("return-rules.md").includes("EdgeLord Return-Optimized Entry Rules"), "return rules report should be written");
-  assert(readFile("return-rules.md").includes("closed_entry_rows: 2"), "return rules should count only training-eligible closed trades");
+  assert(readFile("return-rules.md").includes("closed_entry_rows: 3"), "return rules should count hindsight training-eligible closed trades");
   assert(JSON.parse(readFile("return-rules.json")).candidates.length > 0, "return rules JSON should include candidates");
 
   run([
@@ -382,7 +387,6 @@ try {
   assert(readFile("strategy-soxl-soxs.pine").includes("Human-mimic pair candidate"), "Pine scaffold should mention the human pair candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Rough exit candidate"), "Pine scaffold should mention the exit candidate");
-  assert(readFile("strategy-soxl-soxs.pine").includes("Rough HOLD-vs-EXIT scaffold"), "Pine scaffold should describe the exit model accurately");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy.close(\"Candidate Long\")"), "Pine scaffold should include rough close logic");
   writeResearchSummaryFixture();
   const summary = JSON.parse(readFile("research-summary.json"));

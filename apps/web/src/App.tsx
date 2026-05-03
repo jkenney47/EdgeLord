@@ -26,6 +26,7 @@ import { captureFeedback } from "./captureFeedback";
 import { getCaptureBlockReason } from "./captureRules";
 import { ChartView } from "./ChartView";
 import { normalizeLabelSourceForMode } from "./labelSourceMode";
+import { shouldDeferBarResetForPendingSelection } from "./pendingSelection";
 import {
   findFirstIndexAfterTimestamp,
   findNextUnlabeledIndex,
@@ -63,6 +64,7 @@ export function App() {
   const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureSnapshot | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
+  const pendingSelectionRef = useRef<PendingSelection | null>(null);
   const autoExitFocusTradeId = useRef<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
@@ -103,14 +105,25 @@ export function App() {
     setDatasetPulse(nextDatasetPulse);
   }, []);
 
+  useEffect(() => {
+    pendingSelectionRef.current = pendingSelection;
+  }, [pendingSelection]);
+
   const loadBars = useCallback(async () => {
     setError(null);
+    const requestedTicker = ticker;
+    const requestedTimeframe = timeframe;
+    const requestedMode = mode;
     try {
-      const nextBars = await fetchBars(ticker, timeframe);
+      const nextBars = await fetchBars(requestedTicker, requestedTimeframe);
       setBars(nextBars);
+      const pending = pendingSelectionRef.current;
+      if (shouldDeferBarResetForPendingSelection(pending, requestedTicker, requestedTimeframe)) {
+        return;
+      }
       const nextIndex = Math.max(0, nextBars.length - 1);
-      setIndex(mode === "replay" ? 0 : nextIndex);
-      setSelected(nextBars[mode === "replay" ? 0 : nextIndex] ?? null);
+      setIndex(requestedMode === "replay" ? 0 : nextIndex);
+      setSelected(nextBars[requestedMode === "replay" ? 0 : nextIndex] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load bars");
     }

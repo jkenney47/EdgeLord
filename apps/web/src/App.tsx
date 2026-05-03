@@ -65,6 +65,7 @@ export function App() {
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureSnapshot | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const pendingSelectionRef = useRef<PendingSelection | null>(null);
+  const selectedRef = useRef<Bar | null>(null);
   const autoExitFocusTradeId = useRef<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
@@ -109,6 +110,10 @@ export function App() {
     pendingSelectionRef.current = pendingSelection;
   }, [pendingSelection]);
 
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
   const loadBars = useCallback(async () => {
     setError(null);
     const requestedTicker = ticker;
@@ -119,6 +124,10 @@ export function App() {
       setBars(nextBars);
       const pending = pendingSelectionRef.current;
       if (shouldDeferBarResetForPendingSelection(pending, requestedTicker, requestedTimeframe)) {
+        return;
+      }
+      const currentSelection = selectedRef.current;
+      if (currentSelection?.ticker === requestedTicker && currentSelection.timeframe === requestedTimeframe) {
         return;
       }
       const nextIndex = Math.max(0, nextBars.length - 1);
@@ -174,6 +183,7 @@ export function App() {
     }
     if (nextIndex !== null && nextIndex >= 0) {
       setIndex(nextIndex);
+      selectedRef.current = bars[nextIndex] ?? null;
       setSelected(bars[nextIndex]);
       setCaptureStatus(pendingSelection.status);
       setPendingSelection(null);

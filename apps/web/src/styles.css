@@ -211,9 +211,10 @@ a {
   gap: 12px;
   min-height: 0;
   border-left: 1px solid #252f3d;
-  padding: 12px;
+  padding: 12px 12px 20px;
   background: #101720;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .panel-section {
@@ -443,6 +444,9 @@ a {
 .blocked-reasons {
   display: grid;
   gap: 6px;
+  max-height: 98px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .blocked-reasons p {
@@ -451,6 +455,7 @@ a {
   padding: 7px 8px;
   background: rgba(244, 211, 94, 0.07);
   color: #f4d35e;
+  font-size: 12px;
 }
 
 kbd {

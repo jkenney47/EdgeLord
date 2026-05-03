@@ -61,6 +61,18 @@ git status --short --branch
 pnpm proceed:minimal-labeler
 ```
 
+## One-Step Slice Closeout
+
+Prefer one repo command for verification, commit, and push once the slice files are known:
+
+```bash
+pnpm slice:commit -- "<imperative summary>" <changed files>
+```
+
+Do not run separate ad hoc lint/test/typecheck/build/commit/push sequences unless `slice:commit` is blocked. The wrapper is the canonical single-step closeout: it runs the proceed scan, lint, tests, typecheck, web build, temporary acceptance, research fixture, `data:status`, selected diff review, explicit staging, commit, push, and final status.
+
+When continuing from a broad `proceed` prompt, avoid reopening planning unless repo evidence changed. Pick the next useful slice from the priority order, make the smallest scoped edit, then finish through `pnpm slice:commit -- "<imperative summary>" <changed files>`.
+
 ## Normal Development Loop
 
 Use this sequence only when you need a narrower manual loop:

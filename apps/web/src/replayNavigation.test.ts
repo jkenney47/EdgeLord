@@ -103,6 +103,14 @@ describe("findNextUnlabeledIndex", () => {
       label(bars[3].timestamp)
     ], "SOXL", "4H", 0, "retrospective_replay")).toBeNull();
   });
+
+  it("can advance after a newly captured label and skip already labeled future candles", () => {
+    expect(findNextUnlabeledIndex(bars, [
+      label(bars[0].timestamp),
+      label(bars[1].timestamp),
+      label(bars[2].timestamp)
+    ], "SOXL", "4H", 0, "retrospective_replay")).toBe(3);
+  });
 });
 
 describe("findFirstIndexAfterTimestamp", () => {

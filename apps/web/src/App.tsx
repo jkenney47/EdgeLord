@@ -227,10 +227,14 @@ export function App() {
         potentialVisualLeakage: mode === "regular" && labelSource !== "actual_trade"
       });
       await refreshState();
-      const shouldAdvance = autoAdvance && mode === "replay" && index < bars.length - 1;
-      setCaptureStatus(captureFeedback(result.label.action, shouldAdvance));
-      if (shouldAdvance) {
-        move(1);
+      const labelsAfterCapture = [...labels, result.label];
+      const advanceIndex = autoAdvance && mode === "replay"
+        ? findNextUnlabeledIndex(bars, labelsAfterCapture, ticker, timeframe, index, result.label.label_source)
+        : null;
+      setCaptureStatus(captureFeedback(result.label.action, advanceIndex !== null));
+      if (advanceIndex !== null) {
+        setIndex(advanceIndex);
+        setSelected(bars[advanceIndex] ?? null);
       }
       if (labelSource === "actual_trade") {
         setExecutionPrice("");
@@ -238,7 +242,7 @@ export function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [autoAdvance, bars, executionPrice, index, labelSource, mode, move, openTrade, refreshState, selected, selectedLabels, ticker, timeframe]);
+  }, [autoAdvance, bars, executionPrice, index, labelSource, labels, mode, openTrade, refreshState, selected, selectedLabels, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     setError(null);

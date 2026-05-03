@@ -15,6 +15,7 @@ type Props = {
   captureStatus: string | null;
   nextTarget: DatasetPulse["nextTarget"] | null;
   nextAction: string | null;
+  trainingCoverage: DatasetPulse["trainingCoverage"] | null;
   autoAdvance: boolean;
   executionPrice: string;
   onLabelSource: (source: LabelSource) => void;
@@ -54,6 +55,7 @@ export function CapturePanel({
   captureStatus,
   nextTarget,
   nextAction,
+  trainingCoverage,
   autoAdvance,
   executionPrice,
   onLabelSource,
@@ -77,6 +79,8 @@ export function CapturePanel({
   const blockedReasons = Array.from(new Set(actionBlockReasons.map((item) => item.reason).filter(Boolean)));
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
   const showNextUnlabeledFocusAction = ["skip_coverage", "entry_coverage", "decision_coverage"].includes(nextTarget?.kind ?? "");
+  const weakestYear = trainingCoverage?.weakestYears[0] ?? null;
+  const weakestTickerTimeframe = trainingCoverage?.weakestTickerTimeframes[0] ?? null;
   const openTradeSelectionContext = getOpenTradeSelectionContext(selected, openTrade, ticker);
   const canMarkOpenTradeExit = openTradeSelectionContext?.tone === "active" &&
     getCaptureBlockReason("EXIT", selected, ticker, openTrade, selectedLabels, labelSource) === null;
@@ -100,6 +104,11 @@ export function CapturePanel({
             <strong>{nextTarget.kind.replace(/_/g, " ")}</strong>
             <span>{nextTarget.current}/{nextTarget.target} complete · {nextTarget.remaining} remaining</span>
             <p>{nextAction}</p>
+            {weakestYear || weakestTickerTimeframe ? (
+              <p className="coverage-hint">
+                Thin coverage: {[weakestYear ? `${weakestYear.year} (${weakestYear.rows})` : "", weakestTickerTimeframe ? `${weakestTickerTimeframe.tickerTimeframe} (${weakestTickerTimeframe.rows})` : ""].filter(Boolean).join(" · ")}
+              </p>
+            ) : null}
             {showExitFocusAction ? (
               <button className="secondary compact" onClick={onGoToOpenTradeExitReview}>
                 Review exit <kbd>V</kbd>

@@ -32,6 +32,7 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
   const dataReadiness = summarizeDataReadiness(barSummary);
   const integrity = summarizeLabelIntegrity(activeLabels, trades);
   const tradeCandidates = summarizeTradeCandidateCoverage(activeLabels, trades);
+  const trainingCoverage = summarizeTrainingCoverage(trainingLabels);
   const exitTarget = Math.max(trainingEntries, 1);
   const targetProgress = [
     { key: "decisions", label: "Decisions", current: trainingLabels.length, target: targets.decisions },
@@ -77,9 +78,10 @@ export function buildDatasetPulse(barSummary: BarSummaryRow[], labels: Label[], 
       } : null
     },
     tradeCandidates,
+    trainingCoverage,
     targets: targetProgress,
     nextTarget,
-    nextActions: [nextTarget.action]
+    nextActions: nextActions(nextTarget.action, trainingCoverage)
   };
 }
 
@@ -263,6 +265,52 @@ function target(kind: string, action: string, current: number, targetValue: numb
     target: targetValue,
     remaining: Math.max(0, targetValue - current)
   };
+}
+
+function summarizeTrainingCoverage(labels: Label[]) {
+  const byYear: Record<string, number> = {};
+  const byTickerTimeframe: Record<string, number> = {};
+  const byYearAction: Record<string, number> = {};
+
+  for (const label of labels) {
+    const year = label.timestamp.slice(0, 4) || "(blank)";
+    const tickerTimeframe = `${label.ticker}:${label.timeframe}`;
+    const yearAction = `${year}:${label.action}`;
+    byYear[year] = (byYear[year] ?? 0) + 1;
+    byTickerTimeframe[tickerTimeframe] = (byTickerTimeframe[tickerTimeframe] ?? 0) + 1;
+    byYearAction[yearAction] = (byYearAction[yearAction] ?? 0) + 1;
+  }
+
+  return {
+    years: sortRecord(byYear),
+    tickerTimeframes: sortRecord(byTickerTimeframe),
+    yearActions: sortRecord(byYearAction),
+    weakestYears: weakestRows(byYear, "year"),
+    weakestTickerTimeframes: weakestRows(byTickerTimeframe, "tickerTimeframe")
+  };
+}
+
+function nextActions(action: string, coverage: ReturnType<typeof summarizeTrainingCoverage>): string[] {
+  const actions = [action];
+  const weakestYear = coverage.weakestYears[0];
+  const weakestTickerTimeframe = coverage.weakestTickerTimeframes[0];
+  if (weakestYear || weakestTickerTimeframe) {
+    const yearText = weakestYear ? `year ${weakestYear.year} (${weakestYear.rows})` : "";
+    const tickerTimeframeText = weakestTickerTimeframe ? `${weakestTickerTimeframe.tickerTimeframe} (${weakestTickerTimeframe.rows})` : "";
+    actions.push(`Coverage is thinnest in ${[yearText, tickerTimeframeText].filter(Boolean).join(" and ")}.`);
+  }
+  return actions;
+}
+
+function sortRecord(record: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function weakestRows(record: Record<string, number>, key: "year" | "tickerTimeframe") {
+  return Object.entries(record)
+    .sort(([leftKey, leftRows], [rightKey, rightRows]) => leftRows - rightRows || leftKey.localeCompare(rightKey))
+    .slice(0, 10)
+    .map(([value, rows]) => ({ [key]: value, rows }));
 }
 
 function countBy<T>(rows: T[], key: keyof T): Record<string, number> {

@@ -71,6 +71,13 @@ export type DatasetPulse = {
     closedTradesWithCandidates: number;
     missingClosedTradeCandidateIds: string[];
   };
+  trainingCoverage: {
+    years: Record<string, number>;
+    tickerTimeframes: Record<string, number>;
+    yearActions: Record<string, number>;
+    weakestYears: Array<{ year: string; rows: number }>;
+    weakestTickerTimeframes: Array<{ tickerTimeframe: string; rows: number }>;
+  };
   targets: Array<{
     key: "decisions" | "entries" | "exits" | "skips" | "closedTrades";
     label: string;

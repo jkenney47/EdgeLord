@@ -35,8 +35,14 @@ describe("buildDatasetPulse", () => {
     expect(pulse.targets.find((target) => target.key === "decisions")?.current).toBe(2);
     expect(pulse.targets.find((target) => target.key === "exits")?.target).toBe(1);
     expect(pulse.trades.openTrade?.ticker).toBe("SOXL");
+    expect(pulse.trainingCoverage.years["2024"]).toBe(2);
+    expect(pulse.trainingCoverage.tickerTimeframes["SOXL:4H"]).toBe(2);
+    expect(pulse.trainingCoverage.yearActions["2024:ENTRY"]).toBe(1);
+    expect(pulse.trainingCoverage.weakestYears[0]).toEqual({ year: "2024", rows: 2 });
+    expect(pulse.trainingCoverage.weakestTickerTimeframes[0]).toEqual({ tickerTimeframe: "SOXL:4H", rows: 2 });
     expect(pulse.nextTarget.kind).toBe("exit_coverage");
     expect(pulse.nextActions[0]).toContain("open SOXL trade");
+    expect(pulse.nextActions[1]).toContain("SOXL:4H");
   });
 
   it("pushes exit coverage before skip collection when entries are unpaired", () => {

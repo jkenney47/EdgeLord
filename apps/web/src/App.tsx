@@ -453,6 +453,7 @@ export function App() {
           captureStatus={captureStatus}
           nextTarget={nextTarget}
           nextAction={nextAction}
+          trainingCoverage={datasetPulse?.trainingCoverage ?? null}
           autoAdvance={autoAdvance}
           executionPrice={executionPrice}
           onLabelSource={setLabelSource}

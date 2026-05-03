@@ -271,6 +271,11 @@ a {
   text-transform: capitalize;
 }
 
+.focus-card .coverage-hint {
+  color: #c6d8ef;
+  font-size: 12px;
+}
+
 .ohlc {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

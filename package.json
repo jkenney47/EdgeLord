@@ -27,6 +27,7 @@
     "research:report": "node scripts/research-report.mjs",
     "slice:commit": "node scripts/slice-commit.mjs",
     "slice:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --slice",
+    "symphony:fit": "node scripts/symphony-fit.mjs",
     "validate:csv": "node scripts/validate-csv.mjs",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"
   },

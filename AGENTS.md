@@ -4,6 +4,8 @@ EdgeLord is now a minimal SOXL/SOXS trade labeler. Do not rebuild the old Tradin
 
 When continuing EdgeLord development, use the repo-local skill at `.agents/skills/edgelord-minimal-labeler/SKILL.md` first. It captures the preferred command sequence for proceed/checkpoint/data/import/browser-verification work so future turns do not rediscover it.
 
+When Linear is part of the work loop, also use `.agents/skills/linear-symphony-tracking/SKILL.md`. Treat Linear issues as implementation handoff packets with acceptance criteria, expected files, validation commands, PR links, and proof-of-work notes. Mark completed issues Done and archive them promptly to protect the 250 active issue cap.
+
 For broad "proceed with development" runs, use Codex goals to track the larger objective across multiple coherent slices. Do not mark a goal complete merely because one slice was committed; complete it only when the broader run is actually finished or the user closes/narrows it.
 
 Allowed scope:

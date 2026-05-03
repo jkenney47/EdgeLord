@@ -22,7 +22,7 @@ With the API running, use the repo command:
 pnpm research:report
 ```
 
-That command saves a timestamped export backup under `exports/` and writes the report under `reports/`. The export backup's `manifest.json` embeds the parsed API export manifest, so the folder remains self-describing even when reviewed away from the live API. Both output directories are ignored by git except for `.gitkeep`.
+That command saves a timestamped export backup under `exports/` and writes the report under `reports/`. The export backup's `manifest.json` embeds the parsed API export manifest plus byte counts and SHA-256 hashes for every exported file, so the folder remains self-describing and fingerprinted even when reviewed away from the live API. Both output directories are ignored by git except for `.gitkeep`.
 
 It writes:
 

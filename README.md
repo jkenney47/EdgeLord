@@ -138,7 +138,7 @@ pnpm labels:repair
 
 `checkpoint:minimal-labeler` is the heavier end-of-slice command for backend/data/export/research work. It runs the closeout gate, then `data:status`, then prints final git status. Use it when the local API is already running and you want one command to verify code plus current dataset readiness.
 
-`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `trade-candidates.csv`, `labels.jsonl`, `schema.json`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. The backup manifest embeds the parsed API export manifest so a saved export folder keeps its label counts, training policy, trade status, and trade-candidate coverage without rerunning the API. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
+`export:backup` writes `labels.csv`, `trades.csv`, `training-features.csv`, `trade-candidates.csv`, `labels.jsonl`, `schema.json`, the API export manifest, and a backup manifest into `exports/YYYYMMDDTHHMMSSZ/`. The backup manifest embeds the parsed API export manifest and records byte counts plus SHA-256 hashes for every exported file, so a saved export folder keeps its label counts, training policy, trade status, trade-candidate coverage, and file fingerprints without rerunning the API. Export payloads are ignored by git; only `exports/.gitkeep` is tracked.
 
 `data:coverage` writes SOXL/SOXS `1D`/`4H`/`2H` coverage reports into `reports/` so you can tell whether you are still on sample data or have enough history for research. It writes both markdown and JSON; the JSON includes a readiness code such as `sample_only`, `too_short`, or `ready`.
 

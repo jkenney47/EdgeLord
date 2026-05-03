@@ -88,6 +88,16 @@ For backend/export/research changes, run `pnpm slice:minimal-labeler` after focu
 
 For UI changes, verify in the Codex in-app browser at `http://127.0.0.1:5173/` after code checks. Prefer browser snapshots/clicks for layout and workflow checks.
 
+## Labeling Doctrine
+
+The product direction is hindsight-friendly labeling. Treat regular historical labels and replay labels as equally serious training data.
+
+- `actual_trade`, `retrospective_replay`, and `retrospective_hindsight` labels should all be training-eligible by default.
+- Keep recording `capture_mode`, `visible_until_timestamp`, and `potential_visual_leakage` metadata, but do not use those fields to exclude regular/hindsight labels from exports or research unless the user explicitly asks for a filter.
+- Do not reintroduce "replay-safe only" language in app copy, reports, docs, acceptance checks, or Pine scaffold warnings.
+- The main user workflow is fast historical chart review: mark ENTRY, EXIT, and SKIP decisions directly on the regular view, then use exports/research/Pine scaffolds from those labels.
+- If future work needs stricter anti-hindsight experiments, add an optional segment/filter without changing the default training pipeline.
+
 ## Alpaca Data Path
 
 Alpaca credentials are loaded from `.env` by `pnpm data:alpaca`; do not print secrets.

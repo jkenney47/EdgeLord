@@ -129,6 +129,9 @@ try {
   assert(readFile("dataset-report.md").includes("actions match target columns"), "fixture targets should match actions");
   assert(readFile("dataset-report.md").includes("Trade Candidate Coverage"), "dataset report should include trade candidate coverage");
   assert(readFile("dataset-report.md").includes("closed_trades_with_candidates: 2/2"), "fixture trade candidates should cover closed trades");
+  assert(readFile("dataset-report.md").includes("Training Coverage Matrix"), "dataset report should include training coverage matrix");
+  assert(readFile("dataset-report.md").includes("2024: 5"), "fixture training coverage should count rows by year");
+  assert(readFile("dataset-report.md").includes("SOXL:4H: 3"), "fixture training coverage should count rows by ticker/timeframe");
   assert(readFile("dataset-report.md").includes("Labeling Target Plan"), "dataset report should include a labeling target plan");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
@@ -148,6 +151,10 @@ try {
   assert(datasetReport.returns.count === 2, "dataset report returns should only count training-eligible closed trades");
   assert(datasetReport.readiness.closedTrades === 2, "dataset report readiness should only count training-eligible closed trades");
   assert(datasetReport.labelingPlan.some((item) => item.kind === "closed_trade_coverage" && item.current === 2), "closed-trade labeling target should ignore ineligible closed trades");
+  assert(datasetReport.trainingCoverage.years["2024"] === 5, "dataset report JSON should expose rows by year");
+  assert(datasetReport.trainingCoverage.tickerTimeframes["SOXL:4H"] === 3, "dataset report JSON should expose ticker/timeframe coverage");
+  assert(datasetReport.trainingCoverage.yearActions["2024:ENTRY"] === 2, "dataset report JSON should expose year/action coverage");
+  assert(Array.isArray(datasetReport.trainingCoverage.weakestTickerTimeframes), "dataset report JSON should include weakest ticker/timeframe coverage");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(Array.isArray(datasetReport.issues.sameCandleDecisionConflicts), "dataset report should expose same-candle decision conflicts");
   assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");

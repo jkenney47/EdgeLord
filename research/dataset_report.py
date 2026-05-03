@@ -134,6 +134,82 @@ def format_feature_contrasts(training: list[dict[str, str]]) -> list[str]:
     return lines
 
 
+def training_coverage(training: list[dict[str, str]]) -> dict[str, object]:
+    by_year: Counter[str] = Counter()
+    by_ticker_timeframe: Counter[str] = Counter()
+    by_year_ticker: Counter[str] = Counter()
+    by_year_timeframe: Counter[str] = Counter()
+    by_year_action: Counter[str] = Counter()
+
+    for row in training:
+        timestamp = row.get("timestamp", "")
+        year = timestamp[:4] if len(timestamp) >= 4 else "(blank)"
+        ticker = row.get("ticker", "") or "(blank)"
+        timeframe = row.get("timeframe", "") or "(blank)"
+        action = row.get("action", "") or "(blank)"
+        by_year[year] += 1
+        by_ticker_timeframe[f"{ticker}:{timeframe}"] += 1
+        by_year_ticker[f"{year}:{ticker}"] += 1
+        by_year_timeframe[f"{year}:{timeframe}"] += 1
+        by_year_action[f"{year}:{action}"] += 1
+
+    years = sorted(by_year)
+    return {
+        "years": {year: by_year[year] for year in years},
+        "tickerTimeframes": dict(sorted(by_ticker_timeframe.items())),
+        "yearTickers": dict(sorted(by_year_ticker.items())),
+        "yearTimeframes": dict(sorted(by_year_timeframe.items())),
+        "yearActions": dict(sorted(by_year_action.items())),
+        "weakestYears": [
+            {"year": year, "rows": by_year[year]}
+            for year in sorted(years, key=lambda item: (by_year[item], item))[:10]
+        ],
+        "weakestTickerTimeframes": [
+            {"tickerTimeframe": key, "rows": by_ticker_timeframe[key]}
+            for key in sorted(by_ticker_timeframe, key=lambda item: (by_ticker_timeframe[item], item))[:10]
+        ],
+    }
+
+
+def format_training_coverage(coverage: dict[str, object]) -> list[str]:
+    lines = ["\nTraining Coverage Matrix"]
+    years = coverage.get("years", {})
+    if not isinstance(years, dict) or not years:
+        return [*lines, "  none"]
+
+    lines.append("  rows_by_year:")
+    for year, count in years.items():
+        lines.append(f"    {year}: {count}")
+
+    ticker_timeframes = coverage.get("tickerTimeframes", {})
+    if isinstance(ticker_timeframes, dict) and ticker_timeframes:
+        lines.append("  rows_by_ticker_timeframe:")
+        for key, count in ticker_timeframes.items():
+            lines.append(f"    {key}: {count}")
+
+    weakest_years = coverage.get("weakestYears", [])
+    if isinstance(weakest_years, list) and weakest_years:
+        formatted = ", ".join(
+            f"{item.get('year')}={item.get('rows')}"
+            for item in weakest_years
+            if isinstance(item, dict)
+        )
+        if formatted:
+            lines.append(f"  weakest_years: {formatted}")
+
+    weakest_ticker_timeframes = coverage.get("weakestTickerTimeframes", [])
+    if isinstance(weakest_ticker_timeframes, list) and weakest_ticker_timeframes:
+        formatted = ", ".join(
+            f"{item.get('tickerTimeframe')}={item.get('rows')}"
+            for item in weakest_ticker_timeframes
+            if isinstance(item, dict)
+        )
+        if formatted:
+            lines.append(f"  weakest_ticker_timeframes: {formatted}")
+
+    return lines
+
+
 def sequence_issues(labels: list[dict[str, str]]) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     open_label: dict[str, str] | None = None
@@ -597,6 +673,7 @@ def dataset_summary(
         target_issues,
         trade_candidate_status,
     )
+    coverage = training_coverage(training)
     return {
         "version": "edgelord.dataset_report.v1",
         "counts": {
@@ -631,6 +708,7 @@ def dataset_summary(
         "tradeStatus": counter_dict(trades, "status"),
         "returns": return_summary(training_eligible_closed_trades(labels, trades)),
         "featureCoverage": feature_coverage_summary(training),
+        "trainingCoverage": coverage,
         "labelingPlan": labeling_plan,
         "issues": {
             "orphanExits": [
@@ -795,6 +873,7 @@ def main() -> None:
     lines.extend(format_training_row_issues(training_issues))
     lines.extend(format_target_encoding_issues(target_issues))
     lines.extend(format_trade_candidate_summary(trade_candidate_status))
+    lines.extend(format_training_coverage(training_coverage(training)))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
     lines.extend(format_labeling_target_plan(labeling_target_plan(

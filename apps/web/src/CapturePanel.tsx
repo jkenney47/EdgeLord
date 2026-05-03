@@ -78,6 +78,8 @@ export function CapturePanel({
   const showExitFocusAction = nextTarget?.kind === "exit_coverage" && Boolean(openTradeEntryLabel);
   const showNextUnlabeledFocusAction = ["skip_coverage", "entry_coverage", "decision_coverage"].includes(nextTarget?.kind ?? "");
   const openTradeSelectionContext = getOpenTradeSelectionContext(selected, openTrade, ticker);
+  const canMarkOpenTradeExit = openTradeSelectionContext?.tone === "active" &&
+    getCaptureBlockReason("EXIT", selected, ticker, openTrade, selectedLabels, labelSource) === null;
   const featureRows: Array<[string, unknown]> = selectedFeatures ? [
     ["EMA25", selectedFeatures.ema25],
     ["SMA100", selectedFeatures.sma100],
@@ -151,6 +153,11 @@ export function CapturePanel({
                   <span className={openTradeSelectionContext.returnPct >= 0 ? "return-positive" : "return-negative"}>
                     Marked return {openTradeSelectionContext.returnPct.toFixed(2)}%
                   </span>
+                ) : null}
+                {canMarkOpenTradeExit ? (
+                  <button className="primary-exit" onClick={() => onCapture("EXIT")}>
+                    Mark exit here <kbd>X</kbd>
+                  </button>
                 ) : null}
               </div>
             ) : null}

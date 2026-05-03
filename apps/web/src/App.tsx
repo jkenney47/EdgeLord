@@ -323,6 +323,7 @@ export function App() {
 
   useEffect(() => {
     if (nextTarget?.kind !== "exit_coverage" || !openTrade || pendingSelection) return;
+    if (bars.length === 0) return;
     if (autoExitFocusTradeId.current === openTrade.id) return;
     const entryLabel = labels.find((label) => label.id === openTrade.entry_label_id);
     if (!entryLabel) return;
@@ -337,7 +338,7 @@ export function App() {
     setMode("replay");
     setTicker(entryLabel.ticker);
     setTimeframe(entryLabel.timeframe);
-  }, [labels, nextTarget?.kind, openTrade, pendingSelection]);
+  }, [bars.length, labels, nextTarget?.kind, openTrade, pendingSelection]);
 
   const goToLabel = useCallback((label: Label) => {
     setError(null);

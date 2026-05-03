@@ -25,6 +25,7 @@
     "proceed:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --proceed",
     "research:fixture-check": "node scripts/research-fixture-check.mjs",
     "research:report": "node scripts/research-report.mjs",
+    "slice:commit": "node scripts/slice-commit.mjs",
     "slice:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs --slice",
     "validate:csv": "node scripts/validate-csv.mjs",
     "workflow:minimal-labeler": "node scripts/minimal-labeler-workflow.mjs"

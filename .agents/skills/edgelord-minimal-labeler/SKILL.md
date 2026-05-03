@@ -45,14 +45,10 @@ If the tree is clean, pick the next slice in this order unless the user gave a n
 After edits, run:
 
 ```bash
-pnpm slice:minimal-labeler
-git diff --stat
-git diff -- <changed files>
-git add <changed files>
-git commit -m "<imperative summary>"
-git push
-git status --short --branch
+pnpm slice:commit -- "<imperative summary>" <changed files>
 ```
+
+This wrapper runs `pnpm slice:minimal-labeler`, prints the selected diff for review, stages only the listed files, commits, pushes, and prints final status. Keep using explicit file paths so unrelated local changes such as `.codex/config.toml` are not staged.
 
 Skip the separate `pnpm proceed:minimal-labeler` orientation command unless you need recent checkpoint context before choosing a slice. `pnpm slice:minimal-labeler` already includes the proceed scan.
 
@@ -122,9 +118,7 @@ git status --short --branch
 Commit and push coherent slices when requested or when a natural milestone is complete:
 
 ```bash
-git add <changed files>
-git commit -m "<imperative summary>"
-git push
+pnpm slice:commit -- "<imperative summary>" <changed files>
 ```
 
 Do not commit ignored `data/`, `exports/`, or generated `reports/` artifacts.

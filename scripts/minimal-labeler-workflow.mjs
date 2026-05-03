@@ -675,6 +675,10 @@ if (shouldCloseout || shouldCheckpoint) {
   run("pnpm", ["lint"]);
 }
 
+if (shouldCloseout || shouldCheckpoint) {
+  run("pnpm", ["hindsight:doctrine"]);
+}
+
 run("pnpm", ["verify"]);
 
 if (shouldRunAcceptance) {

@@ -436,7 +436,7 @@ def labeling_target_plan(
             "current": excluded,
             "target": 0,
             "remaining": excluded,
-            "action": "Review excluded labels before modeling; regular and hindsight labels should normally be training-eligible.",
+            "action": "Review excluded labels before modeling; standard chart-review labels should normally be training-eligible.",
         })
 
     return plan
@@ -1085,7 +1085,7 @@ def main() -> None:
     ):
         lines.append("  fix dataset consistency/state-machine/orphan trade-link issues before modeling")
     if excluded_labels:
-        lines.append("  excluded labels are present; regular and hindsight labels should normally be training-eligible")
+        lines.append("  excluded labels are present; standard chart-review labels should normally be training-eligible")
 
     lines.extend(next_label_recommendations(
         labels,

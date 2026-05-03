@@ -19,6 +19,7 @@
     "data:coverage": "node scripts/data-coverage.mjs --write",
     "data:status": "node scripts/data-status.mjs",
     "export:backup": "node scripts/export-backup.mjs",
+    "hindsight:doctrine": "node scripts/hindsight-doctrine-check.mjs",
     "import:csv": "node scripts/import-csv.mjs",
     "labels:integrity": "node scripts/label-integrity.mjs --write",
     "labels:repair": "node scripts/label-integrity.mjs --repair",

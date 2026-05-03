@@ -39,6 +39,7 @@ function readFile(name) {
 }
 
 function writeResearchSummaryFixture() {
+  const fixtureSha256 = "a".repeat(64);
   const summary = {
     version: "edgelord.research_summary.v1",
     createdAt: "2024-01-01T00:00:00.000Z",
@@ -48,7 +49,14 @@ function writeResearchSummaryFixture() {
       pineStrategy: "reports/fixture-strategy-soxl-soxs.pine",
       strategyRules: "reports/fixture-strategy-rules.v1.json",
     },
-    exports: [],
+    exports: [
+      {
+        name: "labels.csv",
+        route: "/export/labels.csv",
+        bytes: 128,
+        sha256: fixtureSha256
+      }
+    ],
     exportManifest: {
       version: "edgelord.export_manifest.v1",
       tradeCandidates: {
@@ -380,6 +388,8 @@ try {
   const summary = JSON.parse(readFile("research-summary.json"));
   assert(summary.version === "edgelord.research_summary.v1", "research summary should carry the expected version");
   assert(summary.artifacts.pineStrategy, "research summary should include artifact paths");
+  assert(summary.exports.length > 0, "research summary should include fingerprinted export entries");
+  assert(summary.exports.every((item) => /^[a-f0-9]{64}$/.test(item.sha256)), "research summary exports should include SHA-256 fingerprints");
   assert(summary.exportManifest.tradeCandidates.rows === 4, "research summary should embed export manifest trade candidate coverage");
   assert(summary.dataset.trainingCoverage.years["2024"] === 5, "research summary should embed training coverage by year");
   assert(summary.dataset.trainingCoverage.weakestTickerTimeframes[0].tickerTimeframe === "SOXS:4H", "research summary should embed weak coverage buckets");

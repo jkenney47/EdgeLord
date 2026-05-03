@@ -4,18 +4,18 @@ import { exportManifest } from "./export";
 import type { Label, Trade } from "./schema";
 
 describe("exportManifest", () => {
-  it("does not require trade candidates for closed trades with ineligible entry and exit labels", () => {
+  it("does not require trade candidates for closed trades with explicitly ineligible entry and exit labels", () => {
     const labels = [
       label("ENTRY", {
         id: "entry",
-        label_source: "retrospective_hindsight",
+        label_source: "retrospective_replay",
         training_eligible: 0,
         action: "ENTRY",
         trade_id: "trade"
       }),
       label("EXIT", {
         id: "exit",
-        label_source: "retrospective_hindsight",
+        label_source: "retrospective_replay",
         training_eligible: 0,
         action: "EXIT",
         trade_id: "trade",

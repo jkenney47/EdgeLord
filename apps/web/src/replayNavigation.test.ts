@@ -66,7 +66,7 @@ describe("findReplayResumeIndex", () => {
 
   it("does not let other label sources advance replay resume", () => {
     expect(findReplayResumeIndex(bars, [
-      label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 0 })
+      label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 1 })
     ], "SOXL", "4H", "retrospective_replay")).toBe(0);
   });
 });
@@ -166,7 +166,7 @@ describe("findNextUnlabeledIndexAfterTimestamp", () => {
   it("ignores later labels from other sources", () => {
     expect(findNextUnlabeledIndexAfterTimestamp(
       bars,
-      [label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 0 })],
+      [label(bars[1].timestamp, { label_source: "retrospective_hindsight", training_eligible: 1 })],
       "SOXL",
       "4H",
       bars[0].timestamp,

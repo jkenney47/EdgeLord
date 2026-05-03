@@ -20,7 +20,7 @@ describe("buildDatasetPulse", () => {
     const labels = [
       label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
       label("SKIP", { id: "skip", training_eligible: 1, timestamp: "2024-01-02T18:30:00.000Z" }),
-      label("SKIP", { id: "hindsight", label_source: "retrospective_hindsight", training_eligible: 0 })
+      label("SKIP", { id: "hindsight", label_source: "retrospective_hindsight", training_eligible: 1 })
     ];
     const trades = [trade("open")];
 
@@ -35,17 +35,17 @@ describe("buildDatasetPulse", () => {
     });
     expect(pulse.dataReadiness.unresolvedTargetGap?.gapYears).toBe(5);
     expect(pulse.labels.total).toBe(3);
-    expect(pulse.labels.trainingEligible).toBe(2);
-    expect(pulse.labels.excluded).toBe(1);
+    expect(pulse.labels.trainingEligible).toBe(3);
+    expect(pulse.labels.excluded).toBe(0);
     expect(pulse.integrity.ready).toBe(true);
-    expect(pulse.targets.find((target) => target.key === "decisions")?.current).toBe(2);
+    expect(pulse.targets.find((target) => target.key === "decisions")?.current).toBe(3);
     expect(pulse.targets.find((target) => target.key === "exits")?.target).toBe(1);
     expect(pulse.trades.openTrade?.ticker).toBe("SOXL");
-    expect(pulse.trainingCoverage.years["2024"]).toBe(2);
-    expect(pulse.trainingCoverage.tickerTimeframes["SOXL:4H"]).toBe(2);
+    expect(pulse.trainingCoverage.years["2024"]).toBe(3);
+    expect(pulse.trainingCoverage.tickerTimeframes["SOXL:4H"]).toBe(3);
     expect(pulse.trainingCoverage.yearActions["2024:ENTRY"]).toBe(1);
-    expect(pulse.trainingCoverage.weakestYears[0]).toEqual({ year: "2024", rows: 2 });
-    expect(pulse.trainingCoverage.weakestTickerTimeframes[0]).toEqual({ tickerTimeframe: "SOXL:4H", rows: 2 });
+    expect(pulse.trainingCoverage.weakestYears[0]).toEqual({ year: "2024", rows: 3 });
+    expect(pulse.trainingCoverage.weakestTickerTimeframes[0]).toEqual({ tickerTimeframe: "SOXL:4H", rows: 3 });
     expect(pulse.nextTarget.kind).toBe("exit_coverage");
     expect(pulse.nextActions[0]).toContain("open SOXL trade");
     expect(pulse.nextActions[1]).toContain("SOXL:4H");
@@ -81,7 +81,7 @@ describe("buildDatasetPulse", () => {
     expect(pulse.nextActions[0]).toContain("SKIP labels");
   });
 
-  it("does not count ineligible closed trades toward closed-trade target progress", () => {
+  it("does not count explicitly ineligible closed trades toward closed-trade target progress", () => {
     const labels = [
       label("ENTRY", { id: "entry", trade_id: "trade", training_eligible: 1 }),
       label("EXIT", {
@@ -93,17 +93,17 @@ describe("buildDatasetPulse", () => {
         chart_price: 29
       }),
       label("ENTRY", {
-        id: "hindsight-entry",
-        label_source: "retrospective_hindsight",
-        trade_id: "hindsight-trade",
+        id: "ineligible-entry",
+        label_source: "retrospective_replay",
+        trade_id: "ineligible-trade",
         training_eligible: 0,
         timestamp: "2024-01-04T14:30:00.000Z"
       }),
       label("EXIT", {
-        id: "hindsight-exit",
-        label_source: "retrospective_hindsight",
-        trade_id: "hindsight-trade",
-        parent_entry_label_id: "hindsight-entry",
+        id: "ineligible-exit",
+        label_source: "retrospective_replay",
+        trade_id: "ineligible-trade",
+        parent_entry_label_id: "ineligible-entry",
         training_eligible: 0,
         timestamp: "2024-01-05T14:30:00.000Z",
         chart_price: 29
@@ -113,9 +113,9 @@ describe("buildDatasetPulse", () => {
       trade("closed"),
       {
         ...trade("closed"),
-        id: "hindsight-trade",
-        entry_label_id: "hindsight-entry",
-        exit_label_id: "hindsight-exit",
+        id: "ineligible-trade",
+        entry_label_id: "ineligible-entry",
+        exit_label_id: "ineligible-exit",
         entry_timestamp: "2024-01-04T14:30:00.000Z",
         exit_timestamp: "2024-01-05T14:30:00.000Z"
       }

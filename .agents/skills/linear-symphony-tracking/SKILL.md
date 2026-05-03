@@ -16,15 +16,22 @@ Use this with EdgeLord Linear work so issues stay useful as implementation packe
 
 ## Issue Shape
 
-Each meaningful EdgeLord implementation issue should include:
+Each meaningful EdgeLord implementation issue should be an execution spec with:
 
-- objective,
-- acceptance criteria,
-- expected files or repo surfaces,
-- validation commands such as `pnpm verify`, `pnpm slice:minimal-labeler`, or `pnpm data:status`,
-- data/labeling risk boundary,
+- title: action-oriented and outcome-specific,
+- goal: the concrete result this issue should produce,
+- why it matters: short product, research, or operational context,
+- current state: relevant behavior, files, docs, commands, screenshots, or known gaps,
+- scope included: behavior, files, screens, scripts, exports, or data flows to change,
+- scope excluded / non-goals: adjacent work Codex should avoid in this issue,
+- required work: ordered implementation tasks,
+- acceptance criteria: observable behavior that must be true when the issue is done,
+- validation: exact commands such as `pnpm verify`, `pnpm slice:minimal-labeler`, `pnpm data:status`, or focused browser checks,
+- dependencies/blockers: secrets, access, data/labeling risk boundaries, upstream decisions, or risky replacement steps,
 - PR link once opened,
-- final proof-of-work summary before Done.
+- completion handoff: final proof-of-work summary, validation results, changed files, and any follow-ups before Done.
+
+Avoid issue bodies like "Improve labeler UI" or "Work on exports." Replace them with bounded packets such as "Keep exit-review capture panel within one viewport" or "Add manifest coverage for trade-candidate export rows."
 
 ## State Hygiene
 
@@ -34,6 +41,18 @@ Use this normal lifecycle:
 2. `In Progress`: exactly one normal active implementation issue.
 3. `Done`: validated and PR/merge status is clear.
 4. Archive completed issues immediately to protect the 250 active issue cap.
+
+Use the repo-local Linear sync commands so issue state stays attached to execution evidence:
+
+```bash
+pnpm linear:roadmap
+pnpm linear:issue -- JOE-123
+pnpm linear:start -- JOE-123
+pnpm linear:comment -- JOE-123 --body-file /tmp/proof.md
+pnpm linear:done -- JOE-123
+```
+
+Do not mark an issue Done just because one slice passed. Mark it Done only when the issue acceptance criteria are satisfied, validation passed, and the repo state is clear enough for handoff.
 
 Archive command:
 

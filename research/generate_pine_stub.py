@@ -158,6 +158,7 @@ def dataset_readiness_payload(dataset_report: dict[str, Any] | None) -> dict[str
         "sourceVersion": dataset_report.get("version"),
         "counts": dataset_report.get("counts", {}),
         "readiness": dataset_report.get("readiness", {}),
+        "strategyReadiness": dataset_report.get("strategyReadiness", {}),
         "issues": dataset_report.get("issues", {}),
     }
 
@@ -171,20 +172,34 @@ def promotion_status(
 ) -> dict[str, Any]:
     warnings: list[str] = []
     readiness = {}
+    strategy_readiness = {}
     if dataset_report:
         readiness_value = dataset_report.get("readiness", {})
         if isinstance(readiness_value, dict):
             readiness = readiness_value
+        strategy_readiness_value = dataset_report.get("strategyReadiness", {})
+        if isinstance(strategy_readiness_value, dict):
+            strategy_readiness = strategy_readiness_value
 
-    if dataset_report and not readiness.get("readyForRuleMining"):
+    human_mimic = strategy_readiness.get("humanMimic", {})
+    return_optimizer = strategy_readiness.get("returnOptimizer", {})
+    exit_rules = strategy_readiness.get("exitRules", {})
+    if not isinstance(human_mimic, dict):
+        human_mimic = {}
+    if not isinstance(return_optimizer, dict):
+        return_optimizer = {}
+    if not isinstance(exit_rules, dict):
+        exit_rules = {}
+
+    if dataset_report and not (human_mimic.get("ready") if human_mimic else readiness.get("readyForRuleMining")):
         warnings.append("Dataset is not ready for rule mining. Add replay-safe ENTRY and SKIP labels and resolve sequence issues.")
-    if dataset_report and not readiness.get("readyForReturnAnalysis"):
+    if dataset_report and not (return_optimizer.get("ready") if return_optimizer else readiness.get("readyForReturnAnalysis")):
         warnings.append("Dataset is not ready for return analysis. Add closed trades with EXIT labels before treating return rules as meaningful.")
-    if dataset_report and not readiness.get("readyForExitRuleMining"):
+    if dataset_report and not (exit_rules.get("ready") if exit_rules else readiness.get("readyForExitRuleMining")):
         warnings.append("Dataset is not ready for exit-rule mining. Add closed trades with in-trade HOLD and EXIT candidate rows before treating exit signals as meaningful.")
-    if dataset_report and not readiness.get("readyForRoughRuleMining"):
+    if dataset_report and not (human_mimic.get("roughReady") if human_mimic else readiness.get("readyForRoughRuleMining")):
         warnings.append("Dataset is below rough rule-mining targets. Treat generated rules as plumbing checks, not strategy evidence.")
-    if dataset_report and not readiness.get("readyForRoughReturnAnalysis"):
+    if dataset_report and not (return_optimizer.get("roughReady") if return_optimizer else readiness.get("readyForRoughReturnAnalysis")):
         warnings.append("Dataset is below rough return-analysis targets. Do not promote return-optimized rules yet.")
     if not dataset_report:
         warnings.append("No dataset readiness report was provided.")
@@ -386,23 +401,36 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
         return ["// Dataset readiness: no dataset report provided"]
 
     readiness = dataset_report.get("readiness", {})
+    strategy_readiness = dataset_report.get("strategyReadiness", {})
     counts = dataset_report.get("counts", {})
     if not isinstance(readiness, dict):
         readiness = {}
+    if not isinstance(strategy_readiness, dict):
+        strategy_readiness = {}
     if not isinstance(counts, dict):
         counts = {}
 
-    rule_state = "ready" if readiness.get("readyForRuleMining") else "not ready"
-    return_state = "ready" if readiness.get("readyForReturnAnalysis") else "not ready"
-    rough_rule_state = "ready" if readiness.get("readyForRoughRuleMining") else "not ready"
-    rough_return_state = "ready" if readiness.get("readyForRoughReturnAnalysis") else "not ready"
-    exit_rule_state = "ready" if readiness.get("readyForExitRuleMining") else "not ready"
-    decision_rows = readiness.get("decisionRows", 0)
-    entry_rows = readiness.get("entryRows", 0)
-    skip_rows = readiness.get("skipRows", 0)
-    closed_trades = readiness.get("closedTrades", 0)
-    exit_candidate_rows = readiness.get("tradeCandidateExitRows", 0)
-    hold_candidate_rows = readiness.get("tradeCandidateHoldRows", 0)
+    human_mimic = strategy_readiness.get("humanMimic", {})
+    return_optimizer = strategy_readiness.get("returnOptimizer", {})
+    exit_rules = strategy_readiness.get("exitRules", {})
+    if not isinstance(human_mimic, dict):
+        human_mimic = {}
+    if not isinstance(return_optimizer, dict):
+        return_optimizer = {}
+    if not isinstance(exit_rules, dict):
+        exit_rules = {}
+
+    rule_state = "ready" if (human_mimic.get("ready") if human_mimic else readiness.get("readyForRuleMining")) else "not ready"
+    return_state = "ready" if (return_optimizer.get("ready") if return_optimizer else readiness.get("readyForReturnAnalysis")) else "not ready"
+    rough_rule_state = "ready" if (human_mimic.get("roughReady") if human_mimic else readiness.get("readyForRoughRuleMining")) else "not ready"
+    rough_return_state = "ready" if (return_optimizer.get("roughReady") if return_optimizer else readiness.get("readyForRoughReturnAnalysis")) else "not ready"
+    exit_rule_state = "ready" if (exit_rules.get("ready") if exit_rules else readiness.get("readyForExitRuleMining")) else "not ready"
+    decision_rows = human_mimic.get("decisionRows", readiness.get("decisionRows", 0))
+    entry_rows = human_mimic.get("entryRows", readiness.get("entryRows", 0))
+    skip_rows = human_mimic.get("skipRows", readiness.get("skipRows", 0))
+    closed_trades = return_optimizer.get("closedTrades", readiness.get("closedTrades", 0))
+    exit_candidate_rows = exit_rules.get("exitRows", readiness.get("tradeCandidateExitRows", 0))
+    hold_candidate_rows = exit_rules.get("holdRows", readiness.get("tradeCandidateHoldRows", 0))
     sequence_issues = counts.get("sequenceIssues", 0)
     targets = readiness.get("targets", {})
     if not isinstance(targets, dict):
@@ -412,11 +440,11 @@ def readiness_comments(dataset_report: dict[str, Any] | None) -> list[str]:
     skip_target = targets.get("roughRuleMiningSkipRows", 100)
     closed_target = targets.get("roughReturnAnalysisClosedTrades", 30)
     return [
-        f"// Dataset rule-mining readiness: {rule_state} ({entry_rows} entries / {skip_rows} skips / {sequence_issues} sequence issues)",
-        f"// Dataset return-analysis readiness: {return_state} ({closed_trades} eligible closed trades)",
-        f"// Dataset exit-rule readiness: {exit_rule_state} ({exit_candidate_rows} exit candidates / {hold_candidate_rows} hold candidates)",
-        f"// Rough rule-mining target: {rough_rule_state} ({decision_rows}/{decision_target} decisions, {entry_rows}/{entry_target} entries, {skip_rows}/{skip_target} skips)",
-        f"// Rough return-analysis target: {rough_return_state} ({closed_trades}/{closed_target} eligible closed trades)",
+        f"// Human-mimic readiness: {rule_state} ({entry_rows} entries / {skip_rows} skips / {sequence_issues} sequence issues)",
+        f"// Return-optimizer readiness: {return_state} ({closed_trades} eligible closed trades)",
+        f"// Exit-rule readiness: {exit_rule_state} ({exit_candidate_rows} exit candidates / {hold_candidate_rows} hold candidates)",
+        f"// Rough human-mimic target: {rough_rule_state} ({decision_rows}/{decision_target} decisions, {entry_rows}/{entry_target} entries, {skip_rows}/{skip_target} skips)",
+        f"// Rough return-optimizer target: {rough_return_state} ({closed_trades}/{closed_target} eligible closed trades)",
     ]
 
 

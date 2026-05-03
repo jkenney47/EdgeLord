@@ -579,6 +579,146 @@ def trade_candidate_has_issues(summary: dict[str, object]) -> bool:
     )
 
 
+def strategy_readiness(
+    labels: list[dict[str, str]],
+    training: list[dict[str, str]],
+    trades: list[dict[str, str]],
+    orphan_exits: list[dict[str, str]],
+    entries_without_trade: list[dict[str, str]],
+    state_sequence_issues: list[dict[str, str]],
+    decision_conflicts: list[dict[str, object]],
+    training_issues: dict[str, list[str]],
+    target_issues: list[dict[str, str]],
+    trade_candidate_status: dict[str, object],
+) -> dict[str, object]:
+    training_actions = count_by(training, "action")
+    entry_count = training_actions.get("ENTRY", 0)
+    skip_count = training_actions.get("SKIP", 0)
+    exit_count = training_actions.get("EXIT", 0)
+    decision_count = len(training)
+    closed_trade_count = len(training_eligible_closed_trades(labels, trades))
+    consistency_issues = (
+        len(orphan_exits) +
+        len(entries_without_trade) +
+        len(state_sequence_issues) +
+        len(decision_conflicts) +
+        len(training_issues["missingEligibleLabelIds"]) +
+        len(training_issues["extraTrainingLabelIds"]) +
+        len(training_issues["duplicateTrainingLabelIds"]) +
+        len(target_issues)
+    )
+    if trade_candidate_has_issues(trade_candidate_status):
+        consistency_issues += (
+            len(trade_candidate_status["missingClosedTradeCandidateIds"]) +
+            len(trade_candidate_status["extraCandidateTradeIds"]) +
+            len(trade_candidate_status["duplicateCandidateIds"])
+        )
+
+    human_mimic_ready = consistency_issues == 0 and entry_count > 0 and skip_count > 0
+    return_optimizer_ready = human_mimic_ready and closed_trade_count > 0 and exit_count > 0
+    exit_rule_ready = (
+        return_optimizer_ready and
+        trade_candidate_status["exitRows"] > 0 and
+        trade_candidate_status["holdRows"] > 0 and
+        not trade_candidate_has_issues(trade_candidate_status)
+    )
+    rough_human_mimic_ready = (
+        human_mimic_ready and
+        entry_count >= ENTRY_ROUGH_TARGET and
+        skip_count >= SKIP_ROUGH_TARGET and
+        decision_count >= DECISION_ROUGH_TARGET
+    )
+    rough_return_optimizer_ready = (
+        rough_human_mimic_ready and
+        closed_trade_count >= CLOSED_TRADE_ROUGH_TARGET and
+        exit_count >= ENTRY_ROUGH_TARGET
+    )
+
+    blockers: dict[str, list[str]] = {
+        "humanMimic": [],
+        "returnOptimizer": [],
+        "exitRules": [],
+    }
+    if consistency_issues:
+        blockers["humanMimic"].append(f"fix {consistency_issues} dataset consistency issue(s)")
+    if entry_count == 0:
+        blockers["humanMimic"].append("add at least one replay-safe ENTRY label")
+    if skip_count == 0:
+        blockers["humanMimic"].append("add at least one replay-safe SKIP label")
+    if decision_count < DECISION_ROUGH_TARGET:
+        blockers["humanMimic"].append(f"rough target needs {DECISION_ROUGH_TARGET - decision_count} more decision row(s)")
+    if entry_count < ENTRY_ROUGH_TARGET:
+        blockers["humanMimic"].append(f"rough target needs {ENTRY_ROUGH_TARGET - entry_count} more ENTRY row(s)")
+    if skip_count < SKIP_ROUGH_TARGET:
+        blockers["humanMimic"].append(f"rough target needs {SKIP_ROUGH_TARGET - skip_count} more SKIP row(s)")
+
+    if not human_mimic_ready:
+        blockers["returnOptimizer"].append("human-mimic readiness is blocked")
+    if closed_trade_count == 0:
+        blockers["returnOptimizer"].append("add at least one training-eligible closed trade")
+    if exit_count == 0:
+        blockers["returnOptimizer"].append("add at least one replay-safe EXIT label")
+    if closed_trade_count < CLOSED_TRADE_ROUGH_TARGET:
+        blockers["returnOptimizer"].append(f"rough target needs {CLOSED_TRADE_ROUGH_TARGET - closed_trade_count} more eligible closed trade(s)")
+    if exit_count < ENTRY_ROUGH_TARGET:
+        blockers["returnOptimizer"].append(f"rough target needs {ENTRY_ROUGH_TARGET - exit_count} more EXIT row(s)")
+
+    if not return_optimizer_ready:
+        blockers["exitRules"].append("return-optimizer readiness is blocked")
+    if trade_candidate_status["exitRows"] == 0:
+        blockers["exitRules"].append("trade-candidates.csv needs EXIT rows")
+    if trade_candidate_status["holdRows"] == 0:
+        blockers["exitRules"].append("trade-candidates.csv needs HOLD rows")
+    if trade_candidate_has_issues(trade_candidate_status):
+        blockers["exitRules"].append("fix trade-candidate link issues")
+
+    return {
+        "humanMimic": {
+            "ready": human_mimic_ready,
+            "roughReady": rough_human_mimic_ready,
+            "decisionRows": decision_count,
+            "entryRows": entry_count,
+            "skipRows": skip_count,
+            "blockers": blockers["humanMimic"],
+        },
+        "returnOptimizer": {
+            "ready": return_optimizer_ready,
+            "roughReady": rough_return_optimizer_ready,
+            "closedTrades": closed_trade_count,
+            "exitRows": exit_count,
+            "blockers": blockers["returnOptimizer"],
+        },
+        "exitRules": {
+            "ready": exit_rule_ready,
+            "tradeCandidateRows": trade_candidate_status["rows"],
+            "exitRows": trade_candidate_status["exitRows"],
+            "holdRows": trade_candidate_status["holdRows"],
+            "blockers": blockers["exitRules"],
+        },
+    }
+
+
+def format_strategy_readiness(readiness: dict[str, object]) -> list[str]:
+    lines = ["\nStrategy Discovery Readiness"]
+    labels = [
+        ("humanMimic", "Human-mimic rules"),
+        ("returnOptimizer", "Return optimizer"),
+        ("exitRules", "Exit-rule mining"),
+    ]
+    for key, label in labels:
+        item = readiness.get(key, {})
+        if not isinstance(item, dict):
+            continue
+        status = "ready" if item.get("ready") else "blocked"
+        rough_status = "rough-ready" if item.get("roughReady") else "rough-not-ready"
+        lines.append(f"  {label}: {status}, {rough_status}")
+        blockers = item.get("blockers", [])
+        if isinstance(blockers, list) and blockers:
+            for blocker in blockers[:6]:
+                lines.append(f"    - {blocker}")
+    return lines
+
+
 def format_trade_candidate_summary(summary: dict[str, object]) -> list[str]:
     lines = ["\nTrade Candidate Coverage"]
     actions = summary["actions"]
@@ -674,6 +814,18 @@ def dataset_summary(
         trade_candidate_status,
     )
     coverage = training_coverage(training)
+    strategy_status = strategy_readiness(
+        labels,
+        training,
+        trades,
+        orphan_exits,
+        entries_without_trade,
+        state_sequence_issues,
+        decision_conflicts,
+        training_issues,
+        target_issues,
+        trade_candidate_status,
+    )
     return {
         "version": "edgelord.dataset_report.v1",
         "counts": {
@@ -709,6 +861,7 @@ def dataset_summary(
         "returns": return_summary(training_eligible_closed_trades(labels, trades)),
         "featureCoverage": feature_coverage_summary(training),
         "trainingCoverage": coverage,
+        "strategyReadiness": strategy_status,
         "labelingPlan": labeling_plan,
         "issues": {
             "orphanExits": [
@@ -838,6 +991,18 @@ def main() -> None:
     training_issues = training_row_issues(labels, training)
     target_issues = target_encoding_issues(training)
     trade_candidate_status = trade_candidate_summary(labels, trades, trade_candidates)
+    strategy_status = strategy_readiness(
+        labels,
+        training,
+        trades,
+        orphan_exits,
+        entries_without_trade,
+        decision_conflicts=decision_conflicts,
+        state_sequence_issues=state_sequence_issues,
+        training_issues=training_issues,
+        target_issues=target_issues,
+        trade_candidate_status=trade_candidate_status,
+    )
 
     lines = [
         "EdgeLord Dataset Report",
@@ -876,6 +1041,7 @@ def main() -> None:
     lines.extend(format_training_coverage(training_coverage(training)))
     lines.extend(format_feature_coverage(training))
     lines.extend(format_feature_contrasts(training))
+    lines.extend(format_strategy_readiness(strategy_status))
     lines.extend(format_labeling_target_plan(labeling_target_plan(
         labels,
         training,

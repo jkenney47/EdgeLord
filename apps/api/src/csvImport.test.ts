@@ -27,6 +27,24 @@ describe("parseBarsCsv", () => {
     expect(() => parseBarsCsv("ticker,timestamp,close\nSOXL,2024-01-02T14:30:00.000Z,10")).toThrow(CsvImportValidationError);
   });
 
+  it("rejects duplicate headers", () => {
+    const csv = [
+      "ticker,timestamp,open,high,low,close,volume,close",
+      "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000,10.6"
+    ].join("\n");
+
+    expect(() => parseBarsCsv(csv)).toThrow(/duplicate columns: close/);
+  });
+
+  it("rejects rows with the wrong number of columns", () => {
+    const csv = [
+      "ticker,timestamp,open,high,low,close,volume",
+      "SOXL,2024-01-02T14:30:00.000Z,10,11,9,10.5,1000,ignored"
+    ].join("\n");
+
+    expect(() => parseBarsCsv(csv)).toThrow(/expected 7 columns, found 8/);
+  });
+
   it("rejects bad rows instead of silently dropping them", () => {
     const csv = [
       "ticker,timestamp,open,high,low,close,volume",

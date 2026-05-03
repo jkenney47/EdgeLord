@@ -44,6 +44,16 @@ function parseLine(line: string): string[] {
   return values.map((value) => value.replace(/^"|"$/g, ""));
 }
 
+function duplicateHeaders(headers: string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const header of headers) {
+    if (seen.has(header)) duplicates.add(header);
+    seen.add(header);
+  }
+  return [...duplicates];
+}
+
 export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
   const lines = csv.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length < 2) {
@@ -55,6 +65,10 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
   if (missingColumns.length > 0) {
     throw new CsvImportValidationError([`CSV missing required columns: ${missingColumns.join(", ")}`]);
   }
+  const duplicatedHeaders = duplicateHeaders(headers);
+  if (duplicatedHeaders.length > 0) {
+    throw new CsvImportValidationError([`CSV has duplicate columns: ${duplicatedHeaders.join(", ")}`]);
+  }
 
   const issues: string[] = [];
   const seen = new Set<string>();
@@ -63,6 +77,10 @@ export function parseBarsCsv(csv: string, source = "csv"): Bar[] {
   for (const [lineIndex, line] of lines.slice(1).entries()) {
     const rowNumber = lineIndex + 2;
     const values = parseLine(line);
+    if (values.length !== headers.length) {
+      issues.push(`row ${rowNumber}: expected ${headers.length} columns, found ${values.length}`);
+      continue;
+    }
     const row = headers.reduce<CsvRow>((acc, header, index) => {
       acc[header] = values[index] ?? "";
       return acc;

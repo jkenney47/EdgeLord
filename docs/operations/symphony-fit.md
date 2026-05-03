@@ -18,7 +18,7 @@ Linear's role is project status and handoff state. Repo scripts, tests, label ex
 
 ## What To Borrow
 
-- Treat each meaningful Linear issue as the work packet.
+- Treat each meaningful Linear issue as the execution spec: goal, current state, included scope, explicit non-goals, ordered tasks, acceptance criteria, validation commands, blockers, PR link, and proof-of-work notes.
 - Keep one normal active implementation issue and one next issue.
 - Include acceptance criteria, expected files, validation commands, PR links, and proof-of-work notes.
 - Record terminal state clearly: done, blocked, needs review, failed validation, or superseded.

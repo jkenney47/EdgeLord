@@ -28,6 +28,12 @@ describe("buildDatasetPulse", () => {
 
     expect(pulse.dataReadiness.code).toBe("alpaca_era_ready");
     expect(pulse.dataReadiness.text).toBe("Alpaca-era 2016+");
+    expect(pulse.dataReadiness.unresolvedTargetGap).toMatchObject({
+      targetStart: "2011-01-01T00:00:00.000Z",
+      missingEnd: "2016-01-04T14:30:00.000Z",
+      status: "unresolved_external_data_source"
+    });
+    expect(pulse.dataReadiness.unresolvedTargetGap?.gapYears).toBe(5);
     expect(pulse.labels.total).toBe(3);
     expect(pulse.labels.trainingEligible).toBe(2);
     expect(pulse.labels.excluded).toBe(1);
@@ -224,6 +230,14 @@ describe("buildDatasetPulse", () => {
     expect(pulse.integrity.ready).toBe(false);
     expect(pulse.integrity.tradeConsistencyIssues).toBeGreaterThan(0);
     expect(pulse.nextTarget.kind).toBe("fix_integrity");
+  });
+
+  it("does not report a target gap when data reaches the target start", () => {
+    const fullCoverage = barSummary.map((item) => ({ ...item, first: "2011-01-01T14:30:00.000Z" }));
+    const pulse = buildDatasetPulse(fullCoverage, [], []);
+
+    expect(pulse.dataReadiness.code).toBe("ready");
+    expect(pulse.dataReadiness.unresolvedTargetGap).toBeNull();
   });
 });
 

@@ -82,6 +82,7 @@ export function App() {
   const tradeCandidateRows = datasetPulse?.tradeCandidates.rows ?? 0;
   const targets = datasetPulse?.targets ?? [];
   const dataReadiness = datasetPulse?.dataReadiness ?? { tone: "warn" as const, text: "Checking data" };
+  const unresolvedDataGap = datasetPulse?.dataReadiness.unresolvedTargetGap ?? null;
   const integrity = datasetPulse?.integrity ?? null;
   const nextTarget = datasetPulse?.nextTarget ?? null;
   const nextAction = datasetPulse?.nextActions[0] ?? null;
@@ -507,6 +508,11 @@ export function App() {
           </span>
         ))}
         <span className={`data-readiness ${dataReadiness.tone}`}>{dataReadiness.text}</span>
+        {unresolvedDataGap ? (
+          <span className="data-readiness warn">
+            Gap {unresolvedDataGap.missingStart.slice(0, 4)}-{unresolvedDataGap.missingEnd.slice(0, 4)}
+          </span>
+        ) : null}
         {integrity && !integrity.ready ? (
           <span className="integrity-warn">Integrity {integrity.issueCount}</span>
         ) : null}

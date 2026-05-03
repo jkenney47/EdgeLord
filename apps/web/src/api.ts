@@ -34,6 +34,15 @@ export type DatasetPulse = {
     tone: "good" | "warn";
     text: string;
     shortestSpanDays: number;
+    unresolvedTargetGap: {
+      targetStart: string;
+      earliestChartTimestamp: string;
+      missingStart: string;
+      missingEnd: string;
+      gapDays: number;
+      gapYears: number;
+      status: string;
+    } | null;
   };
   integrity: {
     issueCount: number;

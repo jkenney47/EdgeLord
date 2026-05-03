@@ -98,23 +98,45 @@ function summarizeDataReadiness(barSummary: BarSummaryRow[]) {
     .map((row) => row.first)
     .filter(Boolean)
     .sort()[0] ?? "";
+  const unresolvedTargetGap = targetGap(earliestChartTimestamp);
 
-  if (chartCombos.size < 6) return readiness("missing_bars", "warn", "Data incomplete", shortestSpanDays);
-  if (rawSources.size === 1 && rawSources.has("sample")) return readiness("sample_only", "warn", "Sample data only", shortestSpanDays);
-  if (rawSources.has("sample") && rawSources.has("csv")) return readiness("mixed_sample_csv", "warn", "Mixed sample/csv data", shortestSpanDays);
-  if (rawSources.size === 0) return readiness("aggregate_only", "warn", "Chart cache only", shortestSpanDays);
-  if (shortestSpanDays < 365) return readiness("too_short", "warn", `Short data ${shortestSpanDays.toFixed(0)}d`, shortestSpanDays);
-  if (shortestSpanDays < 365 * 5) return readiness("early", "warn", `Early data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays);
-  if (earliestChartTimestamp > targetStart) return readiness("alpaca_era_ready", "good", `Alpaca-era ${earliestChartTimestamp.slice(0, 4)}+`, shortestSpanDays);
-  return readiness("ready", "good", `Data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays);
+  if (chartCombos.size < 6) return readiness("missing_bars", "warn", "Data incomplete", shortestSpanDays, unresolvedTargetGap);
+  if (rawSources.size === 1 && rawSources.has("sample")) return readiness("sample_only", "warn", "Sample data only", shortestSpanDays, unresolvedTargetGap);
+  if (rawSources.has("sample") && rawSources.has("csv")) return readiness("mixed_sample_csv", "warn", "Mixed sample/csv data", shortestSpanDays, unresolvedTargetGap);
+  if (rawSources.size === 0) return readiness("aggregate_only", "warn", "Chart cache only", shortestSpanDays, unresolvedTargetGap);
+  if (shortestSpanDays < 365) return readiness("too_short", "warn", `Short data ${shortestSpanDays.toFixed(0)}d`, shortestSpanDays, unresolvedTargetGap);
+  if (shortestSpanDays < 365 * 5) return readiness("early", "warn", `Early data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays, unresolvedTargetGap);
+  if (unresolvedTargetGap) return readiness("alpaca_era_ready", "good", `Alpaca-era ${earliestChartTimestamp.slice(0, 4)}+`, shortestSpanDays, unresolvedTargetGap);
+  return readiness("ready", "good", `Data ${Math.floor(shortestSpanDays / 365)}y`, shortestSpanDays, unresolvedTargetGap);
 }
 
-function readiness(code: string, tone: "good" | "warn", text: string, shortestSpanDays: number) {
+function targetGap(earliestChartTimestamp: string) {
+  if (!earliestChartTimestamp || earliestChartTimestamp.slice(0, 10) <= targetStart.slice(0, 10)) return null;
+  const gapDays = Math.max(0, (new Date(earliestChartTimestamp).getTime() - new Date(targetStart).getTime()) / 86_400_000);
+  return {
+    targetStart,
+    earliestChartTimestamp,
+    missingStart: targetStart,
+    missingEnd: earliestChartTimestamp,
+    gapDays: Number(gapDays.toFixed(1)),
+    gapYears: Number((gapDays / 365.25).toFixed(1)),
+    status: "unresolved_external_data_source"
+  };
+}
+
+function readiness(
+  code: string,
+  tone: "good" | "warn",
+  text: string,
+  shortestSpanDays: number,
+  unresolvedTargetGap: ReturnType<typeof targetGap>
+) {
   return {
     code,
     tone,
     text,
-    shortestSpanDays: Number(shortestSpanDays.toFixed(1))
+    shortestSpanDays: Number(shortestSpanDays.toFixed(1)),
+    unresolvedTargetGap
   };
 }
 

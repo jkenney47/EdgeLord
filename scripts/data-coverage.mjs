@@ -113,7 +113,7 @@ const earliestChartTimestamp = rows
   .sort()[0] ?? "";
 const targetStart = "2011-01-01T00:00:00.000Z";
 const alpacaKnownStart = "2016-01-04T14:30:00.000Z";
-const targetGapDays = earliestChartTimestamp > targetStart ? daysBetween(targetStart, earliestChartTimestamp) : 0;
+const targetGapDays = earliestChartTimestamp.slice(0, 10) > targetStart.slice(0, 10) ? daysBetween(targetStart, earliestChartTimestamp) : 0;
 const unresolvedTargetGap = targetGapDays > 0 ? {
   targetStart,
   earliestChartTimestamp,
@@ -155,7 +155,7 @@ if (!allRowsHaveData) {
   readinessCode = "below_target";
   readinessMessages.push(`Data is usable for early tests, but below the 2011-present target. Shortest span is ${shortestSpan.toFixed(1)} days.`);
   readinessMessages.push("Recommended: keep this for smoke testing only; use `--research-ready` for the real backfill.");
-} else if (earliestChartTimestamp > targetStart) {
+} else if (unresolvedTargetGap) {
   readinessCode = "alpaca_era_ready";
   readinessMessages.push(`Data span is ready for Alpaca-era research, starting ${earliestChartTimestamp.slice(0, 10)}.`);
   readinessMessages.push(`The ${targetStart.slice(0, 10)} -> ${earliestChartTimestamp.slice(0, 10)} SOXL/SOXS history gap remains unresolved (${yearsFromDays(targetGapDays).toFixed(1)} years); current Alpaca SIP minute coverage starts around ${alpacaKnownStart.slice(0, 10)}.`);

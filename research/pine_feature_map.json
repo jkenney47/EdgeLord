@@ -15,6 +15,10 @@
     "feature_recent_20_return_pct": "((close - close[20]) / close[20]) * 100",
     "feature_recent_20_high": "ta.highest(high, 20)",
     "feature_recent_20_low": "ta.lowest(low, 20)",
-    "feature_close_rank_recent_20": "((close - ta.lowest(low, 20)) / math.max(ta.highest(high, 20) - ta.lowest(low, 20), syminfo.mintick))"
+    "feature_close_rank_recent_20": "((close - ta.lowest(low, 20)) / math.max(ta.highest(high, 20) - ta.lowest(low, 20), syminfo.mintick))",
+    "feature_wvf": "((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100",
+    "feature_wvf_midline": "ta.sma(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20)",
+    "feature_wvf_upper_band": "ta.sma(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20) + 2 * ta.stdev(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20)",
+    "feature_wvf_range_high": "ta.highest(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 50) * 0.85"
   }
 }

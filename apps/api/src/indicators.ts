@@ -3,10 +3,33 @@ import type { Bar, ChartTimeframe, Ticker } from "./schema";
 
 type Features = Record<string, number | string | boolean | null>;
 
+const wvfConfig = {
+  pd: 22,
+  bbl: 20,
+  mult: 2,
+  lb: 50,
+  ph: 0.85,
+  ltLB: 40,
+  mtLB: 14,
+  str: 3
+} as const;
+
 function sma(values: number[], period: number): number | null {
   if (values.length < period) return null;
   const slice = values.slice(-period);
   return slice.reduce((sum, value) => sum + value, 0) / period;
+}
+
+function highest(values: number[], period: number): number | null {
+  if (values.length < period) return null;
+  return Math.max(...values.slice(-period));
+}
+
+function stdev(values: number[], period: number): number | null {
+  if (values.length < period) return null;
+  const slice = values.slice(-period);
+  const mean = slice.reduce((sum, value) => sum + value, 0) / period;
+  return Math.sqrt(slice.reduce((sum, value) => sum + (value - mean) ** 2, 0) / period);
 }
 
 function ema(values: number[], period: number): number | null {
@@ -55,6 +78,63 @@ function latestAtOrBefore(ticker: Ticker, timeframe: ChartTimeframe, timestamp: 
   return [...getBars(ticker, timeframe)].reverse().find((bar) => bar.timestamp <= timestamp) ?? null;
 }
 
+export function buildWilliamsVixFixFeatures(bars: Bar[]): Features {
+  const closes = bars.map((item) => item.close);
+  const wvfValues = bars.map((bar, index) => {
+    const highestClose = highest(closes.slice(0, index + 1), wvfConfig.pd);
+    return highestClose && highestClose !== 0 ? ((highestClose - bar.low) / highestClose) * 100 : null;
+  });
+  const currentWvf = wvfValues.at(-1) ?? null;
+  const previousWvf = wvfValues.at(-2) ?? null;
+  const numericWvfValues = wvfValues.filter((value): value is number => value !== null);
+  const sDev = stdev(numericWvfValues, wvfConfig.bbl);
+  const midLine = sma(numericWvfValues, wvfConfig.bbl);
+  const upperBand = midLine !== null && sDev !== null ? midLine + wvfConfig.mult * sDev : null;
+  const rangeHighBase = highest(numericWvfValues, wvfConfig.lb);
+  const rangeHigh = rangeHighBase === null ? null : rangeHighBase * wvfConfig.ph;
+  const previousNumericWvfValues = wvfValues.slice(0, -1).filter((value): value is number => value !== null);
+  const previousSDev = stdev(previousNumericWvfValues, wvfConfig.bbl);
+  const previousMidLine = sma(previousNumericWvfValues, wvfConfig.bbl);
+  const previousUpperBand = previousMidLine !== null && previousSDev !== null ? previousMidLine + wvfConfig.mult * previousSDev : null;
+  const previousRangeHighBase = highest(previousNumericWvfValues, wvfConfig.lb);
+  const previousRangeHigh = previousRangeHighBase === null ? null : previousRangeHighBase * wvfConfig.ph;
+  const bar = bars.at(-1);
+  const previousBar = bars.at(-2);
+  const strengthBar = bars.at(-(wvfConfig.str + 1));
+  const longTermBar = bars.at(-(wvfConfig.ltLB + 1));
+  const mediumTermBar = bars.at(-(wvfConfig.mtLB + 1));
+  const wasExtreme = previousWvf !== null && (
+    (previousUpperBand !== null && previousWvf >= previousUpperBand) ||
+    (previousRangeHigh !== null && previousWvf >= previousRangeHigh)
+  );
+  const isExtreme = currentWvf !== null && (
+    (upperBand !== null && currentWvf >= upperBand) ||
+    (rangeHigh !== null && currentWvf >= rangeHigh)
+  );
+  const filtered = wasExtreme && !isExtreme;
+  const filteredAggressive = wasExtreme && !filtered;
+  const upRange = Boolean(bar && previousBar && bar.low > previousBar.low && bar.close > previousBar.high);
+  const upRangeAggressive = Boolean(bar && previousBar && bar.close > previousBar.close && bar.close > previousBar.open);
+  const strengthConfirmed = Boolean(bar && strengthBar && bar.close > strengthBar.close);
+  const downTrendConfirmed = Boolean(bar && (
+    (longTermBar && bar.close < longTermBar.close) ||
+    (mediumTermBar && bar.close < mediumTermBar.close)
+  ));
+  const alert3 = upRange && strengthConfirmed && downTrendConfirmed && filtered;
+  const alert4 = upRangeAggressive && strengthConfirmed && downTrendConfirmed && filteredAggressive;
+
+  return {
+    wvf: currentWvf,
+    wvfMidLine: midLine,
+    wvfUpperBand: upperBand,
+    wvfRangeHigh: rangeHigh,
+    wvfIsExtreme: isExtreme,
+    wvfWasExtremeNowFalse: filtered,
+    wvfFilteredEntry: alert3,
+    wvfAggressiveFilteredEntry: alert4
+  };
+}
+
 export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
   const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
   const bar = bars.at(-1);
@@ -101,6 +181,7 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
     pairedTicker,
     pairedClose: paired?.close ?? null,
     pairRatioClose: paired?.close ? bar.close / paired.close : null,
+    ...buildWilliamsVixFixFeatures(bars),
     ...mtf
   };
 }

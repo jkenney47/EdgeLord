@@ -89,6 +89,9 @@ export function CapturePanel({
     ["Stoch K/D", `${formatFeatureValue(selectedFeatures.stochRsiK)} / ${formatFeatureValue(selectedFeatures.stochRsiD)}`],
     ["EMA dist", selectedFeatures.distanceToEma25Pct],
     ["5/20 return", `${formatFeatureValue(selectedFeatures.recent5ReturnPct)} / ${formatFeatureValue(selectedFeatures.recent20ReturnPct)}`],
+    ["WVF", selectedFeatures.wvf],
+    ["WVF band", `${formatFeatureValue(selectedFeatures.wvfUpperBand)} / ${formatFeatureValue(selectedFeatures.wvfRangeHigh)}`],
+    ["WVF alerts", wvfAlertText(selectedFeatures)],
     ["Pair", `${selectedFeatures.pairedTicker ?? "-"} ${formatFeatureValue(selectedFeatures.pairedClose)}`],
     ["Ratio", selectedFeatures.pairRatioClose],
     ["D1/H4/H2", `${biasText(selectedFeatures.d1CloseAboveEma25)} / ${biasText(selectedFeatures.h4CloseAboveEma25)} / ${biasText(selectedFeatures.h2CloseAboveEma25)}`]
@@ -285,4 +288,14 @@ function formatFeatureValue(value: unknown): string {
 function biasText(value: unknown): string {
   if (typeof value !== "boolean") return "-";
   return value ? "Up" : "Down";
+}
+
+function wvfAlertText(features: FeatureSnapshot): string {
+  const alerts = [
+    features.wvfIsExtreme === true ? "extreme" : null,
+    features.wvfWasExtremeNowFalse === true ? "release" : null,
+    features.wvfFilteredEntry === true ? "filtered" : null,
+    features.wvfAggressiveFilteredEntry === true ? "aggr" : null
+  ].filter(Boolean);
+  return alerts.length ? alerts.join(" / ") : "-";
 }

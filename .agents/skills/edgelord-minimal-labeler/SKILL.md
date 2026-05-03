@@ -94,7 +94,7 @@ The product direction is hindsight-friendly labeling. Treat regular historical l
 
 - `actual_trade`, `retrospective_replay`, and `retrospective_hindsight` labels should all be training-eligible by default.
 - Keep recording `capture_mode`, `visible_until_timestamp`, and `potential_visual_leakage` metadata, but do not use those fields to exclude regular/hindsight labels from exports or research unless the user explicitly asks for a filter.
-- Do not reintroduce "replay-safe only" language in app copy, reports, docs, acceptance checks, or Pine scaffold warnings.
+- Do not reintroduce anti-hindsight-only language in app copy, reports, docs, acceptance checks, or Pine scaffold warnings.
 - The main user workflow is fast historical chart review: mark ENTRY, EXIT, and SKIP decisions directly on the regular view, then use exports/research/Pine scaffolds from those labels.
 - If future work needs stricter anti-hindsight experiments, add an optional segment/filter without changing the default training pipeline.
 

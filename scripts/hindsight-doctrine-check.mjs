@@ -5,6 +5,7 @@ import path from "node:path";
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 
 const targets = [
+  ".agents/skills",
   "README.md",
   "apps",
   "research",

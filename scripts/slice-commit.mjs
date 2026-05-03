@@ -11,6 +11,7 @@ function usage() {
   console.error("Usage: pnpm slice:commit -- \"Commit message\" <file...>");
   console.error("");
   console.error("Runs the full minimal-labeler slice gate, reviews the selected diff, stages only the listed files, commits, pushes, and prints final status.");
+  console.error("Refuses generated/local-only paths such as .codex/, data/, exports/, and reports/.");
 }
 
 function run(command, args, options = {}) {
@@ -30,6 +31,24 @@ if (!message || files.length === 0 || message === "--help" || message === "-h") 
 if (files.some((file) => file.startsWith("-"))) {
   usage();
   throw new Error("Pass the commit message first, followed by explicit file paths.");
+}
+
+const blockedPathPrefixes = [".codex/", "data/", "exports/", "reports/"];
+const blockedFiles = new Set([".codex/config.toml"]);
+const normalizedFiles = files.map((file) => file.replaceAll("\\", "/").replace(/^\.\//, ""));
+const blockedFile = normalizedFiles.find((file) =>
+  blockedFiles.has(file) || blockedPathPrefixes.some((prefix) => file === prefix.slice(0, -1) || file.startsWith(prefix))
+);
+if (blockedFile) {
+  throw new Error(`Refusing to stage local/generated path: ${blockedFile}`);
+}
+
+const selectedStatus = execFileSync("git", ["status", "--porcelain", "--", ...files], {
+  cwd: root,
+  encoding: "utf8"
+}).trim();
+if (!selectedStatus) {
+  throw new Error("None of the selected files have changes to commit.");
 }
 
 run("pnpm", ["slice:minimal-labeler"]);

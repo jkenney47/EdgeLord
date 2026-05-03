@@ -50,6 +50,8 @@ pnpm slice:commit -- "<imperative summary>" <changed files>
 
 This wrapper runs `pnpm slice:minimal-labeler`, prints the selected diff for review, stages only the listed files, commits, pushes, and prints final status. Keep using explicit file paths so unrelated local changes such as `.codex/config.toml` are not staged.
 
+The wrapper refuses `.codex/`, `data/`, `exports/`, and `reports/` paths, and it exits before running the heavy gate if none of the selected files have changes. If a generated artifact is truly needed in git, stop and handle it manually instead of bypassing the guard casually.
+
 Skip the separate `pnpm proceed:minimal-labeler` orientation command unless you need recent checkpoint context before choosing a slice. `pnpm slice:minimal-labeler` already includes the proceed scan.
 
 If you only need orientation before editing, use:

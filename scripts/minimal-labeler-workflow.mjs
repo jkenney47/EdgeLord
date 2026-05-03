@@ -247,7 +247,7 @@ async function runAcceptance() {
       captureMode: "replay",
       visibleUntilTimestamp: soxlBars[1].timestamp
     });
-    assert(entry.label.training_eligible === 1, "Replay entry should be training eligible");
+    assert(entry.label.training_eligible === 1, "Entry labels should be training eligible");
     assert(entry.openTrade?.ticker === "SOXL", "SOXL entry should open a SOXL trade");
     console.log("ok entry opens trade");
 
@@ -300,7 +300,7 @@ async function runAcceptance() {
       captureMode: "replay",
       visibleUntilTimestamp: soxlBars[2].timestamp
     });
-    assert(exit.label.training_eligible === 1, "Replay exit should be training eligible");
+    assert(exit.label.training_eligible === 1, "Exit labels should be training eligible");
     assert(exit.label.parent_entry_label_id === entry.label.id, "Exit should link to entry label");
     assert(exit.openTrade === null, "Exit should close the open trade");
     console.log("ok exit closes trade");
@@ -415,8 +415,8 @@ async function runAcceptance() {
       captureMode: "replay",
       visibleUntilTimestamp: soxlBars[0].timestamp
     });
-    assert(skip.label.training_eligible === 1, "Replay skip should be a training-eligible negative example");
-    console.log("ok replay skip is eligible");
+    assert(skip.label.training_eligible === 1, "SKIP labels should be training-eligible negative examples");
+    console.log("ok skip is eligible");
 
     const duplicateSkip = await postLabel(baseUrl, {
       labelSource: "retrospective_replay",

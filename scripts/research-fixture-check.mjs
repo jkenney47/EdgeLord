@@ -141,6 +141,10 @@ try {
   assert(readFile("dataset-report.md").includes("Training Coverage Matrix"), "dataset report should include training coverage matrix");
   assert(readFile("dataset-report.md").includes("2024: 5"), "fixture training coverage should count rows by year");
   assert(readFile("dataset-report.md").includes("SOXL:4H: 3"), "fixture training coverage should count rows by ticker/timeframe");
+  assert(readFile("dataset-report.md").includes("Strategy Discovery Readiness"), "dataset report should separate strategy discovery readiness");
+  assert(readFile("dataset-report.md").includes("Human-mimic rules: ready, rough-not-ready"), "dataset report should report human-mimic readiness separately");
+  assert(readFile("dataset-report.md").includes("Return optimizer: ready, rough-not-ready"), "dataset report should report return-optimizer readiness separately");
+  assert(readFile("dataset-report.md").includes("Exit-rule mining: ready, rough-not-ready"), "dataset report should report exit-rule readiness separately");
   assert(readFile("dataset-report.md").includes("Labeling Target Plan"), "dataset report should include a labeling target plan");
   const datasetReport = JSON.parse(readFile("dataset-report.json"));
   assert(datasetReport.version === "edgelord.dataset_report.v1", "dataset report JSON should carry the expected version");
@@ -164,6 +168,12 @@ try {
   assert(datasetReport.trainingCoverage.tickerTimeframes["SOXL:4H"] === 3, "dataset report JSON should expose ticker/timeframe coverage");
   assert(datasetReport.trainingCoverage.yearActions["2024:ENTRY"] === 2, "dataset report JSON should expose year/action coverage");
   assert(Array.isArray(datasetReport.trainingCoverage.weakestTickerTimeframes), "dataset report JSON should include weakest ticker/timeframe coverage");
+  assert(datasetReport.strategyReadiness.humanMimic.ready === true, "dataset report JSON should expose human-mimic readiness");
+  assert(datasetReport.strategyReadiness.humanMimic.roughReady === false, "dataset report JSON should expose rough human-mimic readiness");
+  assert(datasetReport.strategyReadiness.humanMimic.blockers.some((item) => item.includes("rough target needs")), "human-mimic readiness should explain rough-label blockers");
+  assert(datasetReport.strategyReadiness.returnOptimizer.ready === true, "dataset report JSON should expose return-optimizer readiness");
+  assert(datasetReport.strategyReadiness.returnOptimizer.roughReady === false, "dataset report JSON should expose rough return readiness");
+  assert(datasetReport.strategyReadiness.exitRules.ready === true, "dataset report JSON should expose exit-rule readiness");
   assert(Array.isArray(datasetReport.issues.trainingRows.missingEligibleLabelIds), "dataset report should expose training row issue ids");
   assert(Array.isArray(datasetReport.issues.sameCandleDecisionConflicts), "dataset report should expose same-candle decision conflicts");
   assert(Array.isArray(datasetReport.issues.targetEncoding), "dataset report should expose target encoding issues");
@@ -342,6 +352,9 @@ try {
   assert(strategyRules.datasetReadiness?.readiness?.readyForRuleMining === true, "strategy rules JSON should include dataset rule-mining readiness");
   assert(strategyRules.datasetReadiness?.readiness?.readyForExitRuleMining === true, "strategy rules JSON should include exit-rule readiness");
   assert(strategyRules.datasetReadiness?.readiness?.readyForRoughRuleMining === false, "strategy rules JSON should include rough dataset readiness");
+  assert(strategyRules.datasetReadiness?.strategyReadiness?.humanMimic?.ready === true, "strategy rules JSON should include human-mimic readiness");
+  assert(strategyRules.datasetReadiness?.strategyReadiness?.returnOptimizer?.ready === true, "strategy rules JSON should include return-optimizer readiness");
+  assert(strategyRules.datasetReadiness?.strategyReadiness?.exitRules?.ready === true, "strategy rules JSON should include exit-rule readiness");
   assert(strategyRules.promotion?.status === "scaffold_only", "strategy rules JSON should block promotion below rough targets");
   assert(strategyRules.pineSupport?.humanMimicTopRule, "strategy rules JSON should include Pine feature support for the human rule");
   assert(strategyRules.pineSupport?.humanMimicTopPairRule, "strategy rules JSON should include Pine feature support for the human pair rule");
@@ -354,9 +367,10 @@ try {
   assert(strategyRules.promotionChecklist.some((item) => item.includes("trade-candidates.csv HOLD-vs-EXIT")), "strategy rules checklist should mention HOLD-vs-EXIT candidates");
   assert(readFile("strategy-soxl-soxs.pine").includes("eligible closed trades"), "Pine scaffold should clarify eligible closed-trade readiness counts");
   assert(readFile("strategy-soxl-soxs.pine").includes("strategy(\"EdgeLord SOXL/SOXS Candidate Scaffold\""), "Pine scaffold should be written");
-  assert(readFile("strategy-soxl-soxs.pine").includes("Dataset rule-mining readiness: ready"), "Pine scaffold should include dataset rule-mining readiness");
-  assert(readFile("strategy-soxl-soxs.pine").includes("Dataset exit-rule readiness: ready"), "Pine scaffold should include exit-rule readiness");
-  assert(readFile("strategy-soxl-soxs.pine").includes("Rough rule-mining target: not ready"), "Pine scaffold should include rough rule-mining readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Human-mimic readiness: ready"), "Pine scaffold should include human-mimic readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimizer readiness: ready"), "Pine scaffold should include return-optimizer readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Exit-rule readiness: ready"), "Pine scaffold should include exit-rule readiness");
+  assert(readFile("strategy-soxl-soxs.pine").includes("Rough human-mimic target: not ready"), "Pine scaffold should include rough human-mimic readiness");
   assert(readFile("strategy-soxl-soxs.pine").includes("Human-mimic pair candidate"), "Pine scaffold should mention the human pair candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Return-optimized candidate"), "Pine scaffold should mention the return candidate");
   assert(readFile("strategy-soxl-soxs.pine").includes("Rough exit candidate"), "Pine scaffold should mention the exit candidate");

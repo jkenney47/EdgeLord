@@ -75,6 +75,16 @@ function parseLine(line) {
   return values;
 }
 
+function duplicateHeaders(headers) {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const header of headers) {
+    if (seen.has(header)) duplicates.add(header);
+    seen.add(header);
+  }
+  return [...duplicates];
+}
+
 const lines = fs.readFileSync(csvPath, "utf8").split(/\r?\n/).filter((line) => line.trim());
 if (lines.length < 2) {
   throw new Error("CSV must include a header and at least one data row");
@@ -84,6 +94,10 @@ const headers = parseLine(lines[0]).map((header) => header.toLowerCase());
 const missingColumns = requiredColumns.filter((column) => !headers.includes(column));
 if (missingColumns.length > 0) {
   throw new Error(`CSV missing required columns: ${missingColumns.join(", ")}`);
+}
+const duplicatedHeaders = duplicateHeaders(headers);
+if (duplicatedHeaders.length > 0) {
+  throw new Error(`CSV has duplicate columns: ${duplicatedHeaders.join(", ")}`);
 }
 
 const stats = new Map(expectedTickers.map((ticker) => [ticker, {
@@ -99,6 +113,10 @@ let duplicateRows = 0;
 for (const [lineIndex, line] of lines.slice(1).entries()) {
   const rowNumber = lineIndex + 2;
   const values = parseLine(line);
+  if (values.length !== headers.length) {
+    errors.push(`row ${rowNumber}: expected ${headers.length} columns, found ${values.length}`);
+    continue;
+  }
   const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
   const ticker = row.ticker;
   const timestamp = new Date(row.timestamp);

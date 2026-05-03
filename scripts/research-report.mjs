@@ -1,38 +1,16 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+
+import { downloadExportFiles, readApiManifest } from "./export-downloads.mjs";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 const baseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4317";
 const exportsDir = path.join(root, "exports");
 const reportsDir = path.join(root, "reports");
-const exportFiles = [
-  ["labels.csv", "/export/labels.csv"],
-  ["trades.csv", "/export/trades.csv"],
-  ["training-features.csv", "/export/training-features.csv"],
-  ["trade-candidates.csv", "/export/trade-candidates.csv"],
-  ["labels.jsonl", "/export/labels.jsonl"],
-  ["manifest.api.json", "/export/manifest.json"],
-  ["schema.json", "/export/schema.json"]
-];
-
 function timestampSlug(date = new Date()) {
   return date.toISOString().replace(/[-:.]/g, "");
-}
-
-async function download(route, target) {
-  const response = await fetch(`${baseUrl}${route}`);
-  if (!response.ok) {
-    throw new Error(`${route} returned ${response.status}. Start the API with pnpm dev or set API_BASE_URL.`);
-  }
-  const body = await response.text();
-  fs.writeFileSync(target, body);
-  return {
-    bytes: Buffer.byteLength(body, "utf8"),
-    sha256: crypto.createHash("sha256").update(body, "utf8").digest("hex")
-  };
 }
 
 fs.mkdirSync(exportsDir, { recursive: true });
@@ -65,13 +43,8 @@ const pineStrategyPath = path.join(reportsDir, `${slug}-strategy-soxl-soxs.pine`
 const researchSummaryPath = path.join(reportsDir, `${slug}-research-summary.json`);
 fs.mkdirSync(backupDir);
 
-const files = [];
-for (const [name, route] of exportFiles) {
-  const target = path.join(backupDir, name);
-  const { bytes, sha256 } = await download(route, target);
-  files.push({ name, route, bytes, sha256 });
-}
-const apiManifest = JSON.parse(fs.readFileSync(path.join(backupDir, "manifest.api.json"), "utf8"));
+const files = await downloadExportFiles({ baseUrl, backupDir, root });
+const apiManifest = readApiManifest(backupDir);
 
 fs.writeFileSync(path.join(backupDir, "manifest.json"), `${JSON.stringify({
   version: "edgelord.export_backup.v1",

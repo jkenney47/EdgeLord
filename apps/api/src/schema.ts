@@ -117,4 +117,7 @@ create table if not exists trades (
   created_at text not null,
   updated_at text not null
 );
+
+create index if not exists idx_bars_summary_lookup
+  on bars (ticker, timeframe, source, timestamp);
 `;

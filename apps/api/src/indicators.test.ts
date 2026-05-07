@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSmioFeatures, buildStochRsiFeatures, buildWilliamsVixFixFeatures } from "./indicators";
+import { buildSmioFeatures, buildStochRsiFeatures, buildVwapFeatures, buildWilliamsVixFixFeatures } from "./indicators";
 import type { Bar } from "./schema";
 
 describe("buildWilliamsVixFixFeatures", () => {
@@ -55,6 +55,23 @@ describe("buildStochRsiFeatures", () => {
 
     expect(features.stochRsiK).toBeCloseTo(19.741982628364536, 6);
     expect(features.stochRsiD).toBeCloseTo(8.97268990175402, 6);
+  });
+});
+
+describe("buildVwapFeatures", () => {
+  it("uses monthly anchored hlc3 VWAP with one standard deviation band", () => {
+    const bars = [
+      bar(0, { timestamp: "2024-01-31T18:30:00.000Z", high: 12, low: 8, close: 10, volume: 100 }),
+      bar(1, { timestamp: "2024-02-01T14:30:00.000Z", high: 11, low: 9, close: 10, volume: 100 }),
+      bar(2, { timestamp: "2024-02-01T18:30:00.000Z", high: 14, low: 10, close: 12, volume: 300 })
+    ];
+
+    const features = buildVwapFeatures(bars);
+
+    expect(features.vwap).toBeCloseTo(11.5, 6);
+    expect(features.vwapUpperBand1).toBeCloseTo(12.36602540378444, 6);
+    expect(features.vwapLowerBand1).toBeCloseTo(10.63397459621556, 6);
+    expect(features.distanceToVwapPct).toBeCloseTo(4.3478260869565215, 6);
   });
 });
 

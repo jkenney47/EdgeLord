@@ -24,6 +24,10 @@
     "feature_wvf_range_high": "ta.highest(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 50) * 0.85",
     "feature_smio_smi": "ta.tsi(close, 20, 20)",
     "feature_smio_signal": "ta.ema(ta.tsi(close, 20, 20), 10)",
-    "feature_smio_oscillator": "ta.tsi(close, 20, 20) - ta.ema(ta.tsi(close, 20, 20), 10)"
+    "feature_smio_oscillator": "ta.tsi(close, 20, 20) - ta.ema(ta.tsi(close, 20, 20), 10)",
+    "feature_vwap": "ta.vwap(hlc3, timeframe.change(\"M\"))",
+    "feature_vwap_upper_band_1": "ta.vwap(hlc3, timeframe.change(\"M\")) + (ta.vwap(hlc3, timeframe.change(\"M\"), 1)[1] - ta.vwap(hlc3, timeframe.change(\"M\")))",
+    "feature_vwap_lower_band_1": "ta.vwap(hlc3, timeframe.change(\"M\")) - (ta.vwap(hlc3, timeframe.change(\"M\"), 1)[1] - ta.vwap(hlc3, timeframe.change(\"M\")))",
+    "feature_distance_to_vwap_pct": "((close - ta.vwap(hlc3, timeframe.change(\"M\"))) / ta.vwap(hlc3, timeframe.change(\"M\"))) * 100"
   }
 }

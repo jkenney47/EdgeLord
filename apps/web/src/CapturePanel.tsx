@@ -94,6 +94,8 @@ export function CapturePanel({
     ["WVF alerts", wvfAlertText(selectedFeatures)],
     ["SMIO", selectedFeatures.smioOscillator],
     ["SMIO S/Sig", `${formatFeatureValue(selectedFeatures.smioSmi)} / ${formatFeatureValue(selectedFeatures.smioSignal)}`],
+    ["VWAP", selectedFeatures.vwap],
+    ["VWAP band", `${formatFeatureValue(selectedFeatures.vwapUpperBand1)} / ${formatFeatureValue(selectedFeatures.vwapLowerBand1)}`],
     ["Pair", `${selectedFeatures.pairedTicker ?? "-"} ${formatFeatureValue(selectedFeatures.pairedClose)}`],
     ["Ratio", selectedFeatures.pairRatioClose],
     ["D1/H4/H2", `${biasText(selectedFeatures.d1CloseAboveEma25)} / ${biasText(selectedFeatures.h4CloseAboveEma25)} / ${biasText(selectedFeatures.h2CloseAboveEma25)}`]

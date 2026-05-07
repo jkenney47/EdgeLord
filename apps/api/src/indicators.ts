@@ -27,6 +27,11 @@ const stochRsiConfig = {
   stochasticLength: 15
 } as const;
 
+const vwapConfig = {
+  anchorPeriod: "Month",
+  bandMultiplier1: 1
+} as const;
+
 function sma(values: number[], period: number): number | null {
   if (values.length < period) return null;
   const slice = values.slice(-period);
@@ -128,6 +133,10 @@ function stochRsi(values: number[]): { k: number | null; d: number | null } {
 function closeRank(close: number, low: number, high: number): number | null {
   if (high === low) return null;
   return (close - low) / (high - low);
+}
+
+function monthKey(timestamp: string): string {
+  return timestamp.slice(0, 7);
 }
 
 function latestAtOrBefore(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Bar | null {
@@ -244,6 +253,38 @@ export function buildStochRsiFeatures(bars: Bar[]): Features {
   };
 }
 
+export function buildVwapFeatures(bars: Bar[]): Features {
+  const bar = bars.at(-1);
+  if (!bar) {
+    return {
+      vwap: null,
+      vwapUpperBand1: null,
+      vwapLowerBand1: null,
+      distanceToVwapPct: null
+    };
+  }
+  const anchoredBars = bars.filter((item) => monthKey(item.timestamp) === monthKey(bar.timestamp));
+  const totalVolume = anchoredBars.reduce((sum, item) => sum + item.volume, 0);
+  if (totalVolume === 0) {
+    return {
+      vwap: null,
+      vwapUpperBand1: null,
+      vwapLowerBand1: null,
+      distanceToVwapPct: null
+    };
+  }
+  const sourceValues = anchoredBars.map((item) => (item.high + item.low + item.close) / 3);
+  const vwap = anchoredBars.reduce((sum, item, index) => sum + sourceValues[index] * item.volume, 0) / totalVolume;
+  const variance = anchoredBars.reduce((sum, item, index) => sum + item.volume * (sourceValues[index] - vwap) ** 2, 0) / totalVolume;
+  const bandBasis = Math.sqrt(variance);
+  return {
+    vwap,
+    vwapUpperBand1: vwap + bandBasis * vwapConfig.bandMultiplier1,
+    vwapLowerBand1: vwap - bandBasis * vwapConfig.bandMultiplier1,
+    distanceToVwapPct: vwap === 0 ? null : ((bar.close - vwap) / vwap) * 100
+  };
+}
+
 export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
   const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
   const bar = bars.at(-1);
@@ -290,6 +331,7 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
     pairRatioClose: paired?.close ? bar.close / paired.close : null,
     ...buildWilliamsVixFixFeatures(bars),
     ...buildSmioFeatures(bars),
+    ...buildVwapFeatures(bars),
     ...mtf
   };
 }

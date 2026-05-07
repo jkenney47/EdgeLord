@@ -3,93 +3,85 @@ import { buildFeatures } from "./indicators";
 import type { Label, Trade } from "./schema";
 import pineFeatureMap from "../../../research/pine_feature_map.json" with { type: "json" };
 
-export const featureColumns = [
-  ["close", "feature_close"],
-  ["volume", "feature_volume"],
-  ["ema25", "feature_ema25"],
-  ["sma100", "feature_sma100"],
-  ["atr14", "feature_atr14"],
-  ["stochRsiK", "feature_stoch_rsi_k"],
-  ["stochRsiD", "feature_stoch_rsi_d"],
-  ["closeAboveEma25", "feature_close_above_ema25"],
-  ["closeAboveSma100", "feature_close_above_sma100"],
-  ["distanceToEma25Pct", "feature_distance_to_ema25_pct"],
-  ["distanceToSma100Pct", "feature_distance_to_sma100_pct"],
-  ["recent5ReturnPct", "feature_recent_5_return_pct"],
-  ["recent10ReturnPct", "feature_recent_10_return_pct"],
-  ["recent20ReturnPct", "feature_recent_20_return_pct"],
-  ["recent20High", "feature_recent_20_high"],
-  ["recent20Low", "feature_recent_20_low"],
-  ["closeRankRecent20", "feature_close_rank_recent_20"],
-  ["wvf", "feature_wvf"],
-  ["wvfMidLine", "feature_wvf_midline"],
-  ["wvfUpperBand", "feature_wvf_upper_band"],
-  ["wvfRangeHigh", "feature_wvf_range_high"],
-  ["wvfIsExtreme", "feature_wvf_is_extreme"],
-  ["wvfWasExtremeNowFalse", "feature_wvf_was_extreme_now_false"],
-  ["wvfFilteredEntry", "feature_wvf_filtered_entry"],
-  ["wvfAggressiveFilteredEntry", "feature_wvf_aggressive_filtered_entry"],
-  ["smioSmi", "feature_smio_smi"],
-  ["smioSignal", "feature_smio_signal"],
-  ["smioOscillator", "feature_smio_oscillator"],
-  ["vwap", "feature_vwap"],
-  ["vwapUpperBand1", "feature_vwap_upper_band_1"],
-  ["vwapLowerBand1", "feature_vwap_lower_band_1"],
-  ["distanceToVwapPct", "feature_distance_to_vwap_pct"],
-  ["pairedTicker", "feature_paired_ticker"],
-  ["pairedClose", "feature_paired_close"],
-  ["pairRatioClose", "feature_pair_ratio_close"],
-  ["d1Close", "feature_d1_close"],
-  ["d1CloseAboveEma25", "feature_d1_close_above_ema25"],
-  ["h4Close", "feature_h4_close"],
-  ["h4CloseAboveEma25", "feature_h4_close_above_ema25"],
-  ["h2Close", "feature_h2_close"],
-  ["h2CloseAboveEma25", "feature_h2_close_above_ema25"]
+type FeatureType = "number" | "string" | "boolean";
+
+type FeatureDefinition = {
+  featureKey: string;
+  column: string;
+  type: FeatureType;
+  description: string;
+};
+
+const baseFeatureDefinitions = [
+  { featureKey: "close", columnSuffix: "close", type: "number", description: "candle close." },
+  { featureKey: "volume", columnSuffix: "volume", type: "number", description: "candle volume." },
+  { featureKey: "ema25", columnSuffix: "ema25", type: "number", description: "EMA 25 using bars through the selected candle." },
+  { featureKey: "sma100", columnSuffix: "sma100", type: "number", description: "SMA 100 using bars through the selected candle." },
+  { featureKey: "atr14", columnSuffix: "atr14", type: "number", description: "ATR 14 using bars through the selected candle." },
+  { featureKey: "stochRsiK", columnSuffix: "stoch_rsi_k", type: "number", description: "Stoch RSI K using RSI source SMIO, K=7, D=10, RSI length=14, stochastic length=15." },
+  { featureKey: "stochRsiD", columnSuffix: "stoch_rsi_d", type: "number", description: "Stoch RSI D using RSI source SMIO, K=7, D=10, RSI length=14, stochastic length=15." },
+  { featureKey: "closeAboveEma25", columnSuffix: "close_above_ema25", type: "boolean", description: "whether close is above EMA 25." },
+  { featureKey: "closeAboveSma100", columnSuffix: "close_above_sma100", type: "boolean", description: "whether close is above SMA 100." },
+  { featureKey: "distanceToEma25Pct", columnSuffix: "distance_to_ema25_pct", type: "number", description: "percent distance from close to EMA 25." },
+  { featureKey: "distanceToSma100Pct", columnSuffix: "distance_to_sma100_pct", type: "number", description: "percent distance from close to SMA 100." },
+  { featureKey: "recent5ReturnPct", columnSuffix: "recent_5_return_pct", type: "number", description: "percent return over the prior 5 bars." },
+  { featureKey: "recent10ReturnPct", columnSuffix: "recent_10_return_pct", type: "number", description: "percent return over the prior 10 bars." },
+  { featureKey: "recent20ReturnPct", columnSuffix: "recent_20_return_pct", type: "number", description: "percent return over the prior 20 bars." },
+  { featureKey: "recent20High", columnSuffix: "recent_20_high", type: "number", description: "highest high over the prior 20 bars including the selected candle." },
+  { featureKey: "recent20Low", columnSuffix: "recent_20_low", type: "number", description: "lowest low over the prior 20 bars including the selected candle." },
+  { featureKey: "closeRankRecent20", columnSuffix: "close_rank_recent_20", type: "number", description: "close position within the recent 20-bar high/low range." },
+  { featureKey: "wvf", columnSuffix: "wvf", type: "number", description: "CM_WVF_V3_Ult Williams Vix Fix value using pd=22." },
+  { featureKey: "wvfMidLine", columnSuffix: "wvf_midline", type: "number", description: "CM_WVF_V3_Ult Bollinger midline using bbl=20." },
+  { featureKey: "wvfUpperBand", columnSuffix: "wvf_upper_band", type: "number", description: "CM_WVF_V3_Ult upper band using bbl=20 and mult=2." },
+  { featureKey: "wvfRangeHigh", columnSuffix: "wvf_range_high", type: "number", description: "CM_WVF_V3_Ult percentile range high using lb=50 and ph=0.85." },
+  { featureKey: "wvfIsExtreme", columnSuffix: "wvf_is_extreme", type: "boolean", description: "CM_WVF_V3_Ult alert1: WVF is above upper band or range high." },
+  { featureKey: "wvfWasExtremeNowFalse", columnSuffix: "wvf_was_extreme_now_false", type: "boolean", description: "CM_WVF_V3_Ult alert2: WVF was extreme on the prior bar and is no longer extreme." },
+  { featureKey: "wvfFilteredEntry", columnSuffix: "wvf_filtered_entry", type: "boolean", description: "CM_WVF_V3_Ult alert3 filtered entry using ltLB=40, mtLB=14, str=3." },
+  { featureKey: "wvfAggressiveFilteredEntry", columnSuffix: "wvf_aggressive_filtered_entry", type: "boolean", description: "CM_WVF_V3_Ult alert4 aggressive filtered entry using ltLB=40, mtLB=14, str=3." },
+  { featureKey: "smioSmi", columnSuffix: "smio_smi", type: "number", description: "SMIO ergodic SMI from ta.tsi(close, short=20, long=20)." },
+  { featureKey: "smioSignal", columnSuffix: "smio_signal", type: "number", description: "SMIO signal line EMA using length 10." },
+  { featureKey: "smioOscillator", columnSuffix: "smio_oscillator", type: "number", description: "SMIO oscillator: SMI minus signal." },
+  { featureKey: "vwap", columnSuffix: "vwap", type: "number", description: "monthly anchored VWAP using hlc3 source." },
+  { featureKey: "vwapUpperBand1", columnSuffix: "vwap_upper_band_1", type: "number", description: "monthly anchored VWAP upper band #1 using standard deviation mode and multiplier 1." },
+  { featureKey: "vwapLowerBand1", columnSuffix: "vwap_lower_band_1", type: "number", description: "monthly anchored VWAP lower band #1 using standard deviation mode and multiplier 1." },
+  { featureKey: "distanceToVwapPct", columnSuffix: "distance_to_vwap_pct", type: "number", description: "percent distance from close to monthly anchored VWAP." },
+  { featureKey: "pairedTicker", columnSuffix: "paired_ticker", type: "string", description: "opposite ETF ticker for paired context." },
+  { featureKey: "pairedClose", columnSuffix: "paired_close", type: "number", description: "opposite ETF close at or before the selected timestamp when available." },
+  { featureKey: "pairRatioClose", columnSuffix: "pair_ratio_close", type: "number", description: "ticker close divided by paired ticker close." }
 ] as const;
 
-const featureCatalog = [
-  ["close", "feature_close", "number", "Selected candle close."],
-  ["volume", "feature_volume", "number", "Selected candle volume."],
-  ["ema25", "feature_ema25", "number", "EMA 25 on the selected ticker/timeframe using bars through the selected candle."],
-  ["sma100", "feature_sma100", "number", "SMA 100 on the selected ticker/timeframe using bars through the selected candle."],
-  ["atr14", "feature_atr14", "number", "ATR 14 on the selected ticker/timeframe using bars through the selected candle."],
-  ["stochRsiK", "feature_stoch_rsi_k", "number", "Stoch RSI K using RSI source SMIO, K=7, D=10, RSI length=14, stochastic length=15."],
-  ["stochRsiD", "feature_stoch_rsi_d", "number", "Stoch RSI D using RSI source SMIO, K=7, D=10, RSI length=14, stochastic length=15."],
-  ["closeAboveEma25", "feature_close_above_ema25", "boolean", "Whether close is above EMA 25."],
-  ["closeAboveSma100", "feature_close_above_sma100", "boolean", "Whether close is above SMA 100."],
-  ["distanceToEma25Pct", "feature_distance_to_ema25_pct", "number", "Percent distance from close to EMA 25."],
-  ["distanceToSma100Pct", "feature_distance_to_sma100_pct", "number", "Percent distance from close to SMA 100."],
-  ["recent5ReturnPct", "feature_recent_5_return_pct", "number", "Percent return over the prior 5 bars."],
-  ["recent10ReturnPct", "feature_recent_10_return_pct", "number", "Percent return over the prior 10 bars."],
-  ["recent20ReturnPct", "feature_recent_20_return_pct", "number", "Percent return over the prior 20 bars."],
-  ["recent20High", "feature_recent_20_high", "number", "Highest high over the prior 20 bars including the selected candle."],
-  ["recent20Low", "feature_recent_20_low", "number", "Lowest low over the prior 20 bars including the selected candle."],
-  ["closeRankRecent20", "feature_close_rank_recent_20", "number", "Close position within the recent 20-bar high/low range."],
-  ["wvf", "feature_wvf", "number", "CM_WVF_V3_Ult Williams Vix Fix value using pd=22."],
-  ["wvfMidLine", "feature_wvf_midline", "number", "CM_WVF_V3_Ult Bollinger midline using bbl=20."],
-  ["wvfUpperBand", "feature_wvf_upper_band", "number", "CM_WVF_V3_Ult upper band using bbl=20 and mult=2."],
-  ["wvfRangeHigh", "feature_wvf_range_high", "number", "CM_WVF_V3_Ult percentile range high using lb=50 and ph=0.85."],
-  ["wvfIsExtreme", "feature_wvf_is_extreme", "boolean", "CM_WVF_V3_Ult alert1: WVF is above upper band or range high."],
-  ["wvfWasExtremeNowFalse", "feature_wvf_was_extreme_now_false", "boolean", "CM_WVF_V3_Ult alert2: WVF was extreme on the prior bar and is no longer extreme."],
-  ["wvfFilteredEntry", "feature_wvf_filtered_entry", "boolean", "CM_WVF_V3_Ult alert3 filtered entry using ltLB=40, mtLB=14, str=3."],
-  ["wvfAggressiveFilteredEntry", "feature_wvf_aggressive_filtered_entry", "boolean", "CM_WVF_V3_Ult alert4 aggressive filtered entry using ltLB=40, mtLB=14, str=3."],
-  ["smioSmi", "feature_smio_smi", "number", "SMIO ergodic SMI from ta.tsi(close, short=20, long=20)."],
-  ["smioSignal", "feature_smio_signal", "number", "SMIO signal line EMA using length 10."],
-  ["smioOscillator", "feature_smio_oscillator", "number", "SMIO oscillator: SMI minus signal."],
-  ["vwap", "feature_vwap", "number", "Monthly anchored VWAP using hlc3 source."],
-  ["vwapUpperBand1", "feature_vwap_upper_band_1", "number", "Monthly anchored VWAP upper band #1 using standard deviation mode and multiplier 1."],
-  ["vwapLowerBand1", "feature_vwap_lower_band_1", "number", "Monthly anchored VWAP lower band #1 using standard deviation mode and multiplier 1."],
-  ["distanceToVwapPct", "feature_distance_to_vwap_pct", "number", "Percent distance from close to monthly anchored VWAP."],
-  ["pairedTicker", "feature_paired_ticker", "string", "Opposite ETF ticker for paired context."],
-  ["pairedClose", "feature_paired_close", "number", "Opposite ETF close at the selected timestamp when available."],
-  ["pairRatioClose", "feature_pair_ratio_close", "number", "Selected ticker close divided by paired ticker close."],
-  ["d1Close", "feature_d1_close", "number", "1D close at or before the selected timestamp."],
-  ["d1CloseAboveEma25", "feature_d1_close_above_ema25", "boolean", "Whether 1D close is above its EMA 25."],
-  ["h4Close", "feature_h4_close", "number", "4H close at or before the selected timestamp."],
-  ["h4CloseAboveEma25", "feature_h4_close_above_ema25", "boolean", "Whether 4H close is above its EMA 25."],
-  ["h2Close", "feature_h2_close", "number", "2H close at or before the selected timestamp."],
-  ["h2CloseAboveEma25", "feature_h2_close_above_ema25", "boolean", "Whether 2H close is above its EMA 25."]
+const timeframeFeaturePrefixes = [
+  { featurePrefix: "d1", columnPrefix: "d1", label: "1D" },
+  { featurePrefix: "h4", columnPrefix: "h4", label: "4H" },
+  { featurePrefix: "h2", columnPrefix: "h2", label: "2H" }
 ] as const;
+
+function capitalize(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+const selectedFeatureDefinitions: FeatureDefinition[] = baseFeatureDefinitions.map((definition) => ({
+  featureKey: definition.featureKey,
+  column: `feature_${definition.columnSuffix}`,
+  type: definition.type,
+  description: `Selected timeframe ${definition.description}`
+}));
+
+const multiTimeframeFeatureDefinitions: FeatureDefinition[] = timeframeFeaturePrefixes.flatMap((prefix) =>
+  baseFeatureDefinitions.map((definition) => ({
+    featureKey: `${prefix.featurePrefix}${capitalize(definition.featureKey)}`,
+    column: `feature_${prefix.columnPrefix}_${definition.columnSuffix}`,
+    type: definition.type,
+    description: `${prefix.label} ${definition.description}`
+  }))
+);
+
+const featureCatalog: FeatureDefinition[] = [
+  ...selectedFeatureDefinitions,
+  ...multiTimeframeFeatureDefinitions
+];
+
+export const featureColumns: Array<[string, string]> = featureCatalog.map(({ featureKey, column }) => [featureKey, column]);
 
 const pineFeatureExpressions = pineFeatureMap.expressions as Record<string, string>;
 const pineSupportedColumns = new Set(Object.keys(pineFeatureExpressions));
@@ -384,7 +376,7 @@ export function exportSchemaCatalog(): Record<string, unknown> {
         columns: ["one JSON object per active label"]
       }
     },
-    features: featureCatalog.map(([featureKey, column, type, description]) => ({
+    features: featureCatalog.map(({ featureKey, column, type, description }) => ({
       featureKey,
       column,
       type,

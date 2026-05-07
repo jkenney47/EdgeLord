@@ -143,6 +143,14 @@ function latestAtOrBefore(ticker: Ticker, timeframe: ChartTimeframe, timestamp: 
   return [...getBars(ticker, timeframe)].reverse().find((bar) => bar.timestamp <= timestamp) ?? null;
 }
 
+function capitalize(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function prefixFeatures(features: Features, prefix: string): Features {
+  return Object.fromEntries(Object.entries(features).map(([key, value]) => [`${prefix}${capitalize(key)}`, value]));
+}
+
 export function buildWilliamsVixFixFeatures(bars: Bar[]): Features {
   const closes = bars.map((item) => item.close);
   const wvfValues = bars.map((bar, index) => {
@@ -285,8 +293,7 @@ export function buildVwapFeatures(bars: Bar[]): Features {
   };
 }
 
-export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
-  const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
+function buildBaseIndicatorFeatures(bars: Bar[], pairedTicker: Ticker, paired: Bar | null): Features {
   const bar = bars.at(-1);
   if (!bar) return {};
 
@@ -297,17 +304,6 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
   const recent20 = bars.slice(-20);
   const recent20High = Math.max(...recent20.map((item) => item.high));
   const recent20Low = Math.min(...recent20.map((item) => item.low));
-  const pairedTicker: Ticker = ticker === "SOXL" ? "SOXS" : "SOXL";
-  const paired = latestAtOrBefore(pairedTicker, timeframe, timestamp);
-  const mtf = (["1D", "4H", "2H"] as ChartTimeframe[]).reduce<Features>((acc, tf) => {
-    const mtfBar = latestAtOrBefore(ticker, tf, timestamp);
-    const mtfBars = getBars(ticker, tf).filter((item) => item.timestamp <= timestamp);
-    const mtfEma = ema(mtfBars.map((item) => item.close), Math.min(25, mtfBars.length));
-    const prefix = tf === "1D" ? "d1" : tf === "4H" ? "h4" : "h2";
-    acc[`${prefix}Close`] = mtfBar?.close ?? null;
-    acc[`${prefix}CloseAboveEma25`] = mtfBar && mtfEma !== null ? mtfBar.close > mtfEma : null;
-    return acc;
-  }, {});
 
   return {
     close: bar.close,
@@ -332,6 +328,35 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
     ...buildWilliamsVixFixFeatures(bars),
     ...buildSmioFeatures(bars),
     ...buildVwapFeatures(bars),
+  };
+}
+
+export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
+  const pairedTicker: Ticker = ticker === "SOXL" ? "SOXS" : "SOXL";
+  const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
+  const selectedFeatures = buildBaseIndicatorFeatures(
+    bars,
+    pairedTicker,
+    latestAtOrBefore(pairedTicker, timeframe, timestamp)
+  );
+  const mtf = ([
+    ["1D", "d1"],
+    ["4H", "h4"],
+    ["2H", "h2"]
+  ] as Array<[ChartTimeframe, string]>).reduce<Features>((acc, [tf, prefix]) => {
+    const mtfBars = getBars(ticker, tf).filter((bar) => bar.timestamp <= timestamp);
+    return {
+      ...acc,
+      ...prefixFeatures(buildBaseIndicatorFeatures(
+        mtfBars,
+        pairedTicker,
+        latestAtOrBefore(pairedTicker, tf, timestamp)
+      ), prefix)
+    };
+  }, {});
+
+  return {
+    ...selectedFeatures,
     ...mtf
   };
 }

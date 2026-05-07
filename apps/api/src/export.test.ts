@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { exportManifest } from "./export";
+import { exportManifest, exportSchemaCatalog } from "./export";
 import type { Label, Trade } from "./schema";
 
 describe("exportManifest", () => {
@@ -62,6 +62,26 @@ describe("exportManifest", () => {
       missingClosedTradeCandidateIds: ["trade"],
       extraCandidateTradeIds: [],
       duplicateCandidateIds: []
+    });
+  });
+});
+
+describe("exportSchemaCatalog", () => {
+  it("includes the full background indicator stack for 1D, 4H, and 2H research features", () => {
+    const schema = exportSchemaCatalog() as {
+      files: { "training-features.csv": { columns: string[] } };
+      features: Array<{ column: string; pineSupport: string }>;
+    };
+    const columns = schema.files["training-features.csv"].columns;
+
+    expect(columns).toContain("feature_d1_smio_oscillator");
+    expect(columns).toContain("feature_h4_vwap");
+    expect(columns).toContain("feature_h2_wvf_filtered_entry");
+    expect(columns).toContain("feature_d1_stoch_rsi_k");
+    expect(columns).toContain("feature_h4_pair_ratio_close");
+
+    expect(schema.features.find((feature) => feature.column === "feature_h2_vwap")).toMatchObject({
+      pineSupport: "research_only"
     });
   });
 });

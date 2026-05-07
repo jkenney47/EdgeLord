@@ -19,6 +19,9 @@
     "feature_wvf": "((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100",
     "feature_wvf_midline": "ta.sma(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20)",
     "feature_wvf_upper_band": "ta.sma(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20) + 2 * ta.stdev(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 20)",
-    "feature_wvf_range_high": "ta.highest(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 50) * 0.85"
+    "feature_wvf_range_high": "ta.highest(((ta.highest(close, 22) - low) / ta.highest(close, 22)) * 100, 50) * 0.85",
+    "feature_smio_smi": "ta.tsi(close, 20, 20)",
+    "feature_smio_signal": "ta.ema(ta.tsi(close, 20, 20), 10)",
+    "feature_smio_oscillator": "ta.tsi(close, 20, 20) - ta.ema(ta.tsi(close, 20, 20), 10)"
   }
 }

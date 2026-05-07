@@ -14,6 +14,12 @@ const wvfConfig = {
   str: 3
 } as const;
 
+const smioConfig = {
+  longLength: 20,
+  shortLength: 20,
+  signalLength: 10
+} as const;
+
 function sma(values: number[], period: number): number | null {
   if (values.length < period) return null;
   const slice = values.slice(-period);
@@ -36,6 +42,22 @@ function ema(values: number[], period: number): number | null {
   if (values.length === 0) return null;
   const k = 2 / (period + 1);
   return values.reduce((prev, value, index) => (index === 0 ? value : value * k + prev * (1 - k)), values[0]);
+}
+
+function emaSeries(values: number[], period: number): Array<number | null> {
+  if (values.length === 0) return [];
+  const k = 2 / (period + 1);
+  const result: Array<number | null> = [];
+  let previous: number | null = null;
+  for (const value of values) {
+    previous = previous === null ? value : value * k + previous * (1 - k);
+    result.push(previous);
+  }
+  return result.map((value, index) => index + 1 < period ? null : value);
+}
+
+function compactSeries(values: Array<number | null>): number[] {
+  return values.filter((value): value is number => value !== null);
 }
 
 function atr(bars: Bar[], period: number): number | null {
@@ -135,6 +157,30 @@ export function buildWilliamsVixFixFeatures(bars: Bar[]): Features {
   };
 }
 
+export function buildSmioFeatures(bars: Bar[]): Features {
+  if (bars.length < 2) {
+    return { smioSmi: null, smioSignal: null, smioOscillator: null };
+  }
+  const changes = bars.slice(1).map((bar, index) => bar.close - bars[index].close);
+  const absChanges = changes.map((value) => Math.abs(value));
+  const shortChange = compactSeries(emaSeries(changes, smioConfig.shortLength));
+  const shortAbsChange = compactSeries(emaSeries(absChanges, smioConfig.shortLength));
+  const longChange = emaSeries(shortChange, smioConfig.longLength);
+  const longAbsChange = emaSeries(shortAbsChange, smioConfig.longLength);
+  const smiValues = longChange.map((value, index) => {
+    const absValue = longAbsChange[index];
+    return value === null || absValue === null || absValue === 0 ? null : value / absValue;
+  });
+  const signalValues = emaSeries(compactSeries(smiValues), smioConfig.signalLength);
+  const smi = smiValues.at(-1) ?? null;
+  const signal = signalValues.at(-1) ?? null;
+  return {
+    smioSmi: smi,
+    smioSignal: signal,
+    smioOscillator: smi !== null && signal !== null ? smi - signal : null
+  };
+}
+
 export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
   const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
   const bar = bars.at(-1);
@@ -182,6 +228,7 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
     pairedClose: paired?.close ?? null,
     pairRatioClose: paired?.close ? bar.close / paired.close : null,
     ...buildWilliamsVixFixFeatures(bars),
+    ...buildSmioFeatures(bars),
     ...mtf
   };
 }

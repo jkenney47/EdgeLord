@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWilliamsVixFixFeatures } from "./indicators";
+import { buildSmioFeatures, buildWilliamsVixFixFeatures } from "./indicators";
 import type { Bar } from "./schema";
 
 describe("buildWilliamsVixFixFeatures", () => {
@@ -28,6 +28,20 @@ describe("buildWilliamsVixFixFeatures", () => {
 
     expect(features.wvf).toBeNull();
     expect(features.wvfIsExtreme).toBe(false);
+  });
+});
+
+describe("buildSmioFeatures", () => {
+  it("matches the configured SMIO oscillator formula", () => {
+    const bars = Array.from({ length: 80 }, (_, index) => bar(index, {
+      close: 100 + Math.sin(index / 4) * 2 + index * 0.05
+    }));
+
+    const features = buildSmioFeatures(bars);
+
+    expect(features.smioSmi).toBeCloseTo(0.19992874089528323, 6);
+    expect(features.smioSignal).toBeCloseTo(0.08670119320622248, 6);
+    expect(features.smioOscillator).toBeCloseTo(0.11322754768906075, 6);
   });
 });
 

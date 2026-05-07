@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSmioFeatures, buildWilliamsVixFixFeatures } from "./indicators";
+import { buildSmioFeatures, buildStochRsiFeatures, buildWilliamsVixFixFeatures } from "./indicators";
 import type { Bar } from "./schema";
 
 describe("buildWilliamsVixFixFeatures", () => {
@@ -42,6 +42,19 @@ describe("buildSmioFeatures", () => {
     expect(features.smioSmi).toBeCloseTo(0.19992874089528323, 6);
     expect(features.smioSignal).toBeCloseTo(0.08670119320622248, 6);
     expect(features.smioOscillator).toBeCloseTo(0.11322754768906075, 6);
+  });
+});
+
+describe("buildStochRsiFeatures", () => {
+  it("uses SMIO as the RSI source with K 7, D 10, RSI 14, stochastic 15", () => {
+    const bars = Array.from({ length: 150 }, (_, index) => bar(index, {
+      close: 100 + Math.sin(index / 4) * 2 + index * 0.05
+    }));
+
+    const features = buildStochRsiFeatures(bars);
+
+    expect(features.stochRsiK).toBeCloseTo(19.741982628364536, 6);
+    expect(features.stochRsiD).toBeCloseTo(8.97268990175402, 6);
   });
 });
 

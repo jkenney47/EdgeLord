@@ -20,6 +20,13 @@ const smioConfig = {
   signalLength: 10
 } as const;
 
+const stochRsiConfig = {
+  k: 7,
+  d: 10,
+  rsiLength: 14,
+  stochasticLength: 15
+} as const;
+
 function sma(values: number[], period: number): number | null {
   if (values.length < period) return null;
   const slice = values.slice(-period);
@@ -57,7 +64,31 @@ function emaSeries(values: number[], period: number): Array<number | null> {
 }
 
 function compactSeries(values: Array<number | null>): number[] {
-  return values.filter((value): value is number => value !== null);
+  return values.filter((value): value is number => value !== null && Number.isFinite(value));
+}
+
+function rsiSeries(values: number[], period: number): Array<number | null> {
+  if (values.length < 2) return values.map(() => null);
+  const changes = values.slice(1).map((value, index) => value - values[index]);
+  const gains = changes.map((value) => Math.max(0, value));
+  const losses = changes.map((value) => Math.max(0, -value));
+  const avgGains = emaSeries(gains, period);
+  const avgLosses = emaSeries(losses, period);
+  return [null, ...avgGains.map((avgGain, index) => {
+    const avgLoss = avgLosses[index];
+    if (avgGain === null || avgLoss === null) return null;
+    if (avgLoss === 0) return 100;
+    return 100 - 100 / (1 + avgGain / avgLoss);
+  })];
+}
+
+function smaSeries(values: Array<number | null>, period: number): Array<number | null> {
+  return values.map((_value, index) => {
+    const window = values.slice(Math.max(0, index - period + 1), index + 1);
+    if (window.length < period || window.some((item) => item === null)) return null;
+    const numericWindow = window.filter((item): item is number => item !== null);
+    return numericWindow.reduce((sum, item) => sum + item, 0) / period;
+  });
 }
 
 function atr(bars: Bar[], period: number): number | null {
@@ -77,18 +108,21 @@ function percentChange(values: number[], period: number): number | null {
 }
 
 function stochRsi(values: number[]): { k: number | null; d: number | null } {
-  if (values.length < 15) return { k: null, d: null };
-  const changes = values.slice(1).map((value, index) => value - values[index]);
-  const gains = changes.map((value) => Math.max(0, value));
-  const losses = changes.map((value) => Math.max(0, -value));
-  const avgGain = sma(gains, 14) ?? 0;
-  const avgLoss = sma(losses, 14) ?? 0;
-  const rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-  const recent = values.slice(-14);
-  const low = Math.min(...recent);
-  const high = Math.max(...recent);
-  const k = high === low ? 50 : ((values.at(-1)! - low) / (high - low)) * 100;
-  return { k: Number(((k + rsi) / 2).toFixed(4)), d: Number(k.toFixed(4)) };
+  const rsiValues = rsiSeries(values, stochRsiConfig.rsiLength);
+  const rawStoch = rsiValues.map((rsi, index) => {
+    const window = rsiValues.slice(Math.max(0, index - stochRsiConfig.stochasticLength + 1), index + 1);
+    if (rsi === null || window.length < stochRsiConfig.stochasticLength || window.some((item) => item === null || !Number.isFinite(item))) return null;
+    const numericWindow = window as number[];
+    const low = Math.min(...numericWindow);
+    const high = Math.max(...numericWindow);
+    return high === low ? 0 : ((rsi - low) / (high - low)) * 100;
+  });
+  const kValues = smaSeries(rawStoch, stochRsiConfig.k);
+  const dValues = smaSeries(kValues, stochRsiConfig.d);
+  return {
+    k: kValues.at(-1) ?? null,
+    d: dValues.at(-1) ?? null
+  };
 }
 
 function closeRank(close: number, low: number, high: number): number | null {
@@ -181,6 +215,35 @@ export function buildSmioFeatures(bars: Bar[]): Features {
   };
 }
 
+function smioOscillatorSeries(bars: Bar[]): number[] {
+  if (bars.length < 2) return [];
+  const changes = bars.slice(1).map((bar, index) => bar.close - bars[index].close);
+  const absChanges = changes.map((value) => Math.abs(value));
+  const shortChange = compactSeries(emaSeries(changes, smioConfig.shortLength));
+  const shortAbsChange = compactSeries(emaSeries(absChanges, smioConfig.shortLength));
+  const longChange = emaSeries(shortChange, smioConfig.longLength);
+  const longAbsChange = emaSeries(shortAbsChange, smioConfig.longLength);
+  const smiValues = longChange.map((value, index) => {
+    const absValue = longAbsChange[index];
+    return value === null || absValue === null || absValue === 0 ? null : value / absValue;
+  });
+  const signalValues = emaSeries(compactSeries(smiValues), smioConfig.signalLength);
+  const firstSmiIndex = smiValues.findIndex((value) => value !== null);
+  return smiValues.map((smi, index) =>
+    smi !== null && firstSmiIndex >= 0 && signalValues[index - firstSmiIndex] !== null
+      ? smi - (signalValues[index - firstSmiIndex] as number)
+      : null
+  ).filter((value): value is number => value !== null);
+}
+
+export function buildStochRsiFeatures(bars: Bar[]): Features {
+  const stoch = stochRsi(smioOscillatorSeries(bars));
+  return {
+    stochRsiK: stoch.k,
+    stochRsiD: stoch.d
+  };
+}
+
 export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timestamp: string): Features {
   const bars = getBars(ticker, timeframe).filter((bar) => bar.timestamp <= timestamp);
   const bar = bars.at(-1);
@@ -190,7 +253,6 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
   const ema25 = ema(closes, Math.min(25, closes.length));
   const sma100 = sma(closes, Math.min(100, closes.length));
   const atr14 = atr(bars, 14);
-  const stoch = stochRsi(closes);
   const recent20 = bars.slice(-20);
   const recent20High = Math.max(...recent20.map((item) => item.high));
   const recent20Low = Math.min(...recent20.map((item) => item.low));
@@ -212,8 +274,7 @@ export function buildFeatures(ticker: Ticker, timeframe: ChartTimeframe, timesta
     ema25,
     sma100,
     atr14,
-    stochRsiK: stoch.k,
-    stochRsiD: stoch.d,
+    ...buildStochRsiFeatures(bars),
     closeAboveEma25: ema25 === null ? null : bar.close > ema25,
     closeAboveSma100: sma100 === null ? null : bar.close > sma100,
     distanceToEma25Pct: ema25 ? ((bar.close - ema25) / ema25) * 100 : null,

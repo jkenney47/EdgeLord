@@ -8,13 +8,14 @@ type Props = {
   selected: Bar | null;
   visibleBars: Bar[];
   onSelect: (bar: Bar) => void;
+  onHover: (bar: Bar | null) => void;
 };
 
 function toTime(timestamp: string): UTCTimestamp {
   return Math.floor(new Date(timestamp).getTime() / 1000) as UTCTimestamp;
 }
 
-export function ChartView({ bars, selected, visibleBars, onSelect }: Props) {
+export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -49,10 +50,21 @@ export function ChartView({ bars, selected, visibleBars, onSelect }: Props) {
       const clicked = bars.find((bar) => toTime(bar.timestamp) === event.time);
       if (clicked) onSelect(clicked);
     });
+    chart.subscribeCrosshairMove((event) => {
+      if (!event.time) {
+        onHover(null);
+        return;
+      }
+      const hovered = bars.find((bar) => toTime(bar.timestamp) === event.time) ?? null;
+      onHover(hovered);
+    });
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
-    return () => chart.remove();
-  }, [bars, onSelect]);
+    return () => {
+      onHover(null);
+      chart.remove();
+    };
+  }, [bars, onHover, onSelect]);
 
   useEffect(() => {
     candleSeriesRef.current?.setData(chartData);

@@ -4,11 +4,13 @@ import { getOpenTradeSelectionContext } from "./tradeReview";
 
 type Props = {
   selected: Bar | null;
+  inspected: Bar | null;
   ticker: Ticker;
   labelSource: LabelSource;
   labels: Label[];
   selectedLabels: Label[];
-  selectedFeatures: FeatureSnapshot | null;
+  inspectionLabels: Label[];
+  inspectionFeatures: FeatureSnapshot | null;
   openTrade: Trade | null;
   error: string | null;
   captureStatus: string | null;
@@ -43,11 +45,13 @@ const labelSourceText: Record<LabelSource, string> = {
 
 export function CapturePanel({
   selected,
+  inspected,
   ticker,
   labelSource,
   labels,
   selectedLabels,
-  selectedFeatures,
+  inspectionLabels,
+  inspectionFeatures,
   openTrade,
   error,
   captureStatus,
@@ -82,23 +86,24 @@ export function CapturePanel({
   const openTradeSelectionContext = getOpenTradeSelectionContext(selected, openTrade, ticker);
   const canMarkOpenTradeExit = openTradeSelectionContext?.tone === "active" &&
     getCaptureBlockReason("EXIT", selected, ticker, openTrade, selectedLabels, labelSource) === null;
-  const featureRows: Array<[string, unknown]> = selectedFeatures ? [
-    ["EMA25", selectedFeatures.ema25],
-    ["SMA100", selectedFeatures.sma100],
-    ["ATR14", selectedFeatures.atr14],
-    ["Stoch K/D", `${formatFeatureValue(selectedFeatures.stochRsiK)} / ${formatFeatureValue(selectedFeatures.stochRsiD)}`],
-    ["EMA dist", selectedFeatures.distanceToEma25Pct],
-    ["5/20 return", `${formatFeatureValue(selectedFeatures.recent5ReturnPct)} / ${formatFeatureValue(selectedFeatures.recent20ReturnPct)}`],
-    ["WVF", selectedFeatures.wvf],
-    ["WVF band", `${formatFeatureValue(selectedFeatures.wvfUpperBand)} / ${formatFeatureValue(selectedFeatures.wvfRangeHigh)}`],
-    ["WVF alerts", wvfAlertText(selectedFeatures)],
-    ["SMIO", selectedFeatures.smioOscillator],
-    ["SMIO S/Sig", `${formatFeatureValue(selectedFeatures.smioSmi)} / ${formatFeatureValue(selectedFeatures.smioSignal)}`],
-    ["VWAP", selectedFeatures.vwap],
-    ["VWAP band", `${formatFeatureValue(selectedFeatures.vwapUpperBand1)} / ${formatFeatureValue(selectedFeatures.vwapLowerBand1)}`],
-    ["Pair", `${selectedFeatures.pairedTicker ?? "-"} ${formatFeatureValue(selectedFeatures.pairedClose)}`],
-    ["Ratio", selectedFeatures.pairRatioClose],
-    ["D1/H4/H2", `${biasText(selectedFeatures.d1CloseAboveEma25)} / ${biasText(selectedFeatures.h4CloseAboveEma25)} / ${biasText(selectedFeatures.h2CloseAboveEma25)}`]
+  const isInspectingHover = Boolean(inspected && selected && inspected.timestamp !== selected.timestamp);
+  const featureRows: Array<[string, unknown]> = inspectionFeatures ? [
+    ["EMA25", inspectionFeatures.ema25],
+    ["SMA100", inspectionFeatures.sma100],
+    ["ATR14", inspectionFeatures.atr14],
+    ["Stoch K/D", `${formatFeatureValue(inspectionFeatures.stochRsiK)} / ${formatFeatureValue(inspectionFeatures.stochRsiD)}`],
+    ["EMA dist", inspectionFeatures.distanceToEma25Pct],
+    ["5/20 return", `${formatFeatureValue(inspectionFeatures.recent5ReturnPct)} / ${formatFeatureValue(inspectionFeatures.recent20ReturnPct)}`],
+    ["WVF", inspectionFeatures.wvf],
+    ["WVF band", `${formatFeatureValue(inspectionFeatures.wvfUpperBand)} / ${formatFeatureValue(inspectionFeatures.wvfRangeHigh)}`],
+    ["WVF alerts", wvfAlertText(inspectionFeatures)],
+    ["SMIO", inspectionFeatures.smioOscillator],
+    ["SMIO S/Sig", `${formatFeatureValue(inspectionFeatures.smioSmi)} / ${formatFeatureValue(inspectionFeatures.smioSignal)}`],
+    ["VWAP", inspectionFeatures.vwap],
+    ["VWAP band", `${formatFeatureValue(inspectionFeatures.vwapUpperBand1)} / ${formatFeatureValue(inspectionFeatures.vwapLowerBand1)}`],
+    ["Pair", `${inspectionFeatures.pairedTicker ?? "-"} ${formatFeatureValue(inspectionFeatures.pairedClose)}`],
+    ["Ratio", inspectionFeatures.pairRatioClose],
+    ["D1/H4/H2", `${biasText(inspectionFeatures.d1CloseAboveEma25)} / ${biasText(inspectionFeatures.h4CloseAboveEma25)} / ${biasText(inspectionFeatures.h2CloseAboveEma25)}`]
   ] : [];
   return (
     <aside className="capture-panel">
@@ -129,19 +134,19 @@ export function CapturePanel({
       ) : null}
 
       <section className="panel-section">
-        <span className="eyebrow">Selected candle</span>
-        {selected ? (
+        <span className="eyebrow">{isInspectingHover ? "Hovered candle" : "Selected candle"}</span>
+        {inspected ? (
           <div className="selected-card">
-            <strong>{selected.ticker} {selected.timeframe}</strong>
-            <span>{new Date(selected.timestamp).toLocaleString()}</span>
+            <strong>{inspected.ticker} {inspected.timeframe}</strong>
+            <span>{new Date(inspected.timestamp).toLocaleString()}</span>
             <div className="ohlc">
-              <span>O {selected.open.toFixed(2)}</span>
-              <span>H {selected.high.toFixed(2)}</span>
-              <span>L {selected.low.toFixed(2)}</span>
-              <span>C {selected.close.toFixed(2)}</span>
+              <span>O {inspected.open.toFixed(2)}</span>
+              <span>H {inspected.high.toFixed(2)}</span>
+              <span>L {inspected.low.toFixed(2)}</span>
+              <span>C {inspected.close.toFixed(2)}</span>
             </div>
             {featureRows.length > 0 ? (
-              <div className="feature-grid" aria-label="Selected candle feature snapshot">
+              <div className="feature-grid" aria-label="Inspected candle feature snapshot">
                 {featureRows.map(([label, value]) => (
                   <span key={label}>
                     <strong>{label}</strong>
@@ -150,9 +155,9 @@ export function CapturePanel({
                 ))}
               </div>
             ) : null}
-            {selectedLabels.length > 0 ? (
-              <div className="selected-labels" aria-label="Selected candle labels">
-                {selectedLabels.map((label) => (
+            {inspectionLabels.length > 0 ? (
+              <div className="selected-labels" aria-label="Inspected candle labels">
+                {inspectionLabels.map((label) => (
                   <span key={label.id} className={label.training_eligible === 1 ? "label-eligible" : "label-excluded"}>
                     {label.action} {labelSourceText[label.label_source]}
                   </span>

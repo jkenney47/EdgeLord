@@ -50,6 +50,7 @@ export function App() {
   const [mode, setMode] = useState<CaptureMode>("regular");
   const [bars, setBars] = useState<Bar[]>([]);
   const [selected, setSelected] = useState<Bar | null>(null);
+  const [hovered, setHovered] = useState<Bar | null>(null);
   const [index, setIndex] = useState(0);
   const [jumpDate, setJumpDate] = useState("");
   const [labelSource, setLabelSource] = useState<LabelSource>("retrospective_hindsight");
@@ -62,13 +63,14 @@ export function App() {
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
-  const [selectedFeatures, setSelectedFeatures] = useState<FeatureSnapshot | null>(null);
+  const [inspectionFeatures, setInspectionFeatures] = useState<FeatureSnapshot | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const pendingSelectionRef = useRef<PendingSelection | null>(null);
   const selectedRef = useRef<Bar | null>(null);
   const autoExitFocusTradeId = useRef<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
+  const inspected = hovered ?? selected;
   const labelStats = useMemo(() => ({
     eligible: datasetPulse?.labels.trainingEligible ?? labels.filter((label) => label.training_eligible === 1).length,
     ineligible: datasetPulse?.labels.excluded ?? labels.filter((label) => label.training_eligible !== 1).length,
@@ -94,6 +96,14 @@ export function App() {
       label.timestamp === selected.timestamp
     );
   }, [labels, selected]);
+  const inspectionLabels = useMemo(() => {
+    if (!inspected) return [];
+    return labels.filter((label) =>
+      label.ticker === inspected.ticker &&
+      label.timeframe === inspected.timeframe &&
+      label.timestamp === inspected.timestamp
+    );
+  }, [inspected, labels]);
   const refreshState = useCallback(async () => {
     const [nextLabels, nextTrades, nextOpenTrade, nextDatasetPulse] = await Promise.all([
       fetchLabels(),
@@ -149,21 +159,21 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!selected) {
-      setSelectedFeatures(null);
+    if (!inspected) {
+      setInspectionFeatures(null);
       return;
     }
-    void fetchFeatures(selected.ticker, selected.timeframe, selected.timestamp)
+    void fetchFeatures(inspected.ticker, inspected.timeframe, inspected.timestamp)
       .then((features) => {
-        if (!cancelled) setSelectedFeatures(features);
+        if (!cancelled) setInspectionFeatures(features);
       })
       .catch(() => {
-        if (!cancelled) setSelectedFeatures(null);
+        if (!cancelled) setInspectionFeatures(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [selected]);
+  }, [inspected]);
 
   useEffect(() => {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;
@@ -204,6 +214,10 @@ export function App() {
     if (nextIndex >= 0) setIndex(nextIndex);
     setSelected(bar);
   }, [bars]);
+
+  const inspectBar = useCallback((bar: Bar | null) => {
+    setHovered(bar);
+  }, []);
 
   const move = useCallback((delta: number) => {
     setIndex((current) => {
@@ -464,14 +478,16 @@ export function App() {
         importStatus={importStatus}
       />
       <div className="workspace">
-        <ChartView bars={bars} visibleBars={visibleBars} selected={selected} onSelect={selectBar} />
+        <ChartView bars={bars} visibleBars={visibleBars} selected={selected} onSelect={selectBar} onHover={inspectBar} />
         <CapturePanel
           selected={selected}
+          inspected={inspected}
           ticker={ticker}
           labelSource={labelSource}
           labels={labels}
           selectedLabels={selectedLabels}
-          selectedFeatures={selectedFeatures}
+          inspectionLabels={inspectionLabels}
+          inspectionFeatures={inspectionFeatures}
           openTrade={openTrade}
           error={error}
           captureStatus={captureStatus}

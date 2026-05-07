@@ -44,6 +44,15 @@ type PendingSelection = {
   status: string;
 };
 
+type FeatureState = {
+  key: string;
+  features: FeatureSnapshot;
+};
+
+function featureKey(bar: Bar | null): string | null {
+  return bar ? `${bar.ticker}|${bar.timeframe}|${bar.timestamp}` : null;
+}
+
 export function App() {
   const [ticker, setTicker] = useState<Ticker>("SOXL");
   const [timeframe, setTimeframe] = useState<Timeframe>("4H");
@@ -63,14 +72,17 @@ export function App() {
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [datasetPulse, setDatasetPulse] = useState<DatasetPulse | null>(null);
-  const [inspectionFeatures, setInspectionFeatures] = useState<FeatureSnapshot | null>(null);
+  const [inspectionFeatureState, setInspectionFeatureState] = useState<FeatureState | null>(null);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const pendingSelectionRef = useRef<PendingSelection | null>(null);
   const selectedRef = useRef<Bar | null>(null);
+  const featureCacheRef = useRef<Map<string, FeatureSnapshot>>(new Map());
   const autoExitFocusTradeId = useRef<string | null>(null);
 
   const visibleBars = useMemo(() => mode === "replay" ? bars.slice(0, index + 1) : bars, [bars, index, mode]);
   const inspected = hovered ?? selected;
+  const inspectedFeatureKey = featureKey(inspected);
+  const inspectionFeatures = inspectionFeatureState?.key === inspectedFeatureKey ? inspectionFeatureState.features : null;
   const labelStats = useMemo(() => ({
     eligible: datasetPulse?.labels.trainingEligible ?? labels.filter((label) => label.training_eligible === 1).length,
     ineligible: datasetPulse?.labels.excluded ?? labels.filter((label) => label.training_eligible !== 1).length,
@@ -159,21 +171,28 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!inspected) {
-      setInspectionFeatures(null);
+    if (!inspected || !inspectedFeatureKey) {
+      setInspectionFeatureState(null);
       return;
     }
+    const cachedFeatures = featureCacheRef.current.get(inspectedFeatureKey);
+    if (cachedFeatures) {
+      setInspectionFeatureState({ key: inspectedFeatureKey, features: cachedFeatures });
+      return;
+    }
+    setInspectionFeatureState((current) => current?.key === inspectedFeatureKey ? current : null);
     void fetchFeatures(inspected.ticker, inspected.timeframe, inspected.timestamp)
       .then((features) => {
-        if (!cancelled) setInspectionFeatures(features);
+        featureCacheRef.current.set(inspectedFeatureKey, features);
+        if (!cancelled) setInspectionFeatureState({ key: inspectedFeatureKey, features });
       })
       .catch(() => {
-        if (!cancelled) setInspectionFeatures(null);
+        if (!cancelled) setInspectionFeatureState(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [inspected]);
+  }, [inspected, inspectedFeatureKey]);
 
   useEffect(() => {
     if (!pendingSelection || pendingSelection.ticker !== ticker || pendingSelection.timeframe !== timeframe) return;

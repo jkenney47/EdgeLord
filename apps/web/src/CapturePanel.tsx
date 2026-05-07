@@ -87,24 +87,24 @@ export function CapturePanel({
   const canMarkOpenTradeExit = openTradeSelectionContext?.tone === "active" &&
     getCaptureBlockReason("EXIT", selected, ticker, openTrade, selectedLabels, labelSource) === null;
   const isInspectingHover = Boolean(inspected && selected && inspected.timestamp !== selected.timestamp);
-  const featureRows: Array<[string, unknown]> = inspectionFeatures ? [
-    ["EMA25", inspectionFeatures.ema25],
-    ["SMA100", inspectionFeatures.sma100],
-    ["ATR14", inspectionFeatures.atr14],
-    ["Stoch K/D", `${formatFeatureValue(inspectionFeatures.stochRsiK)} / ${formatFeatureValue(inspectionFeatures.stochRsiD)}`],
-    ["EMA dist", inspectionFeatures.distanceToEma25Pct],
-    ["5/20 return", `${formatFeatureValue(inspectionFeatures.recent5ReturnPct)} / ${formatFeatureValue(inspectionFeatures.recent20ReturnPct)}`],
-    ["WVF", inspectionFeatures.wvf],
-    ["WVF band", `${formatFeatureValue(inspectionFeatures.wvfUpperBand)} / ${formatFeatureValue(inspectionFeatures.wvfRangeHigh)}`],
-    ["WVF alerts", wvfAlertText(inspectionFeatures)],
-    ["SMIO", inspectionFeatures.smioOscillator],
-    ["SMIO S/Sig", `${formatFeatureValue(inspectionFeatures.smioSmi)} / ${formatFeatureValue(inspectionFeatures.smioSignal)}`],
-    ["VWAP", inspectionFeatures.vwap],
-    ["VWAP band", `${formatFeatureValue(inspectionFeatures.vwapUpperBand1)} / ${formatFeatureValue(inspectionFeatures.vwapLowerBand1)}`],
-    ["Pair", `${inspectionFeatures.pairedTicker ?? "-"} ${formatFeatureValue(inspectionFeatures.pairedClose)}`],
-    ["Ratio", inspectionFeatures.pairRatioClose],
-    ["D1/H4/H2", `${biasText(inspectionFeatures.d1CloseAboveEma25)} / ${biasText(inspectionFeatures.h4CloseAboveEma25)} / ${biasText(inspectionFeatures.h2CloseAboveEma25)}`]
-  ] : [];
+  const featureRows: Array<[string, unknown]> = [
+    ["EMA25", inspectionFeatures?.ema25],
+    ["SMA100", inspectionFeatures?.sma100],
+    ["ATR14", inspectionFeatures?.atr14],
+    ["Stoch K/D", `${formatFeatureValue(inspectionFeatures?.stochRsiK)} / ${formatFeatureValue(inspectionFeatures?.stochRsiD)}`],
+    ["EMA dist", inspectionFeatures?.distanceToEma25Pct],
+    ["5/20 return", `${formatFeatureValue(inspectionFeatures?.recent5ReturnPct)} / ${formatFeatureValue(inspectionFeatures?.recent20ReturnPct)}`],
+    ["WVF", inspectionFeatures?.wvf],
+    ["WVF band", `${formatFeatureValue(inspectionFeatures?.wvfUpperBand)} / ${formatFeatureValue(inspectionFeatures?.wvfRangeHigh)}`],
+    ["WVF alerts", inspectionFeatures ? wvfAlertText(inspectionFeatures) : null],
+    ["SMIO", inspectionFeatures?.smioOscillator],
+    ["SMIO S/Sig", `${formatFeatureValue(inspectionFeatures?.smioSmi)} / ${formatFeatureValue(inspectionFeatures?.smioSignal)}`],
+    ["VWAP", inspectionFeatures?.vwap],
+    ["VWAP band", `${formatFeatureValue(inspectionFeatures?.vwapUpperBand1)} / ${formatFeatureValue(inspectionFeatures?.vwapLowerBand1)}`],
+    ["Pair", `${inspectionFeatures?.pairedTicker ?? "-"} ${formatFeatureValue(inspectionFeatures?.pairedClose)}`],
+    ["Ratio", inspectionFeatures?.pairRatioClose],
+    ["D1/H4/H2", `${biasText(inspectionFeatures?.d1CloseAboveEma25)} / ${biasText(inspectionFeatures?.h4CloseAboveEma25)} / ${biasText(inspectionFeatures?.h2CloseAboveEma25)}`]
+  ];
   return (
     <aside className="capture-panel">
       {nextTarget && nextAction ? (
@@ -145,16 +145,14 @@ export function CapturePanel({
               <span>L {inspected.low.toFixed(2)}</span>
               <span>C {inspected.close.toFixed(2)}</span>
             </div>
-            {featureRows.length > 0 ? (
-              <div className="feature-grid" aria-label="Inspected candle feature snapshot">
-                {featureRows.map(([label, value]) => (
-                  <span key={label}>
-                    <strong>{label}</strong>
-                    <em>{formatFeatureValue(value)}</em>
-                  </span>
-                ))}
-              </div>
-            ) : null}
+            <div className="feature-grid" aria-label="Inspected candle feature snapshot">
+              {featureRows.map(([label, value]) => (
+                <span key={label}>
+                  <strong>{label}</strong>
+                  <em>{formatFeatureValue(value)}</em>
+                </span>
+              ))}
+            </div>
             {inspectionLabels.length > 0 ? (
               <div className="selected-labels" aria-label="Inspected candle labels">
                 {inspectionLabels.map((label) => (

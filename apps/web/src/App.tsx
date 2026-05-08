@@ -76,6 +76,7 @@ export function App() {
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
   const pendingSelectionRef = useRef<PendingSelection | null>(null);
   const selectedRef = useRef<Bar | null>(null);
+  const hoveredRef = useRef<Bar | null>(null);
   const featureCacheRef = useRef<Map<string, FeatureSnapshot>>(new Map());
   const autoExitFocusTradeId = useRef<string | null>(null);
 
@@ -136,6 +137,10 @@ export function App() {
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
+
+  useEffect(() => {
+    hoveredRef.current = hovered;
+  }, [hovered]);
 
   const loadBars = useCallback(async () => {
     setError(null);
@@ -254,14 +259,24 @@ export function App() {
     }
   }, [bars]);
 
-  const capture = useCallback(async (action: LabelAction) => {
-    const blockReason = getCaptureBlockReason(action, selected, ticker, openTrade, selectedLabels, labelSource);
+  const capture = useCallback(async (action: LabelAction, targetBar: Bar | null = selected) => {
+    const activeBar = targetBar;
+    const targetLabels = activeBar
+      ? labels.filter((label) =>
+        label.ticker === activeBar.ticker &&
+        label.timeframe === activeBar.timeframe &&
+        label.timestamp === activeBar.timestamp
+      )
+      : [];
+    const blockReason = getCaptureBlockReason(action, activeBar, ticker, openTrade, targetLabels, labelSource);
     if (blockReason) {
       setError(blockReason);
       return;
     }
-    const activeBar = selected;
     if (!activeBar) return;
+    if (activeBar.timestamp !== selected?.timestamp) {
+      selectBar(activeBar);
+    }
     const trimmedExecutionPrice = executionPrice.trim();
     const parsedExecutionPrice = trimmedExecutionPrice === "" ? null : Number(trimmedExecutionPrice);
     if (trimmedExecutionPrice !== "" && !Number.isFinite(parsedExecutionPrice)) {
@@ -299,7 +314,7 @@ export function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not capture label");
     }
-  }, [autoAdvance, bars, executionPrice, index, labelSource, labels, mode, openTrade, refreshState, selected, selectedLabels, ticker, timeframe]);
+  }, [autoAdvance, bars, executionPrice, index, labelSource, labels, mode, openTrade, refreshState, selectBar, selected, ticker, timeframe]);
 
   const undo = useCallback(async () => {
     setError(null);
@@ -467,7 +482,7 @@ export function App() {
         const action = ({ e: "ENTRY", x: "EXIT", s: "SKIP", i: "INVALID" } as Record<string, LabelAction>)[event.key.toLowerCase()];
         if (action) {
           event.preventDefault();
-          void capture(action);
+          void capture(action, hoveredRef.current ?? selectedRef.current);
         }
       }
     };
@@ -497,7 +512,7 @@ export function App() {
         importStatus={importStatus}
       />
       <div className="workspace">
-        <ChartView bars={bars} visibleBars={visibleBars} selected={selected} onSelect={selectBar} onHover={inspectBar} />
+        <ChartView visibleBars={visibleBars} selected={selected} onSelect={selectBar} onHover={inspectBar} />
         <CapturePanel
           selected={selected}
           inspected={inspected}

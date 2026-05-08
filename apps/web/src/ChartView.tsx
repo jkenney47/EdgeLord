@@ -5,7 +5,6 @@ import type { Bar } from "./api";
 import { formatEasternTime } from "./timeFormat";
 
 type Props = {
-  bars: Bar[];
   selected: Bar | null;
   visibleBars: Bar[];
   onSelect: (bar: Bar) => void;
@@ -20,7 +19,14 @@ function formatChartTime(time: Time): string {
   return formatEasternTime(Number(time));
 }
 
-export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Props) {
+export function findBarForChartTime(bars: Bar[], time: Time | undefined): Bar | null {
+  if (!time) return null;
+  const timestamp = Number(time);
+  if (!Number.isFinite(timestamp)) return null;
+  return bars.find((bar) => toTime(bar.timestamp) === timestamp) ?? null;
+}
+
+export function ChartView({ selected, visibleBars, onSelect, onHover }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -58,16 +64,15 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       wickDownColor: "#f2a1a3"
     });
     chart.subscribeClick((event) => {
-      if (!event.time) return;
-      const clicked = bars.find((bar) => toTime(bar.timestamp) === event.time);
+      const clicked = findBarForChartTime(visibleBars, event.time);
       if (clicked) onSelect(clicked);
     });
     chart.subscribeCrosshairMove((event) => {
-      if (!event.time) {
+      const hovered = findBarForChartTime(visibleBars, event.time);
+      if (!hovered) {
         onHover(null);
         return;
       }
-      const hovered = bars.find((bar) => toTime(bar.timestamp) === event.time) ?? null;
       onHover(hovered);
     });
     chartRef.current = chart;
@@ -76,7 +81,7 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       onHover(null);
       chart.remove();
     };
-  }, [bars, onHover, onSelect]);
+  }, [onHover, onSelect, visibleBars]);
 
   useEffect(() => {
     candleSeriesRef.current?.setData(chartData);

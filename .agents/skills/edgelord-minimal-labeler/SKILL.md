@@ -106,23 +106,23 @@ Current known-good imported dataset:
 
 ```text
 source: Alpaca SIP adjusted 1Min, RTH-only
-range: 2016-01-04 to 2026-04-01
-file: data/alpaca-soxl-soxs-1min-2011-20260401-rth.csv
-rows: 1,806,117 raw rows
-chart bars: 32,699 aggregate bars
+range: 2016-01-04 to 2026-05-07
+file: data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv
+rows: 1,825,617 raw rows
+chart bars: 32,999 aggregate bars
 ```
 
-The account did not return 2011-2015 minute data for this workflow. Validate the Alpaca-minute backfill with the 2016 target:
+The account did not return 2011-2015 minute data for this workflow. The account also rejected same-day `2026-05-08` SIP history with `subscription does not permit querying recent SIP data`, so the current known-good high-quality SIP cache ends on `2026-05-07`. Validate the Alpaca-minute backfill with the 2016 target:
 
 ```bash
-pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260401-rth.csv --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 85
+pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 85
 ```
 
 If replacing bars with active labels:
 
 ```bash
 pnpm export:backup
-pnpm import:csv data/alpaca-soxl-soxs-1min-2011-20260401-rth.csv --replace-bars --force-replace-bars --research-ready --target-start 2016-01-04 --min-years 10
+pnpm import:csv data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv --replace-bars --force-replace-bars --research-ready --target-start 2016-01-04 --min-years 10
 pnpm labels:integrity
 pnpm labels:repair
 pnpm data:status

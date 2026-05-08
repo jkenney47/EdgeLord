@@ -1,5 +1,6 @@
 import type { Bar, DatasetPulse, FeatureSnapshot, Label, LabelAction, LabelSource, Ticker, Trade } from "./api";
 import { getCaptureBlockReason } from "./captureRules";
+import { formatEasternTime } from "./timeFormat";
 import { getOpenTradeSelectionContext } from "./tradeReview";
 
 type Props = {
@@ -138,7 +139,7 @@ export function CapturePanel({
         {inspected ? (
           <div className="selected-card">
             <strong>{inspected.ticker} {inspected.timeframe}</strong>
-            <span>{new Date(inspected.timestamp).toLocaleString()}</span>
+            <span>{formatEasternTime(inspected.timestamp)} ET</span>
             <div className="ohlc">
               <span>O {inspected.open.toFixed(2)}</span>
               <span>H {inspected.high.toFixed(2)}</span>

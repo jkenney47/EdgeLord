@@ -1,7 +1,8 @@
-import { CandlestickSeries, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
+import { CandlestickSeries, createChart, type IChartApi, type ISeriesApi, type Time, type UTCTimestamp } from "lightweight-charts";
 import { useEffect, useMemo, useRef } from "react";
 
 import type { Bar } from "./api";
+import { formatEasternTime } from "./timeFormat";
 
 type Props = {
   bars: Bar[];
@@ -13,6 +14,10 @@ type Props = {
 
 function toTime(timestamp: string): UTCTimestamp {
   return Math.floor(new Date(timestamp).getTime() / 1000) as UTCTimestamp;
+}
+
+function formatChartTime(time: Time): string {
+  return formatEasternTime(Number(time));
 }
 
 export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Props) {
@@ -35,7 +40,14 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       layout: { background: { color: "#0f1419" }, textColor: "#c8d0dc" },
       grid: { vertLines: { color: "#1f2935" }, horzLines: { color: "#1f2935" } },
       rightPriceScale: { borderColor: "#2a3442" },
-      timeScale: { borderColor: "#2a3442", timeVisible: true }
+      localization: {
+        timeFormatter: formatChartTime
+      },
+      timeScale: {
+        borderColor: "#2a3442",
+        timeVisible: true,
+        tickMarkFormatter: formatChartTime
+      }
     });
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#33c7a0",
@@ -76,7 +88,7 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       <div ref={containerRef} className="chart-view" />
       {selected ? (
         <div className="selected-marker">
-          Selected {selected.ticker} {selected.timeframe} {selected.timestamp.slice(0, 10)} C {selected.close.toFixed(2)}
+          Selected {selected.ticker} {selected.timeframe} {formatEasternTime(selected.timestamp)} ET C {selected.close.toFixed(2)}
         </div>
       ) : null}
     </section>

@@ -46,7 +46,7 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       timeScale: {
         borderColor: "#2a3442",
         timeVisible: true,
-        tickMarkFormatter: formatChartTime
+        tickMarkFormatter: () => ""
       }
     });
     const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -88,7 +88,7 @@ export function ChartView({ bars, selected, visibleBars, onSelect, onHover }: Pr
       <div ref={containerRef} className="chart-view" />
       {selected ? (
         <div className="selected-marker">
-          Selected {selected.ticker} {selected.timeframe} {formatEasternTime(selected.timestamp)} ET C {selected.close.toFixed(2)}
+          Selected {selected.ticker} {selected.timeframe} C {selected.close.toFixed(2)}
         </div>
       ) : null}
     </section>

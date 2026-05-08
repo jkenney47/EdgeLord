@@ -1,19 +1,59 @@
 import type { Bar, ChartTimeframe } from "./schema";
 
+type EasternParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
+const easternFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
+
+function easternParts(date: Date): EasternParts {
+  const parts = Object.fromEntries(easternFormatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute)
+  };
+}
+
+function easternOffsetMinutes(date: Date): number {
+  const parts = easternParts(date);
+  const localAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  return (localAsUtc - date.getTime()) / 60_000;
+}
+
+function easternLocalIso(parts: EasternParts): string {
+  const utcGuess = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute));
+  const offsetMinutes = easternOffsetMinutes(utcGuess);
+  return new Date(utcGuess.getTime() - offsetMinutes * 60_000).toISOString();
+}
+
 function bucketTimestamp(timestamp: string, timeframe: ChartTimeframe): string {
   const date = new Date(timestamp);
+  const local = easternParts(date);
   if (timeframe === "1D") {
-    date.setUTCHours(14, 30, 0, 0);
-    return date.toISOString();
+    return easternLocalIso({ ...local, hour: 4, minute: 0 });
   }
 
-  const totalMinutes = date.getUTCHours() * 60 + date.getUTCMinutes();
-  const marketOpen = 14 * 60 + 30;
+  const totalMinutes = local.hour * 60 + local.minute;
+  const sessionOpen = 4 * 60;
   const size = timeframe === "2H" ? 120 : 240;
-  const offset = Math.max(0, totalMinutes - marketOpen);
-  const bucket = marketOpen + Math.floor(offset / size) * size;
-  date.setUTCHours(Math.floor(bucket / 60), bucket % 60, 0, 0);
-  return date.toISOString();
+  const offset = Math.max(0, totalMinutes - sessionOpen);
+  const bucket = sessionOpen + Math.floor(offset / size) * size;
+  return easternLocalIso({ ...local, hour: Math.floor(bucket / 60), minute: bucket % 60 });
 }
 
 export function aggregateBars(rawBars: Bar[], timeframe: ChartTimeframe): Bar[] {

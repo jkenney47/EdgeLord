@@ -67,7 +67,7 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade",
         parent_entry_label_id: "entry",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z",
+        timestamp: "2024-01-02T21:00:00.000Z",
         chart_price: 29
       })
     ];
@@ -89,7 +89,7 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade",
         parent_entry_label_id: "entry",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z",
+        timestamp: "2024-01-02T21:00:00.000Z",
         chart_price: 29
       }),
       label("ENTRY", {
@@ -143,27 +143,27 @@ describe("buildDatasetPulse", () => {
         trade_id: "trade-1",
         parent_entry_label_id: "entry-1",
         training_eligible: 1,
-        timestamp: "2024-01-03T14:30:00.000Z",
+        timestamp: "2024-01-02T21:00:00.000Z",
         chart_price: 29
       }),
       label("ENTRY", {
         id: "entry-2",
         trade_id: "trade-2",
         training_eligible: 1,
-        timestamp: "2024-01-04T14:30:00.000Z"
+        timestamp: "2024-01-04T13:00:00.000Z"
       }),
       label("EXIT", {
         id: "exit-2",
         trade_id: "trade-2",
         parent_entry_label_id: "entry-2",
         training_eligible: 1,
-        timestamp: "2024-01-05T14:30:00.000Z",
+        timestamp: "2024-01-04T21:00:00.000Z",
         chart_price: 29
       }),
       label("SKIP", {
         id: "skip-1",
         training_eligible: 1,
-        timestamp: "2024-01-06T14:30:00.000Z"
+        timestamp: "2024-01-05T13:00:00.000Z"
       })
     ];
     const trades = [
@@ -178,8 +178,8 @@ describe("buildDatasetPulse", () => {
       id: "trade-2",
       entry_label_id: "entry-2",
       exit_label_id: "exit-2",
-      entry_timestamp: "2024-01-04T14:30:00.000Z",
-      exit_timestamp: "2024-01-05T14:30:00.000Z"
+      entry_timestamp: "2024-01-04T13:00:00.000Z",
+      exit_timestamp: "2024-01-04T21:00:00.000Z"
     }];
     const pulse = buildDatasetPulse(barSummary, labels, trades);
 
@@ -260,22 +260,22 @@ function label(action: Label["action"], overrides: Partial<Label> = {}): Label {
     action,
     ticker: "SOXL",
     timeframe: "4H",
-    timestamp: "2024-01-02T14:30:00.000Z",
+    timestamp: "2024-01-02T13:00:00.000Z",
     bar_index: 0,
     chart_price: 28.19,
     execution_price: null,
     trade_id: null,
     parent_entry_label_id: null,
     capture_mode: "replay",
-    visible_until_timestamp: "2024-01-02T14:30:00.000Z",
+    visible_until_timestamp: "2024-01-02T13:00:00.000Z",
     potential_visual_leakage: 0,
     confidence: null,
     setup_quality: null,
     reason_codes_json: "[]",
     notes: null,
     features_json: "{}",
-    created_at: "2024-01-02T14:30:00.000Z",
-    updated_at: "2024-01-02T14:30:00.000Z",
+    created_at: "2024-01-02T13:00:00.000Z",
+    updated_at: "2024-01-02T13:00:00.000Z",
     deleted_at: null,
     ...overrides
   };
@@ -289,13 +289,13 @@ function trade(status: Trade["status"]): Trade {
     ticker: "SOXL",
     entry_label_id: "entry",
     exit_label_id: status === "closed" ? "exit" : null,
-    entry_timestamp: "2024-01-02T14:30:00.000Z",
-    exit_timestamp: status === "closed" ? "2024-01-03T14:30:00.000Z" : null,
+    entry_timestamp: "2024-01-02T13:00:00.000Z",
+    exit_timestamp: status === "closed" ? "2024-01-02T21:00:00.000Z" : null,
     entry_price: entryPrice,
     exit_price: exitPrice,
     return_pct: exitPrice === null ? null : ((exitPrice - entryPrice) / entryPrice) * 100,
     status,
-    created_at: "2024-01-02T14:30:00.000Z",
-    updated_at: "2024-01-02T14:30:00.000Z"
+    created_at: "2024-01-02T13:00:00.000Z",
+    updated_at: "2024-01-02T13:00:00.000Z"
   };
 }

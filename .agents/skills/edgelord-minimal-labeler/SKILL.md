@@ -105,24 +105,25 @@ Alpaca credentials are loaded from `.env` by `pnpm data:alpaca`; do not print se
 Current known-good imported dataset:
 
 ```text
-source: Alpaca SIP adjusted 1Min, RTH-only
+source: Alpaca SIP adjusted 1Min, regular + extended hours
 range: 2016-01-04 to 2026-05-07
-file: data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv
-rows: 1,825,617 raw rows
-chart bars: 32,999 aggregate bars
+file: data/alpaca-soxl-soxs-1min-2011-20260507-extended.csv
+rows: 3,138,957 raw rows
+chart bars: 62,155 aggregate bars
+cadence: 4H bars anchor to 04:00, 08:00, 12:00, 16:00 Eastern; 2H bars anchor every two hours from 04:00 Eastern
 ```
 
-The account did not return 2011-2015 minute data for this workflow. The account also rejected same-day `2026-05-08` SIP history with `subscription does not permit querying recent SIP data`, so the current known-good high-quality SIP cache ends on `2026-05-07`. Validate the Alpaca-minute backfill with the 2016 target:
+The account did not return 2011-2015 minute data for this workflow. The account also rejected same-day `2026-05-08` SIP history with `subscription does not permit querying recent SIP data`, so the current known-good high-quality SIP cache ends on `2026-05-07`. Extended-hours SOXL/SOXS timestamp overlap is lower than RTH because premarket/after-hours liquidity is uneven, so validate this cache with an 80% paired-overlap floor:
 
 ```bash
-pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 85
+pnpm validate:csv data/alpaca-soxl-soxs-1min-2011-20260507-extended.csv --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 80
 ```
 
 If replacing bars with active labels:
 
 ```bash
 pnpm export:backup
-pnpm import:csv data/alpaca-soxl-soxs-1min-2011-20260507-rth.csv --replace-bars --force-replace-bars --research-ready --target-start 2016-01-04 --min-years 10
+pnpm import:csv data/alpaca-soxl-soxs-1min-2011-20260507-extended.csv --replace-bars --force-replace-bars --research-ready --target-start 2016-01-04 --min-years 10 --min-paired-overlap-pct 80
 pnpm labels:integrity
 pnpm labels:repair
 pnpm data:status
